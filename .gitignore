@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+test-results/
+
+# agent worktrees never belong in the repo
+.worktrees/
+.claude/worktrees/
+.codex-worktrees/
