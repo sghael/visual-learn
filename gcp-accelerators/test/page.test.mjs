@@ -1,0 +1,109 @@
+// Browser regression tests. Drives index.html in headless Chrome (the installed
+// Google Chrome via Playwright's "chrome" channel, falling back to Playwright's
+// own Chromium if that is unavailable). Run with `pnpm test`.
+// D3 loads from cdnjs, so the tests need network access.
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { chromium } from 'playwright';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const PAGE = pathToFileURL(path.join(here, '..', 'index.html')).href;
+let browser;
+
+before(async () => {
+  try { browser = await chromium.launch({ channel: 'chrome', headless: true }); }
+  catch { browser = await chromium.launch({ headless: true }); }
+});
+after(async () => { if (browser) await browser.close(); });
+
+/** Open the page; collect page errors and console errors. Web fonts are stubbed so font outages do not fail the run. */
+async function open({ width = 1440, reduced = true } = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+  await context.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  await page.goto(PAGE);
+  await page.waitForSelector('#fit-table tbody tr');
+  return { page, context, errors };
+}
+
+/** Fraction of sampled pixels on a canvas that are not fully transparent. */
+const painted = (page, sel) => page.$eval(sel, (c) => {
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  let n = 0, t = 0;
+  for (let i = 3; i < d.length; i += 4 * 37) { t++; if (d[i]) n++; }
+  return n / t;
+});
+
+for (const width of [1440, 390]) {
+  test(`page renders every chapter without errors or horizontal overflow at ${width}px`, async () => {
+    const { page, context, errors } = await open({ width });
+    assert.equal(await page.$$eval('section.chapter', (els) => els.length), 8);
+    assert.equal(await page.$$eval('#scatter circle', (els) => els.length), 19, 'one dot per rentable chip');
+    assert.equal(await page.$$eval('.chip:not(.ghost)', (els) => els.length), 19, 'one card per rentable chip');
+    assert.equal(await page.$$eval('.chip.ghost', (els) => els.length), 2, 'TPU 8t and 8i shown as announced');
+    for (const sel of ['#hero-canvas', '#anat-gpu', '#anat-tpu']) assert.ok((await painted(page, sel)) > 0.2, `${sel} is blank at rest`);
+    assert.equal(await page.$$eval('#topos canvas', (els) => els.length), 4);
+    // scroll through the page so lazy layout and the TOC observer run
+    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 25)); } });
+    await page.waitForTimeout(300);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.equal(overflow, 0, 'page scrolls horizontally');
+    assert.deepEqual(errors, []);
+    await context.close();
+  });
+}
+
+test('clicking a lineup card opens its spec sheet and clicking again closes it', async () => {
+  const { page, context, errors } = await open();
+  const card = page.locator('.chip[data-id="tpu7x"]');
+  await card.click();
+  assert.equal(await card.getAttribute('aria-pressed'), 'true');
+  assert.match(await page.locator('#detail h3').innerText(), /Ironwood/);
+  assert.equal(await page.$$eval('#detail-bars rect', (els) => els.length), 10, 'five bars, each with a track');
+  await card.click();
+  assert.ok(await page.$eval('#detail', (el) => el.hidden));
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('scatter precision toggle relabels the axis and keeps every dot', async () => {
+  const { page, context, errors } = await open();
+  await page.locator('[data-prec="bf16"]').click();
+  assert.equal(await page.locator('[data-prec="bf16"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-prec="fp8"]').getAttribute('aria-pressed'), 'false');
+  await page.waitForTimeout(600);
+  assert.match(await page.$eval('#scatter', (s) => s.textContent), /BF16/);
+  assert.equal(await page.$$eval('#scatter circle', (els) => els.filter((c) => +c.getAttribute('r') > 0).length), 19);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('fit calculator: 70B at FP8 with 40% headroom needs 98 GB, two H100s, one H200; training multiplies by 16', async () => {
+  const { page, context, errors } = await open();
+  const row = (name) => page.$$eval('#fit-table tbody tr', (trs, n) => { const tr = trs.find((t) => t.children[0].textContent.trim() === n); return [...tr.children].map((td) => td.textContent.trim()); }, name);
+  assert.equal(await page.locator('#fit-need').innerText(), '98 GB');
+  assert.equal((await row('H100 (High)'))[2], '2');
+  assert.equal((await row('H200'))[2], '1');
+  assert.equal((await row('T4'))[3].startsWith('no'), true, 'seven T4s exceed the four-GPU N1 limit');
+  await page.selectOption('#fit-mode', 'train');
+  assert.equal(await page.locator('#fit-need').innerText(), '1.57 TB');
+  assert.equal((await row('B200'))[2], '10');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('roofline: the verdict follows the chip and the intensity slider', async () => {
+  const { page, context, errors } = await open();
+  assert.match(await page.locator('#roof-verdict').innerText(), /H200.*memory-bound/s);
+  await page.locator('#roof-ai').fill('3.5'); // about 3,162 FLOP/byte
+  assert.match(await page.locator('#roof-verdict').innerText(), /compute-bound/);
+  await page.selectOption('#roof-chip', 'v5e');
+  assert.match(await page.locator('#roof-verdict').innerText(), /TPU v5e.*ridge at about 480 FLOP\/byte/s);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
