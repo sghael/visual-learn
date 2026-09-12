@@ -1,0 +1,15 @@
+{
+  "name": "rl-agentic-llms",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Interactive explainer on reinforcement learning for agentic LLMs. The page itself has no dependencies; the dev dependency drives it in headless Chrome for the tests.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "serve": "python3 -m http.server 8000 --bind 0.0.0.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  },
+  "packageManager": "pnpm@10.34.5"
+}

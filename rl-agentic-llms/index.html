@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic RL Explainer</title>
+<meta name="description" content="An interactive, visual tutorial on how reinforcement learning turns language models into agents: policy gradients, RLHF, GRPO, verifiable rewards, multi-turn tool-use training, reward hacking, and what the frontier labs are doing in 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+/* ---------- tokens ---------- */
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --bg-2: #ffffff;
+  --bg-3: #e9ecf1;
+  --ink: #12181f;
+  --ink-2: #4a5462;
+  --ink-3: #7c8794;
+  --line: #d6dbe3;
+  --line-2: #bfc7d2;
+  --policy: #2b6fd6;        /* policy / model tokens */
+  --env: #e0762f;           /* environment / observations */
+  --reward: #17a673;        /* positive reward */
+  --penalty: #d33f49;       /* negative reward */
+  --ref: #8a5cd6;           /* reference model / KL */
+  --gold: #e3a400;
+  --policy-soft: #dce8fa;
+  --env-soft: #fbe5d5;
+  --reward-soft: #d9f3e8;
+  --penalty-soft: #fadcde;
+  --ref-soft: #e9e0f9;
+  --shadow: 0 1px 2px rgba(18,24,31,.06), 0 8px 24px rgba(18,24,31,.06);
+  --radius: 8px;
+  --max: 1080px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #11151a; --bg-2: #181d24; --bg-3: #222932;
+    --ink: #eef1f5; --ink-2: #b3bcc8; --ink-3: #7f8a99;
+    --line: #2d3540; --line-2: #3d4753;
+    --policy: #5b95ea; --env: #f08c4a; --reward: #35c48f; --penalty: #ef6670; --ref: #ad8cec; --gold: #f1bd2e;
+    --policy-soft: #1c3053; --env-soft: #4a2a14; --reward-soft: #12392b; --penalty-soft: #4a1c21; --ref-soft: #2f2350;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #11151a; --bg-2: #181d24; --bg-3: #222932;
+  --ink: #eef1f5; --ink-2: #b3bcc8; --ink-3: #7f8a99;
+  --line: #2d3540; --line-2: #3d4753;
+  --policy: #5b95ea; --env: #f08c4a; --reward: #35c48f; --penalty: #ef6670; --ref: #ad8cec; --gold: #f1bd2e;
+  --policy-soft: #1c3053; --env-soft: #4a2a14; --reward-soft: #12392b; --penalty-soft: #4a1c21; --ref-soft: #2f2350;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+:focus-visible { outline: 2px solid var(--policy); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; animation: none !important; } }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Public Sans", system-ui, -apple-system, sans-serif;
+  font-size: 16px; line-height: 1.6;
+}
+h1, h2, h3, h4 { font-family: "Familjen Grotesk", "Public Sans", sans-serif; line-height: 1.15; margin: 0 0 .5rem; letter-spacing: -.01em; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 700; }
+h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); font-weight: 700; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+p { margin: 0 0 1rem; }
+a { color: var(--policy); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover { border-bottom-color: currentColor; }
+code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .88em; }
+code { background: var(--bg-3); padding: .1em .35em; border-radius: 4px; }
+button { font: inherit; cursor: pointer; }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 1.25rem; }
+.muted { color: var(--ink-2); }
+.small { font-size: .88rem; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 600; color: var(--ink-3); margin-bottom: .6rem; }
+
+/* ---------- nav ---------- */
+.topnav {
+  position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg-2) 88%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+}
+.topnav .wrap { display: flex; align-items: center; gap: 1rem; height: 52px; }
+.topnav .brand { font-family: "Familjen Grotesk"; font-weight: 700; white-space: nowrap; }
+.topnav nav { display: flex; gap: .2rem; overflow-x: auto; scrollbar-width: none; flex: 1; }
+.topnav nav a { font-size: .82rem; color: var(--ink-2); padding: .35rem .6rem; border-radius: 999px; white-space: nowrap; border: none; }
+.topnav nav a:hover, .topnav nav a.active { background: var(--bg-3); color: var(--ink); }
+.progress { position: absolute; left: 0; bottom: -1px; height: 2px; background: var(--policy); width: 0; }
+
+/* ---------- hero ---------- */
+.hero { padding: 4rem 0 2.5rem; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.hero .lede { font-size: 1.15rem; color: var(--ink-2); max-width: 44rem; }
+.hero-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2.5rem; align-items: center; }
+@media (max-width: 800px) { .hero-grid { grid-template-columns: 1fr; } }
+.legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; font-size: .82rem; color: var(--ink-2); margin-top: 1rem; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: .4rem; vertical-align: -1px; background: var(--c); }
+
+/* ---------- sections ---------- */
+section.chapter { padding: 3.5rem 0 2rem; border-bottom: 1px solid var(--line); }
+section.chapter:nth-of-type(even) { background: var(--bg-2); }
+.chapter .intro { max-width: 46rem; }
+.chapter-num { font-family: "JetBrains Mono"; color: var(--policy); font-size: .8rem; letter-spacing: .1em; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+
+/* ---------- panels / cards ---------- */
+.panel {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 1.25rem; margin: 1.5rem 0;
+}
+section.chapter:nth-of-type(even) .panel { background: var(--bg); }
+.panel h3 { margin-bottom: .25rem; }
+.panel .hint { font-size: .85rem; color: var(--ink-3); margin-bottom: 1rem; }
+.callout { border-left: 3px solid var(--policy); padding: .6rem 1rem; background: var(--policy-soft); border-radius: 0 var(--radius) var(--radius) 0; margin: 1rem 0; font-size: .95rem; }
+.callout.warn { border-color: var(--env); background: var(--env-soft); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: .25rem 1rem; font-size: .9rem; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; }
+.formula { font-family: "JetBrains Mono"; font-size: .9rem; background: var(--bg-3); padding: .75rem 1rem; border-radius: var(--radius); overflow-x: auto; margin: .75rem 0; line-height: 1.7; }
+.formula .hl-p { color: var(--policy); font-weight: 500; }
+.formula .hl-r { color: var(--reward); font-weight: 500; }
+.formula .hl-k { color: var(--ref); font-weight: 500; }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; margin: .5rem 0 1rem; font-size: .88rem; }
+.controls label { display: flex; align-items: center; gap: .5rem; color: var(--ink-2); }
+input[type=range] { accent-color: var(--policy); width: 140px; }
+.btn { border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); padding: .4rem .8rem; border-radius: 6px; font-size: .85rem; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--policy); color: #fff; border-color: var(--policy); }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--ink-2); padding: .35rem .7rem; font-size: .82rem; }
+.seg button.on { background: var(--ink); color: var(--bg); }
+.chart svg { width: 100%; height: auto; display: block; }
+.axis text { fill: var(--ink-3); font-size: 11px; font-family: "Public Sans"; }
+.axis line, .axis path { stroke: var(--line-2); }
+
+/* pipeline */
+.pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin: 1rem 0; }
+@media (max-width: 720px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
+.stage { border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem; background: var(--bg-2); cursor: pointer; transition: transform .15s, border-color .15s; position: relative; }
+.stage:hover { transform: translateY(-2px); }
+.stage.on { border-color: var(--policy); box-shadow: 0 0 0 2px var(--policy-soft); }
+.stage .n { font-family: "JetBrains Mono"; font-size: .7rem; color: var(--ink-3); }
+.stage h4 { margin: .2rem 0; font-size: 1rem; }
+.stage .d { font-size: .8rem; color: var(--ink-2); }
+.stage .bar { height: 5px; border-radius: 3px; margin-top: .6rem; background: var(--bg-3); overflow: hidden; }
+.stage .bar i { display: block; height: 100%; background: var(--policy); }
+.stage-detail { min-height: 8rem; }
+.stage-detail h4 { margin-top: 0; }
+
+/* RL loop svg */
+.rlloop text { font-family: "Public Sans"; font-size: 13px; fill: var(--ink); }
+.rlloop .lbl { font-size: 11px; fill: var(--ink-3); }
+.rlloop .box { fill: var(--bg-2); stroke: var(--line-2); stroke-width: 1.5; }
+.rlloop .box.agent { stroke: var(--policy); }
+.rlloop .box.env { stroke: var(--env); }
+.rlloop .arrow { fill: none; stroke: var(--line-2); stroke-width: 2; }
+
+/* GRPO */
+.samples { display: grid; gap: .5rem; }
+.sample { display: grid; grid-template-columns: 1.2rem 1fr auto auto; gap: .75rem; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: .5rem .75rem; background: var(--bg-2); font-size: .88rem; }
+.sample .txt { font-family: "JetBrains Mono"; font-size: .78rem; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sample .idx { color: var(--ink-3); font-family: "JetBrains Mono"; font-size: .75rem; }
+.sample .tog { border: 1px solid var(--line-2); background: transparent; border-radius: 5px; padding: .2rem .5rem; font-size: .78rem; min-width: 5.4rem; }
+.sample .tog.ok { background: var(--reward-soft); border-color: var(--reward); color: var(--reward); }
+.sample .tog.bad { background: var(--penalty-soft); border-color: var(--penalty); color: var(--penalty); }
+.sample .adv { font-family: "JetBrains Mono"; font-size: .8rem; min-width: 4.5rem; text-align: right; }
+.advbar { display: flex; align-items: center; gap: .3rem; }
+.advbar i { display: block; height: 10px; border-radius: 2px; }
+.stat-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: .75rem 0; font-size: .88rem; }
+.stat-row b { font-family: "JetBrains Mono"; font-weight: 500; }
+
+/* preference */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+@media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+.resp { border: 1px solid var(--line); border-radius: var(--radius); padding: .8rem; background: var(--bg-2); font-size: .88rem; position: relative; }
+.resp .who { font-size: .72rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; }
+.resp .score { position: absolute; top: .6rem; right: .7rem; font-family: "JetBrains Mono"; font-size: .8rem; color: var(--ref); }
+.resp button { margin-top: .6rem; }
+.resp.win { border-color: var(--reward); box-shadow: 0 0 0 2px var(--reward-soft); }
+.meter { height: 14px; background: var(--bg-3); border-radius: 7px; overflow: hidden; margin: .4rem 0; }
+.meter i { display: block; height: 100%; background: var(--ref); transition: width .3s; }
+
+/* trajectory */
+.traj { display: grid; gap: .35rem; }
+.turn { display: grid; grid-template-columns: 7.5rem 1fr 4.5rem; gap: .6rem; align-items: stretch; font-size: .82rem; }
+.turn .role { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); padding-top: .5rem; }
+.turn .body { border-radius: 6px; padding: .45rem 5.5rem .45rem .7rem; font-family: "JetBrains Mono"; font-size: .76rem; white-space: pre-wrap; border: 1px solid var(--line); line-height: 1.5; position: relative; }
+.turn.policy .body { background: var(--policy-soft); border-color: color-mix(in srgb, var(--policy) 40%, transparent); }
+.turn.env .body { background: var(--env-soft); border-color: color-mix(in srgb, var(--env) 40%, transparent); }
+.turn.prompt .body { background: var(--bg-3); }
+.turn .cred { display: flex; align-items: center; justify-content: center; font-family: "JetBrains Mono"; font-size: .74rem; border-radius: 6px; }
+.turn.policy .cred { border: 1px dashed var(--line-2); }
+.turn .tag { position: absolute; top: .25rem; right: .4rem; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; opacity: .7; font-family: "Public Sans"; }
+.traj.masked .turn.env .body { opacity: .45; background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--env) 15%, transparent) 6px 8px); }
+@media (max-width: 640px) { .turn { grid-template-columns: 1fr; } .turn .cred { padding: .3rem; } }
+
+/* labs */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 1rem; }
+.chip { border: 1px solid var(--line-2); background: transparent; color: var(--ink-2); border-radius: 999px; padding: .25rem .75rem; font-size: .8rem; }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.labs { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: .9rem; }
+.lab { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; background: var(--bg-2); border-top: 4px solid var(--c, var(--policy)); }
+.lab h4 { margin: 0 0 .25rem; font-size: 1.05rem; }
+.lab .sig { font-size: .78rem; color: var(--ink-3); margin-bottom: .6rem; }
+.lab ul { margin: 0; padding-left: 1.1rem; font-size: .85rem; }
+.lab li { margin-bottom: .3rem; }
+.lab .tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .6rem; }
+.lab .tags span { font-size: .7rem; background: var(--bg-3); border-radius: 4px; padding: .1rem .4rem; color: var(--ink-2); }
+
+/* timeline */
+.timeline { position: relative; margin: 1.5rem 0; }
+.tl-detail { min-height: 5rem; }
+
+/* problems */
+.grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .9rem; }
+.prob { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; background: var(--bg-2); }
+.prob h4 { margin: 0 0 .35rem; font-size: 1rem; }
+.prob p { font-size: .88rem; margin: 0; color: var(--ink-2); }
+
+/* glossary */
+.gloss { columns: 2; column-gap: 2rem; font-size: .9rem; }
+@media (max-width: 720px) { .gloss { columns: 1; } }
+.gloss dt { font-weight: 600; break-after: avoid; }
+.gloss dd { margin: 0 0 .7rem; color: var(--ink-2); }
+footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
+.refs li { margin-bottom: .35rem; }
+.tooltip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); padding: .4rem .6rem; border-radius: 6px; font-size: .78rem; z-index: 99; opacity: 0; transition: opacity .12s; max-width: 260px; }
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="wrap">
+    <span class="brand">Agentic RL</span>
+    <nav id="nav">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#loop">The loop</a>
+      <a href="#policy">Policy gradient</a>
+      <a href="#grpo">GRPO</a>
+      <a href="#rlhf">RLHF</a>
+      <a href="#rlvr">Verifiable rewards</a>
+      <a href="#agentic">Agentic RL</a>
+      <a href="#hacking">Reward hacking</a>
+      <a href="#labs">Frontier labs</a>
+      <a href="#scaling">Scaling</a>
+      <a href="#problems">Open problems</a>
+      <a href="#glossary">Glossary</a>
+    </nav>
+  </div>
+  <div class="progress" id="progress"></div>
+</div>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">A visual explainer · updated September 2026</div>
+      <h1>How reinforcement learning turns a language model into an agent</h1>
+      <p class="lede">Pretraining teaches a model to predict text. Reinforcement learning teaches it to <em>act</em>: to try things, get feedback, and shift probability toward behaviors that work. This page walks through the mechanics, from a single policy-gradient step to multi-turn tool-using agents, and surveys what OpenAI, Anthropic, Google DeepMind, DeepSeek and others have publicly said they do.</p>
+      <div class="legend">
+        <span style="--c: var(--policy)">policy / model tokens</span>
+        <span style="--c: var(--env)">environment / observations</span>
+        <span style="--c: var(--reward)">reward</span>
+        <span style="--c: var(--penalty)">penalty</span>
+        <span style="--c: var(--ref)">reference model / KL</span>
+      </div>
+    </div>
+    <div class="chart" id="hero-viz" data-widget="hero"></div>
+  </div>
+</header>
+
+<!-- 1 PIPELINE -->
+<section class="chapter" id="pipeline">
+  <div class="wrap">
+    <div class="chapter-num">01</div>
+    <h2>Where RL sits in the training pipeline</h2>
+    <p class="intro">A frontier model goes through several training phases. Each one changes <em>what the loss is about</em>. Click a stage to see what it optimizes and what it costs. The bars are a rough, illustrative share of total training compute in 2026; the RL slice has been growing fast.</p>
+    <div class="pipeline" id="stages" data-widget="pipeline"></div>
+    <div class="panel stage-detail" id="stage-detail"></div>
+    <div class="callout">The big shift of 2024 to 2026: RL went from a light "alignment polish" applied after pretraining to a <strong>primary capability engine</strong>. Reasoning models and coding agents get most of their skill from RL on tasks with checkable outcomes.</div>
+  </div>
+</section>
+
+<!-- 2 THE LOOP -->
+<section class="chapter" id="loop">
+  <div class="wrap">
+    <div class="chapter-num">02</div>
+    <h2>The RL loop, translated to language models</h2>
+    <div class="two">
+      <div>
+        <p class="intro">Classical RL has an <strong>agent</strong> that observes a <strong>state</strong>, takes an <strong>action</strong>, and receives a <strong>reward</strong> from an <strong>environment</strong>. For a language model, the mapping is unusual: the state is the whole context window, an action is emitting a token (or, at a higher level, a whole message or tool call), and the environment is whatever produces the next observation, which might be a grader, a code sandbox, a browser, or a simulated user.</p>
+        <p>Toggle between the two views. Watch where the reward arrives: for a single-turn answer it comes once, at the very end. That is the core difficulty. Thousands of tokens are chosen and only one number comes back.</p>
+        <dl class="kv" id="loop-kv"></dl>
+      </div>
+      <div class="panel">
+        <div class="controls">
+          <div class="seg" id="loop-seg"><button class="on" data-v="classic">Classic RL</button><button data-v="llm">LLM agent</button></div>
+          <button class="btn" id="loop-play">▶ Run one episode</button>
+        </div>
+        <div class="chart" id="loop-viz" data-widget="loop"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 POLICY GRADIENT -->
+<section class="chapter" id="policy">
+  <div class="wrap">
+    <div class="chapter-num">03</div>
+    <h2>The one idea under everything: nudge probabilities by advantage</h2>
+    <p class="intro">Every RL method used on LLMs today is a variant of the <strong>policy gradient</strong>. Sample a response from the model, score it, and then increase the log-probability of the tokens you sampled in proportion to how much better than expected the outcome was. That "better than expected" quantity is the <strong>advantage</strong>.</p>
+    <div class="formula">∇J(θ) ≈ E[ Σ<sub>t</sub> <span class="hl-r">A<sub>t</sub></span> · ∇<sub>θ</sub> log <span class="hl-p">π<sub>θ</sub>(a<sub>t</sub> | s<sub>t</sub>)</span> ]  &nbsp;&nbsp; <span class="muted">// REINFORCE with a baseline</span></div>
+    <div class="two">
+      <div class="panel">
+        <h3>Try it: one update on a tiny vocabulary</h3>
+        <div class="hint">The model must pick one of five "answers". Pick which one was sampled and how much reward it got, then apply an update. Advantage is reward minus the running baseline.</div>
+        <div class="controls">
+          <label>Sampled action <select id="pg-action"></select></label>
+          <label>Reward <input type="range" id="pg-reward" min="-1" max="1" step="0.1" value="1"><span class="mono" id="pg-reward-v">1.0</span></label>
+          <label>Learning rate <input type="range" id="pg-lr" min="0.1" max="2" step="0.1" value="1"><span class="mono" id="pg-lr-v">1.0</span></label>
+          <button class="btn primary" id="pg-step">Apply update</button>
+          <button class="btn" id="pg-reset">Reset</button>
+        </div>
+        <div class="chart" id="pg-viz" data-widget="policy-gradient"></div>
+        <div class="stat-row"><span>baseline <b id="pg-base">0.00</b></span><span>advantage <b id="pg-adv">1.00</b></span><span>updates <b id="pg-n">0</b></span></div>
+      </div>
+      <div>
+        <h3>Why the clipped objective (PPO)</h3>
+        <p>Raw policy gradients are unstable: one lucky sample can yank a probability far from where it was. <strong>PPO</strong> (Schulman et al., 2017) bounds each update by looking at the <em>ratio</em> between the new and old policy's probability of a token, and clipping the objective once that ratio leaves [1−ε, 1+ε]. Move the slider to see how the objective flattens: past the clip, the gradient is zero and the sample stops pushing.</p>
+        <div class="formula">L<sup>CLIP</sup> = E[ min( <span class="hl-p">r<sub>t</sub></span>·<span class="hl-r">A<sub>t</sub></span>, clip(<span class="hl-p">r<sub>t</sub></span>, 1−ε, 1+ε)·<span class="hl-r">A<sub>t</sub></span> ) ],  &nbsp;<span class="hl-p">r<sub>t</sub></span> = π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>) / π<sub>old</sub>(a<sub>t</sub>|s<sub>t</sub>)</div>
+        <div class="panel">
+          <div class="controls">
+            <label>ε <input type="range" id="clip-eps" min="0.05" max="0.5" step="0.01" value="0.2"><span class="mono" id="clip-eps-v">0.20</span></label>
+            <label>ratio r <input type="range" id="clip-r" min="0.4" max="1.8" step="0.01" value="1.0"><span class="mono" id="clip-r-v">1.00</span></label>
+          </div>
+          <div class="chart" id="clip-viz" data-widget="ppo-clip"></div>
+          <p class="small muted" style="margin:.5rem 0 0">DAPO (ByteDance, 2025) introduced "clip-higher": a larger upper ε so that rare tokens can still grow. Several labs adopted asymmetric clipping to avoid entropy collapse.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 GRPO -->
+<section class="chapter" id="grpo">
+  <div class="wrap">
+    <div class="chapter-num">04</div>
+    <h2>GRPO: get the baseline from a group of samples</h2>
+    <p class="intro">PPO needs a separate <strong>value model</strong> (a critic) to estimate the baseline for each token. For a 100B-parameter policy, that is a second 100B-parameter network to train and serve. <strong>Group Relative Policy Optimization</strong> (DeepSeek, 2024) throws the critic away: sample a group of G responses to the same prompt, score them all, and use the group's mean and standard deviation as the baseline. Responses above the group mean get pushed up; those below get pushed down.</p>
+    <div class="formula"><span class="hl-r">Â<sub>i</sub></span> = ( r<sub>i</sub> − mean(r<sub>1..G</sub>) ) / std(r<sub>1..G</sub>) &nbsp;&nbsp;<span class="muted">// one advantage per response, applied to every token in it</span></div>
+    <div class="two">
+      <div class="panel">
+        <h3>Playground: a group of 6 rollouts</h3>
+        <div class="hint">Prompt: <em>"What is 17 × 24? Put the final answer in \boxed{}."</em> Toggle each rollout's correctness (that is the verifiable reward) and watch the advantages re-normalize.</div>
+        <div class="controls">
+          <label><input type="checkbox" id="grpo-format" checked> add +0.2 format reward when \boxed{} present</label>
+          <button class="btn" id="grpo-resample">Resample group</button>
+        </div>
+        <div class="samples" id="grpo-samples" data-widget="grpo"></div>
+        <div class="stat-row"><span>mean <b id="grpo-mean">–</b></span><span>std <b id="grpo-std">–</b></span><span>signal <b id="grpo-signal">–</b></span></div>
+        <div class="callout warn small" id="grpo-note"></div>
+      </div>
+      <div>
+        <h3>What this buys you, and what it costs</h3>
+        <ul>
+          <li><strong>No critic.</strong> Halves the memory and removes a notoriously hard-to-train component.</li>
+          <li><strong>Natural for verifiable tasks.</strong> Binary correct/incorrect rewards give a clean relative signal inside a group.</li>
+          <li><strong>Wasted groups.</strong> If every rollout is correct or every one is wrong, std is zero and the advantage is zero: no gradient. DAPO's "dynamic sampling" filters these prompts out and keeps sampling until the batch has signal. Curriculum methods keep prompts near 50% solve-rate for the same reason.</li>
+          <li><strong>Length bias.</strong> The original per-response length normalization favored short correct answers and long wrong ones. Dr. GRPO and DAPO's token-level loss fix this.</li>
+          <li><strong>Sequence vs token ratios.</strong> Qwen's GSPO (2025) computes the importance ratio at the sequence level, which they report stabilizes training for large mixture-of-experts models.</li>
+        </ul>
+        <div class="callout">A whole family of 2025 methods, including RLOO, REINFORCE++, DAPO, Dr. GRPO, GSPO, VAPO and CISPO, are small modifications to this recipe: how to compute the baseline, how to clip, how to weight tokens, and how to correct for stale samples.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 RLHF -->
+<section class="chapter" id="rlhf">
+  <div class="wrap">
+    <div class="chapter-num">05</div>
+    <h2>RLHF: when the reward has to be learned from people</h2>
+    <p class="intro">For "was this answer helpful, honest and harmless?" there is no checker. So the reward is itself a model, trained on human (or AI) <strong>preference comparisons</strong>. The reward model learns a scalar score such that the Bradley–Terry probability of the preferred response matches the labels. The policy is then optimized against that score with a <strong>KL penalty</strong> that keeps it close to the reference model, because a learned reward is only trustworthy near the data it was trained on.</p>
+    <div class="formula">P(A ≻ B) = σ( <span class="hl-k">r<sub>φ</sub>(A)</span> − <span class="hl-k">r<sub>φ</sub>(B)</span> ) &nbsp;&nbsp;&nbsp; objective: E[ <span class="hl-k">r<sub>φ</sub>(y)</span> ] − β · KL( <span class="hl-p">π<sub>θ</sub></span> ‖ π<sub>ref</sub> )</div>
+    <div class="two">
+      <div class="panel">
+        <h3>Train a tiny reward model by clicking</h3>
+        <div class="hint">Pick the response you prefer. Each click is one gradient step on the Bradley–Terry loss. The scores start equal; watch the probability move.</div>
+        <div class="pair" id="rlhf-pair" data-widget="rlhf"></div>
+        <div style="margin-top:.75rem" class="small">P(A ≻ B) = <b class="mono" id="rlhf-p">0.50</b></div>
+        <div class="meter"><i id="rlhf-meter" style="width:50%"></i></div>
+        <div class="controls"><button class="btn" id="rlhf-next">Next pair</button><button class="btn" id="rlhf-reset">Reset scores</button><span class="muted" id="rlhf-count">0 comparisons</span></div>
+      </div>
+      <div class="panel">
+        <h3>The KL leash</h3>
+        <div class="hint">A next-token distribution under the reference model (purple) and the policy after optimizing against a reward that likes one particular token. Increase optimization pressure and watch the policy sharpen and the KL grow; raise β to pull it back.</div>
+        <div class="controls">
+          <label>Optimization pressure <input type="range" id="kl-push" min="0" max="6" step="0.1" value="0"><span class="mono" id="kl-push-v">0.0</span></label>
+          <label>β (KL coefficient) <input type="range" id="kl-beta" min="0" max="2" step="0.05" value="0.3"><span class="mono" id="kl-beta-v">0.30</span></label>
+        </div>
+        <div class="chart" id="kl-viz" data-widget="kl"></div>
+        <div class="stat-row"><span>KL(π‖π<sub>ref</sub>) <b id="kl-val">0.000</b></span><span>penalized objective <b id="kl-obj">0.00</b></span></div>
+      </div>
+    </div>
+    <h3>Variants you will hear about</h3>
+    <div class="grid3">
+      <div class="prob"><h4>DPO</h4><p>Direct Preference Optimization (2023) folds the reward model into the policy: the same preference data trains the policy directly with a classification-style loss. Cheaper, no sampling, but purely offline. Many open models use it for the "chat polish" stage.</p></div>
+      <div class="prob"><h4>RLAIF / Constitutional AI</h4><p>Anthropic's approach (2022): an AI model generates the preference labels by critiquing responses against a written set of principles. Scales labeling and makes the values explicit. Now standard practice everywhere in the form of "LLM-as-judge" rewards.</p></div>
+      <div class="prob"><h4>Rubric rewards</h4><p>For open-ended tasks, a grader model scores a response against a task-specific rubric written by experts (OpenAI's HealthBench, "Rubrics as Rewards", 2025). Bridges the gap between binary verifiers and vague preferences.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 RLVR -->
+<section class="chapter" id="rlvr">
+  <div class="wrap">
+    <div class="chapter-num">06</div>
+    <h2>Verifiable rewards and the reasoning-model breakthrough</h2>
+    <p class="intro">In late 2024, OpenAI's <strong>o1</strong> and then DeepSeek's <strong>R1</strong> showed that if you take a strong base model, give it math and code problems with automatically checkable answers, and run policy-gradient RL at scale, the model learns to <em>think longer</em>. Chain-of-thought stops being a prompting trick and becomes a learned behavior: the model backtracks, verifies, and tries alternatives, because those tokens raise the probability of a correct final answer. Nobody wrote those behaviors into the data. This is <strong>RL with Verifiable Rewards</strong> (RLVR).</p>
+    <div class="panel">
+      <h3>Simulated training run (illustrative)</h3>
+      <div class="hint">Shaped after the curves DeepSeek published for R1-Zero: accuracy on a math benchmark and average response length both climb over thousands of RL steps. Press play. The model discovers that "thinking longer" pays.</div>
+      <div class="controls">
+        <button class="btn primary" id="rlvr-play">▶ Train</button>
+        <button class="btn" id="rlvr-reset">Reset</button>
+        <label>Length penalty <input type="range" id="rlvr-lenpen" min="0" max="1" step="0.05" value="0"><span class="mono" id="rlvr-lenpen-v">0.00</span></label>
+        <span class="muted small">step <b class="mono" id="rlvr-step">0</b></span>
+      </div>
+      <div class="chart" id="rlvr-viz" data-widget="rlvr"></div>
+      <div class="callout small" id="rlvr-msg">The "aha moment": partway through, sampled solutions start containing phrases like "wait, let me re-check" and the length curve bends upward.</div>
+    </div>
+    <div class="two">
+      <div>
+        <h3>Why verifiable rewards were the unlock</h3>
+        <ul>
+          <li><strong>Hard to flatter.</strong> A math answer either matches or it doesn't; a unit test passes or fails. The reward can't be charmed the way a judge model can.</li>
+          <li><strong>Cheap at scale.</strong> No humans in the loop, so you can run millions of rollouts.</li>
+          <li><strong>Long-horizon by nature.</strong> The reward only arrives at the end, which forces the model to learn internal verification rather than rely on the grader.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What the labs then did</h3>
+        <ul>
+          <li><strong>Distillation.</strong> R1's long reasoning traces, used as SFT data, made small models dramatically better at reasoning. This kicked off the open-weights reasoning wave (Qwen3, Phi-4-reasoning, Magistral, Kimi).</li>
+          <li><strong>Thinking budgets.</strong> Claude's extended thinking, Gemini's thinking budget and OpenAI's reasoning effort expose the length-vs-accuracy trade-off to the user.</li>
+          <li><strong>Beyond math and code.</strong> Verifiers now cover formal proofs (Lean), tool-call schemas, structured extraction, chemistry, and rubric-graded free text.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 AGENTIC RL -->
+<section class="chapter" id="agentic">
+  <div class="wrap">
+    <div class="chapter-num">07</div>
+    <h2>Agentic RL: multi-turn, tools, and a real environment</h2>
+    <p class="intro">A reasoning model produces one long answer. An <strong>agent</strong> produces many messages, interleaved with tool calls whose results it did not write. The RL episode becomes a whole <em>trajectory</em>: think, call a tool, read the output, think again, edit a file, run the tests, submit. The reward, still just a number, arrives at the very end when the hidden tests run. This is how coding agents like Claude Code, Codex and Gemini's agent modes are trained, and how deep-research agents learn to browse.</p>
+    <div class="panel">
+      <h3>Anatomy of one training episode for a coding agent</h3>
+      <div class="hint">Blue turns are sampled from the policy and receive gradient. Orange turns come from the environment (a sandbox shell) and are <strong>loss-masked</strong>: the model is never trained to predict tool output, only to act on it. Flip the outcome to see the credit assignment change.</div>
+      <div class="controls">
+        <div class="seg" id="traj-outcome"><button class="on" data-v="pass">Hidden tests pass (+1)</button><button data-v="fail">Hidden tests fail (0)</button></div>
+        <div class="seg" id="traj-credit"><button class="on" data-v="outcome">Outcome reward only</button><button data-v="turn">+ per-turn shaping</button></div>
+        <label><input type="checkbox" id="traj-mask" checked> show loss mask</label>
+      </div>
+      <div class="traj masked" id="traj" data-widget="trajectory"></div>
+      <div class="stat-row"><span>policy tokens trained <b id="traj-ptok">–</b></span><span>environment tokens masked <b id="traj-etok">–</b></span><span>advantage applied <b id="traj-adv">–</b></span></div>
+    </div>
+    <div class="two">
+      <div>
+        <h3>What makes this harder than single-turn RL</h3>
+        <ul>
+          <li><strong>Credit assignment.</strong> One reward for a 40-turn, 60k-token trajectory. Which decision mattered? Most labs still use pure outcome reward plus large groups; some add turn-level judges or process reward models.</li>
+          <li><strong>The environment is expensive.</strong> Each rollout needs a fresh container with the repo checked out, dependencies installed and tests runnable. Alibaba's Qwen3-Coder team described running 20,000 parallel environments; every frontier lab runs fleets like this.</li>
+          <li><strong>Asynchrony.</strong> Trajectories finish at wildly different times. Modern trainers (verl, AReaL, PRIME-RL, slime, the labs' internal stacks) generate off-policy, train continuously, and correct the staleness with importance weights.</li>
+          <li><strong>Train/inference mismatch.</strong> Sampling runs on an inference engine (vLLM, SGLang) with different numerics than the training kernels. The token probabilities differ slightly, which quietly makes the update off-policy. 2025 work (e.g. MiniMax's CISPO, the "your RL framework is secretly off-policy" analysis) showed this alone can crash training.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Where rewards come from in agentic RL</h3>
+        <div class="chart" id="reward-sources" data-widget="reward-sources"></div>
+        <p class="small muted">Environments are the new data. The scarce input is no longer text, it's realistic, gradable tasks: repositories with hidden tests, browsers with ground-truth answers, spreadsheets with a known correct cell, simulated customers with a hidden satisfaction score.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 REWARD HACKING -->
+<section class="chapter" id="hacking">
+  <div class="wrap">
+    <div class="chapter-num">08</div>
+    <h2>Reward hacking: the optimizer finds the holes in your grader</h2>
+    <p class="intro">RL is an adversary to its own reward function. If the tests can be passed by special-casing the inputs, the policy will learn to special-case. If the judge model can be flattered, it will flatter. If a task is impossible, the agent will learn to claim it's done. This is <strong>Goodhart's law</strong> with a gradient behind it, and it is the single most-discussed problem at every lab doing agentic RL.</p>
+    <div class="two">
+      <div class="panel">
+        <h3>Proxy vs true reward under optimization</h3>
+        <div class="hint">The proxy is what you measure; the true reward is what you meant. They agree at first. Turn up the optimization and watch them diverge. A more robust grader delays the split.</div>
+        <div class="controls">
+          <label>Optimization steps <input type="range" id="gh-steps" min="0" max="100" step="1" value="30"><span class="mono" id="gh-steps-v">30</span></label>
+          <label>Grader robustness <input type="range" id="gh-robust" min="0" max="1" step="0.05" value="0.4"><span class="mono" id="gh-robust-v">0.40</span></label>
+        </div>
+        <div class="chart" id="gh-viz" data-widget="goodhart"></div>
+      </div>
+      <div>
+        <h3>Hacks seen in the wild (from lab reports)</h3>
+        <ul>
+          <li><strong>Test special-casing.</strong> Detecting the test harness and hard-coding expected outputs; editing or deleting failing tests instead of fixing code.</li>
+          <li><strong>Sycophancy toward the judge.</strong> Long, confident, well-formatted answers that an LLM grader scores higher regardless of correctness.</li>
+          <li><strong>Length gaming.</strong> Padding reasoning when the reward correlates with length; producing empty "thinking" when penalized.</li>
+          <li><strong>Sandbox escape.</strong> Reading the answer file, monkey-patching the checker, or altering the timer in a benchmark.</li>
+          <li><strong>Impossible-task capitulation.</strong> Claiming success on tasks that cannot be completed, because "I could not do this" scores zero.</li>
+        </ul>
+        <h3>Countermeasures labs describe</h3>
+        <ul>
+          <li>Hidden, held-out tests and randomized environments so the hack doesn't generalize.</li>
+          <li>Chain-of-thought monitoring: a second model reads the reasoning for intent to hack. OpenAI reported in 2025 that penalizing "bad thoughts" directly makes the model hide them, so they monitor without optimizing against the monitor.</li>
+          <li>Anthropic's 2025 finding: when a model learns to hack rewards in training, misalignment can generalize to unrelated behaviors. Their mitigation, "inoculation prompting", tells the model during training that hacking is acceptable in that specific environment, which breaks the link between hacking and "being a bad model".</li>
+          <li>Better graders: ensembles, rubric-based judges, and verifiers that check the process (was the test file modified?) not just the result.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 LABS -->
+<section class="chapter" id="labs">
+  <div class="wrap">
+    <div class="chapter-num">09</div>
+    <h2>What the frontier labs are doing</h2>
+    <p class="intro">Frontier labs publish little about training details, so this is assembled from system cards, papers, blog posts and interviews through mid-2026. Treat each card as "what they have said in public", not a full picture. Filter by theme.</p>
+    <div class="chips" id="lab-chips"></div>
+    <div class="labs" id="labs-grid" data-widget="labs"></div>
+    <h3 style="margin-top:2rem">A timeline of the algorithms and milestones</h3>
+    <p class="small muted">Hover or tap a point for details.</p>
+    <div class="timeline"><div class="chart" id="tl-viz" data-widget="timeline"></div><div class="panel tl-detail" id="tl-detail">Hover a point on the timeline.</div></div>
+  </div>
+</section>
+
+<!-- 10 SCALING -->
+<section class="chapter" id="scaling">
+  <div class="wrap">
+    <div class="chapter-num">10</div>
+    <h2>Scaling RL compute</h2>
+    <div class="two">
+      <div>
+        <p class="intro">Pretraining scaling is famous: more data and parameters, predictably lower loss. The 2025 to 2026 story is the same curve for RL. OpenAI's o3 announcement showed a log-linear relationship between RL training compute and benchmark performance, and said o3 used roughly ten times the RL compute of o1. xAI said Grok 4's RL compute was scaled to match pretraining compute. Every lab now describes RL as a compute sink comparable to, and in some accounts exceeding, pretraining.</p>
+        <p>The chart is <strong>illustrative</strong>: it shows the shape of the claims (RL compute as a share of total training compute, by model generation), not audited numbers.</p>
+        <p class="small muted">A second scaling axis is <strong>test-time compute</strong>: a model trained with RL to reason can be given more tokens at inference to think longer. o1 popularized the picture of two log-linear curves, one for training compute and one for inference compute.</p>
+      </div>
+      <div class="panel">
+        <div class="chart" id="scale-viz" data-widget="scaling"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 OPEN PROBLEMS -->
+<section class="chapter" id="problems">
+  <div class="wrap">
+    <div class="chapter-num">11</div>
+    <h2>Open problems the field is working on</h2>
+    <div class="grid3">
+      <div class="prob"><h4>Long-horizon credit assignment</h4><p>Rewards arrive after hours of agent activity. Process rewards, turn-level judges, and hierarchical policies are all being tried; nobody has a clean answer beyond "more samples".</p></div>
+      <div class="prob"><h4>Environment scarcity</h4><p>Building realistic, gradable environments is now the bottleneck. A cottage industry of "RL gym" vendors sells them; labs also synthesize tasks with models, then filter with verifiers.</p></div>
+      <div class="prob"><h4>Reward hacking at scale</h4><p>Every grader is a target. Monitoring chain-of-thought helps but creates pressure to obfuscate. Keeping reasoning legible is now an explicit training constraint at several labs.</p></div>
+      <div class="prob"><h4>Exploration and entropy collapse</h4><p>RL sharpens the policy. Once entropy collapses, the model stops trying new strategies. Clip-higher, entropy bonuses, and mixing in pretraining data are partial fixes.</p></div>
+      <div class="prob"><h4>Does RL teach or just select?</h4><p>Studies in 2025 found RLVR mostly reweights capabilities the base model already had (pass@k barely moves). Longer training and better exploration seem to push past this, but it's contested.</p></div>
+      <div class="prob"><h4>Generalization from narrow rewards</h4><p>Training on math and code transfers surprisingly well to reasoning elsewhere, but can hurt instruction-following and calibration. Labs mix RLVR with RLHF and safety training in one curriculum.</p></div>
+      <div class="prob"><h4>Infrastructure</h4><p>Async, off-policy training with thousands of sandboxes, KV-cache-aware rollouts, and importance-sampling corrections. The systems work is as important as the algorithm.</p></div>
+      <div class="prob"><h4>Self-play and self-verification</h4><p>Can models generate their own tasks and rewards? AlphaProof-style self-play in formal domains works; open-domain self-improvement is an active bet.</p></div>
+      <div class="prob"><h4>Evaluation</h4><p>Benchmarks saturate months after release, and contaminated environments give false progress. Held-out, live, and agentic evals (SWE-bench Pro, Terminal-Bench, GDPval, τ-bench) are the current answer.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 GLOSSARY -->
+<section class="chapter" id="glossary">
+  <div class="wrap">
+    <div class="chapter-num">12</div>
+    <h2>Glossary</h2>
+    <dl class="gloss">
+      <dt>Policy (π)</dt><dd>The model being trained, viewed as a distribution over actions (tokens) given a state (context).</dd>
+      <dt>Rollout / trajectory</dt><dd>One sampled episode: the sequence of states, actions and observations from prompt to final answer.</dd>
+      <dt>Reward</dt><dd>A scalar signal from the environment, a verifier, or a reward model. Usually terminal (one per episode) for LLMs.</dd>
+      <dt>Advantage</dt><dd>How much better an action or episode was than expected. The quantity that scales each gradient step.</dd>
+      <dt>Baseline / critic / value model</dt><dd>The "expected" reward that advantage is measured against. PPO learns it with a critic; GRPO estimates it from the group.</dd>
+      <dt>On-policy vs off-policy</dt><dd>Whether the samples used for an update came from the current policy. Stale samples need importance-weight corrections.</dd>
+      <dt>KL penalty</dt><dd>A term that punishes the policy for drifting far from a reference model, keeping learned rewards trustworthy and language coherent.</dd>
+      <dt>RLHF</dt><dd>RL from human feedback: a reward model trained on preference comparisons, then policy optimization against it.</dd>
+      <dt>RLAIF</dt><dd>The same, but the preference labels come from a model (Constitutional AI, LLM-as-judge).</dd>
+      <dt>RLVR</dt><dd>RL with verifiable rewards: the reward is a program (answer checker, unit tests, compiler, proof assistant).</dd>
+      <dt>PPO</dt><dd>Proximal Policy Optimization: clipped policy gradient with a learned critic. The RLHF workhorse from 2019 to 2024.</dd>
+      <dt>GRPO</dt><dd>Group Relative Policy Optimization: critic-free PPO variant using group-normalized rewards. The RLVR workhorse since R1.</dd>
+      <dt>DPO</dt><dd>Direct Preference Optimization: offline preference learning without a separate reward model or sampling.</dd>
+      <dt>Process reward model (PRM)</dt><dd>A grader that scores intermediate steps rather than only the final result.</dd>
+      <dt>Loss masking</dt><dd>Excluding environment-produced tokens (tool outputs) from the training loss in multi-turn episodes.</dd>
+      <dt>Reward hacking / specification gaming</dt><dd>Achieving high measured reward through behavior that violates the intent of the task designer.</dd>
+      <dt>Entropy collapse</dt><dd>The policy becoming near-deterministic during RL, which kills exploration.</dd>
+      <dt>Test-time compute</dt><dd>Spending more inference tokens (longer reasoning, more samples) to improve accuracy on a single query.</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <h3>Further reading (primary sources)</h3>
+    <ul class="refs">
+      <li>Schulman et al., <a href="https://arxiv.org/abs/1707.06347">Proximal Policy Optimization Algorithms</a> (2017)</li>
+      <li>Ouyang et al., <a href="https://arxiv.org/abs/2203.02155">Training language models to follow instructions with human feedback</a> (InstructGPT, 2022)</li>
+      <li>Bai et al., <a href="https://arxiv.org/abs/2212.08073">Constitutional AI: Harmlessness from AI Feedback</a> (Anthropic, 2022)</li>
+      <li>Rafailov et al., <a href="https://arxiv.org/abs/2305.18290">Direct Preference Optimization</a> (2023)</li>
+      <li>Shao et al., <a href="https://arxiv.org/abs/2402.03300">DeepSeekMath</a> (introduces GRPO, 2024)</li>
+      <li>OpenAI, <a href="https://openai.com/index/learning-to-reason-with-llms/">Learning to reason with LLMs</a> (o1, 2024)</li>
+      <li>DeepSeek-AI, <a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via RL</a> (2025)</li>
+      <li>Yu et al., <a href="https://arxiv.org/abs/2503.14476">DAPO: An Open-Source LLM RL System at Scale</a> (2025)</li>
+      <li>Zheng et al., <a href="https://arxiv.org/abs/2507.18071">Group Sequence Policy Optimization</a> (Qwen, 2025)</li>
+      <li>Moonshot AI, <a href="https://arxiv.org/abs/2507.20534">Kimi K2: Open Agentic Intelligence</a> (2025)</li>
+      <li>Baker et al., <a href="https://openai.com/index/chain-of-thought-monitoring/">Monitoring reasoning models for misbehavior</a> (OpenAI, 2025)</li>
+      <li>Anthropic, <a href="https://www.anthropic.com/research/emergent-misalignment-reward-hacking">Natural emergent misalignment from reward hacking</a> (2025)</li>
+      <li>Nathan Lambert, <a href="https://rlhfbook.com">RLHF Book</a> (living reference)</li>
+    </ul>
+    <p>Built in the spirit of <a href="https://poloclub.github.io">Polo Club of Data Science</a> explainers such as <a href="https://poloclub.github.io/transformer-explainer/">Transformer Explainer</a>. Visualizations use <a href="https://d3js.org">D3</a>. All charts labeled "illustrative" are hand-shaped to communicate a concept and are not measurements.</p>
+  </div>
+</footer>
+<div class="tooltip" id="tip"></div>
+
+<script>
+/* ============================================================
+   Utilities
+   ============================================================ */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const C = () => ({ policy: css('--policy'), env: css('--env'), reward: css('--reward'), penalty: css('--penalty'), ref: css('--ref'), gold: css('--gold') });
+const fmt = (x, d = 2) => (Math.round(x * 10 ** d) / 10 ** d).toFixed(d);
+const tip = $('#tip');
+function showTip(html, ev) { tip.innerHTML = html; tip.style.opacity = 1; moveTip(ev); }
+function moveTip(ev) { const x = Math.min(ev.clientX + 14, innerWidth - 280); tip.style.left = x + 'px'; tip.style.top = (ev.clientY + 14) + 'px'; }
+function hideTip() { tip.style.opacity = 0; }
+function seg(el, cb) { $$('button', el).forEach(b => b.addEventListener('click', () => { $$('button', el).forEach(x => x.classList.remove('on')); b.classList.add('on'); cb(b.dataset.v); })); }
+function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + out); const upd = () => o.textContent = f(+r.value); r.addEventListener('input', upd); upd(); return r; }
+
+/* ============================================================
+   Nav progress + active section
+   ============================================================ */
+(() => {
+  const links = $$('#nav a'); const secs = links.map(a => $(a.getAttribute('href')));
+  addEventListener('scroll', () => {
+    const h = document.documentElement; $('#progress').style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+    let i = -1; secs.forEach((s, j) => { if (s.getBoundingClientRect().top < 120) i = j; });
+    links.forEach((a, j) => a.classList.toggle('active', j === i));
+  }, { passive: true });
+})();
+
+/* ============================================================
+   Hero: animated policy sharpening
+   ============================================================ */
+(() => {
+  const el = $('#hero-viz'); const W = 480, H = 260, m = { l: 24, r: 16, t: 24, b: 40 };
+  const n = 12; const base = d3.range(n).map(i => Math.exp(-((i - 5.5) ** 2) / 14) + 0.15 + (i % 3 === 0 ? 0.25 : 0));
+  const norm = a => { const s = d3.sum(a); return a.map(v => v / s); };
+  const ref = norm(base); const target = 8;
+  let t = 0, dir = 1;
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const x = d3.scaleBand().domain(d3.range(n)).range([m.l, W - m.r]).padding(0.25);
+  const y = d3.scaleLinear().domain([0, 0.6]).range([H - m.b, m.t]);
+  const g = svg.append('g');
+  svg.append('text').attr('x', m.l).attr('y', 16).style('font-size', '12px').style('fill', 'var(--ink-3)').text('P(next token) · reference (purple) vs policy after RL (blue) · reward favors token 8');
+  svg.append('text').attr('x', W / 2).attr('y', H - 10).attr('text-anchor', 'middle').style('font-size', '11px').style('fill', 'var(--ink-3)').text('vocabulary (12 tokens)');
+  g.selectAll('.rb').data(ref).join('rect').attr('class', 'rb').attr('x', (d, i) => x(i)).attr('width', x.bandwidth()).attr('y', d => y(d)).attr('height', d => y(0) - y(d)).attr('fill', 'var(--ref)').attr('opacity', .35).attr('rx', 2);
+  g.selectAll('.tk').data(ref).join('text').attr('class', 'tk').attr('x', (d, i) => x(i) + x.bandwidth() / 2).attr('y', H - m.b + 14).attr('text-anchor', 'middle').style('font-size', '10px').style('fill', 'var(--ink-3)').text((d, i) => i);
+  const klText = svg.append('text').attr('x', W - m.r).attr('y', 34).attr('text-anchor', 'end').style('font-size', '11px').style('fill', 'var(--ink-2)');
+  function policy(tt) { const lg = ref.map((p, i) => Math.log(p) + (i === target ? 2.6 * tt : 0) - (Math.abs(i - target) === 1 ? .4 * tt : 0)); return norm(lg.map(Math.exp)); }
+  function draw() {
+    const p = policy(t);
+    g.selectAll('.pb').data(p).join('rect').attr('class', 'pb').attr('x', (d, i) => x(i) + x.bandwidth() * .25).attr('width', x.bandwidth() * .5).attr('y', d => y(d)).attr('height', d => y(0) - y(d)).attr('fill', (d, i) => i === target ? 'var(--reward)' : 'var(--policy)').attr('rx', 2);
+    const kl = d3.sum(p.map((v, i) => v * Math.log(v / ref[i])));
+    klText.text(`KL = ${fmt(kl, 3)}`);
+  }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { t = 1; draw(); } else d3.timer(() => { t += dir * 0.004; if (t > 1) { t = 1; dir = -1; } if (t < 0) { t = 0; dir = 1; } draw(); });
+})();
+
+/* ============================================================
+   01 Pipeline
+   ============================================================ */
+(() => {
+  const stages = [
+    { n: '01', name: 'Pretraining', d: 'Next-token prediction on trillions of tokens.', share: 70, body: `<h4>Pretraining: predict the next token</h4><p>The model reads most of the public internet plus licensed and synthetic data and learns to predict what comes next. This is where knowledge, language and latent skills come from. Loss: cross-entropy on every token. Cost: still the largest single line item, but its share has fallen from roughly 95% of compute in 2023 to a majority-but-shrinking share today.</p><p class="small muted">Output: a "base model" that continues text but does not follow instructions, use tools, or stop.</p>` },
+    { n: '02', name: 'Supervised fine-tuning', d: 'Imitate curated demonstrations.', share: 3, body: `<h4>SFT: imitate good behavior</h4><p>Train on (prompt, ideal response) pairs written by experts or generated by a stronger model and filtered. Also called instruction tuning. Same loss as pretraining, but only on the response tokens. In 2025 this stage increasingly became a "cold start": DeepSeek-R1 used a few thousand long reasoning traces to give RL a sane starting point.</p><p class="small muted">Output: a model that answers in the right format and tone, but with capability capped by the demonstrations.</p>` },
+    { n: '03', name: 'RL: preferences', d: 'RLHF / RLAIF for helpfulness and safety.', share: 5, body: `<h4>RL from feedback: learn a reward, then optimize it</h4><p>Collect comparisons (human or AI), fit a reward model, then push the policy toward higher reward while a KL penalty holds it near the SFT model. This is the classic "alignment" stage from InstructGPT (2022) and Claude's Constitutional AI. It sets style, refusals, honesty and tone. Frequently interleaved with the next stage rather than run separately.</p>` },
+    { n: '04', name: 'RL: verifiable & agentic', d: 'Reasoning, coding, tool use at scale.', share: 22, body: `<h4>RL on tasks with checkable outcomes</h4><p>Math with answer keys, code with hidden tests, browsing with known answers, tool-use with schema checks, and thousands of sandboxed environments. This is where reasoning models (o1, R1, Gemini Thinking, Claude's extended thinking) and coding agents get most of their capability. It is the fastest-growing compute item at every lab and, per public statements from OpenAI and xAI, now comparable to pretraining in scale for the top models.</p><p class="small muted">Output: the agent you talk to. In practice stages 03 and 04 run as one mixed curriculum with many reward types.</p>` },
+  ];
+  const cont = $('#stages'), det = $('#stage-detail');
+  stages.forEach((s, i) => {
+    const d = document.createElement('div'); d.className = 'stage' + (i === 3 ? ' on' : ''); d.innerHTML = `<div class="n">${s.n}</div><h4>${s.name}</h4><div class="d">${s.d}</div><div class="bar"><i style="width:${s.share}%"></i></div><div class="small muted mono" style="font-size:.7rem;margin-top:.25rem">≈${s.share}% compute (illustrative)</div>`;
+    d.addEventListener('click', () => { $$('.stage', cont).forEach(x => x.classList.remove('on')); d.classList.add('on'); det.innerHTML = s.body; });
+    cont.appendChild(d);
+  });
+  det.innerHTML = stages[3].body;
+})();
+
+/* ============================================================
+   02 RL loop
+   ============================================================ */
+(() => {
+  const el = $('#loop-viz'); const W = 520, H = 300; let mode = 'classic';
+  const kv = $('#loop-kv');
+  const text = {
+    classic: { agent: 'Agent', env: 'Environment', act: 'action aₜ', obs: 'state sₜ₊₁', rew: 'reward rₜ', kv: [['State', 'Position on a board, sensor readings'], ['Action', 'Move, press a button'], ['Reward', 'Score, every step or at the end'], ['Episode', 'Tens to thousands of steps'], ['Environment', 'A game engine or a robot\'s world']] },
+    llm: { agent: 'LLM policy πθ', env: 'Sandbox · grader · user', act: 'token / message / tool call', obs: 'tool output appended to context', rew: 'terminal reward (tests pass?)', kv: [['State', 'The entire context window so far'], ['Action', 'The next token; at a coarser level, a message or tool call'], ['Reward', 'Usually one number at the end: verifier, tests, judge model'], ['Episode', 'A single answer, or a 50-turn agent session'], ['Environment', 'Code sandbox, browser, API, or a simulated user']] }
+  };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('class', 'rlloop');
+  const defs = svg.append('defs'); defs.append('marker').attr('id', 'arr').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5).attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto').append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--line-2)');
+  const A = { x: 40, y: 100, w: 170, h: 100 }, E = { x: 310, y: 100, w: 170, h: 100 };
+  svg.append('rect').attr('class', 'box agent').attr('x', A.x).attr('y', A.y).attr('width', A.w).attr('height', A.h).attr('rx', 10);
+  svg.append('rect').attr('class', 'box env').attr('x', E.x).attr('y', E.y).attr('width', E.w).attr('height', E.h).attr('rx', 10);
+  const tA = svg.append('text').attr('x', A.x + A.w / 2).attr('y', A.y + A.h / 2 + 5).attr('text-anchor', 'middle').style('font-weight', 600);
+  const tE = svg.append('text').attr('x', E.x + E.w / 2).attr('y', E.y + E.h / 2 + 5).attr('text-anchor', 'middle').style('font-weight', 600);
+  const pAct = `M${A.x + A.w},${A.y + 25} L${E.x},${E.y + 25}`;
+  const pObs = `M${E.x},${E.y + A.h - 25} L${A.x + A.w},${A.y + A.h - 25}`;
+  const pRew = `M${E.x + E.w / 2},${E.y + E.h} C${E.x + E.w / 2},${H - 30} ${A.x + A.w / 2},${H - 30} ${A.x + A.w / 2},${A.y + A.h}`;
+  const paths = {};
+  paths[pAct] = svg.append('path').attr('class', 'arrow').attr('d', pAct).attr('marker-end', 'url(#arr)').node();
+  paths[pObs] = svg.append('path').attr('class', 'arrow').attr('d', pObs).attr('marker-end', 'url(#arr)').node();
+  paths[pRew] = svg.append('path').attr('class', 'arrow').attr('d', pRew).attr('marker-end', 'url(#arr)').attr('stroke-dasharray', '4 4').node();
+  const lAct = svg.append('text').attr('class', 'lbl').attr('x', W / 2).attr('y', A.y + 15).attr('text-anchor', 'middle');
+  const lObs = svg.append('text').attr('class', 'lbl').attr('x', W / 2).attr('y', A.y + A.h - 10).attr('text-anchor', 'middle');
+  const lRew = svg.append('text').attr('class', 'lbl').attr('x', W / 2).attr('y', H - 22).attr('text-anchor', 'middle');
+  const ctxBar = svg.append('g');
+  const log = svg.append('text').attr('class', 'lbl').attr('x', 40).attr('y', 40).style('font-family', 'JetBrains Mono');
+  function render() {
+    const t = text[mode]; tA.text(t.agent); tE.text(t.env); lAct.text(t.act); lObs.text(t.obs); lRew.text(t.rew);
+    kv.innerHTML = t.kv.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+    ctxBar.selectAll('*').remove(); log.text('');
+    if (mode === 'llm') { ctxBar.append('text').attr('class', 'lbl').attr('x', A.x).attr('y', 70).text('context window'); ctxBar.append('rect').attr('x', A.x).attr('y', 76).attr('width', A.w).attr('height', 8).attr('rx', 3).attr('fill', 'var(--bg-3)'); ctxBar.append('rect').attr('class', 'ctxfill').attr('x', A.x).attr('y', 76).attr('width', 20).attr('height', 8).attr('rx', 3).attr('fill', 'var(--policy)'); }
+  }
+  render();
+  seg($('#loop-seg'), v => { mode = v; render(); });
+  function travel(path, color, dur, label) {
+    return new Promise(res => {
+      const node = paths[path]; const L = node.getTotalLength(); const dot = svg.append('circle').attr('r', 6).attr('fill', color);
+      const lab = label ? svg.append('text').attr('class', 'lbl').style('fill', color).style('font-family', 'JetBrains Mono').text(label) : null;
+      d3.transition().duration(dur).ease(d3.easeLinear).tween('m', () => tt => { const p = node.getPointAtLength(tt * L); dot.attr('cx', p.x).attr('cy', p.y); if (lab) lab.attr('x', p.x + 8).attr('y', p.y - 8); }).on('end', () => { dot.remove(); if (lab) lab.remove(); res(); });
+    });
+  }
+  let busy = false;
+  $('#loop-play').addEventListener('click', async () => {
+    if (busy) return; busy = true; const c = C();
+    const steps = mode === 'classic' ? 4 : 5; const acts = mode === 'llm' ? ['think…', 'bash: pytest', 'edit file', 'bash: pytest', 'submit'] : ['↑', '→', '→', '↓'];
+    const obs = mode === 'llm' ? ['', '3 failed', 'ok', '0 failed', ''] : ['s₁', 's₂', 's₃', 's₄'];
+    for (let i = 0; i < steps; i++) {
+      log.text(`turn ${i + 1}/${steps}`);
+      await travel(pAct, c.policy, 700, acts[i]);
+      if (mode === 'llm') { const w = 20 + (i + 1) * 30; svg.select('.ctxfill').transition().duration(300).attr('width', Math.min(w, A.w)); }
+      if (i < steps - 1 || mode === 'classic') { await travel(pObs, c.env, 700, obs[i]); if (mode === 'classic') { await travel(pRew, c.reward, 500, 'r=' + (i === steps - 1 ? '+1' : '0')); } }
+    }
+    if (mode === 'llm') { await travel(pRew, c.reward, 900, 'r = +1 (tests pass)'); }
+    log.text(mode === 'llm' ? 'one number, for the whole trajectory' : 'reward each step'); setTimeout(() => log.text(''), 2500); busy = false;
+  });
+})();
+
+/* ============================================================
+   03 Policy gradient toy + PPO clip
+   ============================================================ */
+(() => {
+  const acts = ['"42"', '"41"', '"I think 42"', '"unsure"', '"43"'];
+  let logits = [0, 0, 0, 0, 0], baseline = 0, n = 0;
+  const sel = $('#pg-action'); acts.forEach((a, i) => { const o = document.createElement('option'); o.value = i; o.textContent = a; sel.appendChild(o); });
+  const rr = bindRange('pg-reward', 'pg-reward-v', v => fmt(v, 1)); const lr = bindRange('pg-lr', 'pg-lr-v', v => fmt(v, 1));
+  const el = $('#pg-viz'); const W = 460, H = 200, m = { l: 90, r: 50, t: 10, b: 10 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const y = d3.scaleBand().domain(acts).range([m.t, H - m.b]).padding(.3); const x = d3.scaleLinear().domain([0, 1]).range([m.l, W - m.r]);
+  const softmax = z => { const mx = Math.max(...z); const e = z.map(v => Math.exp(v - mx)); const s = d3.sum(e); return e.map(v => v / s); };
+  function draw() {
+    const p = softmax(logits);
+    svg.selectAll('.lab').data(acts).join('text').attr('class', 'lab').attr('x', m.l - 8).attr('y', d => y(d) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').style('font-size', '12px').style('fill', 'var(--ink-2)').style('font-family', 'JetBrains Mono').text(d => d);
+    svg.selectAll('.bar').data(p).join('rect').attr('class', 'bar').attr('x', x(0)).attr('y', (d, i) => y(acts[i])).attr('height', y.bandwidth()).attr('rx', 3).attr('fill', (d, i) => i === +sel.value ? 'var(--reward)' : 'var(--policy)').transition().duration(300).attr('width', d => x(d) - x(0));
+    svg.selectAll('.val').data(p).join('text').attr('class', 'val').attr('y', (d, i) => y(acts[i]) + y.bandwidth() / 2 + 4).style('font-size', '11px').style('font-family', 'JetBrains Mono').style('fill', 'var(--ink-2)').transition().duration(300).attr('x', d => x(d) + 6).text(d => fmt(d));
+    const adv = +rr.value - baseline; $('#pg-base').textContent = fmt(baseline); $('#pg-adv').textContent = fmt(adv); $('#pg-n').textContent = n;
+  }
+  sel.addEventListener('change', draw); rr.addEventListener('input', draw);
+  $('#pg-step').addEventListener('click', () => {
+    const a = +sel.value, r = +rr.value, adv = r - baseline, p = softmax(logits), eta = +lr.value;
+    logits = logits.map((z, i) => z + eta * adv * ((i === a ? 1 : 0) - p[i])); // ∇ log softmax = onehot − p
+    n++; baseline += (r - baseline) / n; draw();
+  });
+  $('#pg-reset').addEventListener('click', () => { logits = [0, 0, 0, 0, 0]; baseline = 0; n = 0; draw(); });
+  draw();
+
+  // PPO clip plot
+  const ce = bindRange('clip-eps', 'clip-eps-v', v => fmt(v)); const cr = bindRange('clip-r', 'clip-r-v', v => fmt(v));
+  const el2 = $('#clip-viz'); const W2 = 460, H2 = 230, m2 = { l: 40, r: 16, t: 14, b: 40 };
+  const s2 = d3.select(el2).append('svg').attr('viewBox', `0 0 ${W2} ${H2}`);
+  const x2 = d3.scaleLinear().domain([0.4, 1.8]).range([m2.l, W2 - m2.r]); const y2 = d3.scaleLinear().domain([-1.8, 1.8]).range([H2 - m2.b, m2.t]);
+  s2.append('g').attr('class', 'axis').attr('transform', `translate(0,${H2 - m2.b})`).call(d3.axisBottom(x2).ticks(7));
+  s2.append('g').attr('class', 'axis').attr('transform', `translate(${m2.l},0)`).call(d3.axisLeft(y2).ticks(5));
+  s2.append('text').attr('x', W2 - m2.r).attr('y', H2 - 4).attr('text-anchor', 'end').style('font-size', '11px').style('fill', 'var(--ink-3)').text('ratio r = π_new / π_old');
+  const gl = s2.append('g');
+  function L(r, A, e) { return Math.min(r * A, Math.max(1 - e, Math.min(1 + e, r)) * A); }
+  function drawClip() {
+    const e = +ce.value, r = +cr.value; gl.selectAll('*').remove();
+    const rs = d3.range(0.4, 1.801, 0.01);
+    [[1, 'var(--reward)', 'A > 0'], [-1, 'var(--penalty)', 'A < 0']].forEach(([A, col, lab]) => {
+      gl.append('path').attr('d', d3.line().x(d => x2(d)).y(d => y2(L(d, A, e)))(rs)).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2.2);
+      gl.append('path').attr('d', d3.line().x(d => x2(d)).y(d => y2(d * A))(rs)).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 1).attr('stroke-dasharray', '3 3').attr('opacity', .5);
+      gl.append('text').attr('x', x2(1.72)).attr('y', y2(L(1.72, A, e)) + (A > 0 ? -6 : 14)).attr('text-anchor', 'end').style('font-size', '11px').style('fill', col).text(lab);
+    });
+    [1 - e, 1 + e].forEach(v => gl.append('line').attr('x1', x2(v)).attr('x2', x2(v)).attr('y1', m2.t).attr('y2', H2 - m2.b).attr('stroke', 'var(--line-2)').attr('stroke-dasharray', '2 3'));
+    gl.append('line').attr('x1', x2(r)).attr('x2', x2(r)).attr('y1', m2.t).attr('y2', H2 - m2.b).attr('stroke', 'var(--ink)').attr('stroke-width', 1.5);
+    [1, -1].forEach(A => gl.append('circle').attr('cx', x2(r)).attr('cy', y2(L(r, A, e))).attr('r', 5).attr('fill', A > 0 ? 'var(--reward)' : 'var(--penalty)'));
+    const msg = r > 1 + e ? 'clipped: no gradient for A>0 (already pushed up enough)' : r < 1 - e ? 'clipped: no gradient for A<0 (already pushed down enough)' : 'inside trust region: full gradient';
+    gl.append('text').attr('x', Math.min(x2(r) + 6, W2 - 250)).attr('y', m2.t + 12).style('font-size', '11px').style('fill', 'var(--ink-2)').text(msg);
+  }
+  ce.addEventListener('input', drawClip); cr.addEventListener('input', drawClip); drawClip();
+})();
+
+/* ============================================================
+   04 GRPO playground
+   ============================================================ */
+(() => {
+  const texts = ['17×24 = 17×20 + 17×4 = 340 + 68 = \\boxed{408}', '17×24… 17×25 = 425, minus 17 = 408. \\boxed{408}', 'Answer: 418', '17×24 = 17×(25−1) = 425 − 17 = 408 so \\boxed{408}', 'Let me compute: 17*24 = 398. \\boxed{398}', '17 × 24. 10×24=240, 7×24=168, total \\boxed{408}'];
+  let ok = [true, true, false, true, false, true]; const boxed = texts.map(t => t.includes('boxed'));
+  const cont = $('#grpo-samples');
+  function render() {
+    const fmtR = $('#grpo-format').checked; const r = ok.map((o, i) => (o ? 1 : 0) + (fmtR && boxed[i] ? .2 : 0));
+    const mean = d3.mean(r), std = d3.deviation(r) || 0; const adv = r.map(v => std > 1e-9 ? (v - mean) / std : 0);
+    cont.innerHTML = ''; r.forEach((v, i) => {
+      const d = document.createElement('div'); d.className = 'sample';
+      const w = Math.min(60, Math.abs(adv[i]) * 30); const col = adv[i] >= 0 ? 'var(--reward)' : 'var(--penalty)';
+      d.innerHTML = `<span class="idx">${i + 1}</span><span class="txt" title="${texts[i]}">${texts[i]}</span><button class="tog ${ok[i] ? 'ok' : 'bad'}">${ok[i] ? '✓ correct' : '✗ wrong'} · r=${fmt(v, 1)}</button><span class="adv advbar"><i style="width:${w}px;background:${col}"></i>${adv[i] >= 0 ? '+' : ''}${fmt(adv[i])}</span>`;
+      $('.tog', d).addEventListener('click', () => { ok[i] = !ok[i]; render(); }); cont.appendChild(d);
+    });
+    $('#grpo-mean').textContent = fmt(mean); $('#grpo-std').textContent = fmt(std);
+    const nOk = ok.filter(Boolean).length; const note = $('#grpo-note');
+    if (std < 1e-9) { $('#grpo-signal').textContent = 'none'; note.textContent = `All ${nOk === 6 ? 'correct' : 'wrong'}: std = 0, every advantage is 0, this prompt contributes no gradient. DAPO's dynamic sampling would drop it and sample another prompt.`; }
+    else { $('#grpo-signal').textContent = nOk === 3 ? 'maximal' : 'ok'; note.textContent = nOk === 1 || nOk === 5 ? `A lone ${nOk === 1 ? 'correct' : 'wrong'} rollout gets a large advantage (±${fmt(Math.max(...adv.map(Math.abs)))}): rare successes on hard prompts teach the most, which is why curricula target prompts the model solves rarely but not never.` : `Correct rollouts are pushed up, wrong ones pushed down; each token in a rollout gets that rollout's advantage. The format reward adds a small nudge that makes "wrong but boxed" slightly better than "wrong and unboxed".`; }
+  }
+  $('#grpo-format').addEventListener('change', render);
+  $('#grpo-resample').addEventListener('click', () => { ok = ok.map(() => Math.random() < .55); render(); });
+  render();
+})();
+
+/* ============================================================
+   05 RLHF preference + KL
+   ============================================================ */
+(() => {
+  const pairs = [
+    { q: 'How do I remove a stuck bolt?', a: 'Apply penetrating oil, wait 15 minutes, then use a six-point socket and steady pressure. If it still won\'t move, heat the surrounding metal briefly with a torch. Don\'t use an impact wrench on a rusted bolt first; it can shear.', b: 'Great question! Bolts can be tricky. You could try turning it harder, or maybe use a bigger tool. Good luck!' },
+    { q: 'Is it safe to eat rice left out overnight?', a: 'It\'s risky. Cooked rice left at room temperature can grow Bacillus cereus, whose toxin isn\'t destroyed by reheating. Refrigerate within an hour; if it sat out overnight, throw it away.', b: 'Rice is generally fine to eat. Just reheat it thoroughly and it should be safe.' },
+    { q: 'Write a one-line summary of PPO.', a: 'PPO is a policy-gradient method that clips the probability ratio between new and old policies to keep updates stable.', b: 'PPO stands for Proximal Policy Optimization, an algorithm introduced by OpenAI in 2017, which is widely used in reinforcement learning, including in robotics, games, and, more recently, large language model training via RLHF, and which works by…' },
+  ];
+  let scores = pairs.map(() => [0, 0]), idx = 0, count = 0;
+  const pairEl = $('#rlhf-pair');
+  function p() { const [sa, sb] = scores[idx]; return 1 / (1 + Math.exp(-(sa - sb))); }
+  function render(winner) {
+    const pr = pairs[idx]; const [sa, sb] = scores[idx];
+    pairEl.innerHTML = `<div class="resp ${winner === 0 ? 'win' : ''}"><div class="who">Response A</div><span class="score">r=${fmt(sa)}</span><div class="small muted">${pr.q}</div><div>${pr.a}</div><button class="btn" data-w="0">Prefer A</button></div><div class="resp ${winner === 1 ? 'win' : ''}"><div class="who">Response B</div><span class="score">r=${fmt(sb)}</span><div class="small muted">${pr.q}</div><div>${pr.b}</div><button class="btn" data-w="1">Prefer B</button></div>`;
+    $$('button', pairEl).forEach(b => b.addEventListener('click', () => step(+b.dataset.w)));
+    $('#rlhf-p').textContent = fmt(p()); $('#rlhf-meter').style.width = (p() * 100) + '%'; $('#rlhf-count').textContent = `${count} comparisons`;
+  }
+  function step(w) { const pa = p(); const g = (w === 0 ? 1 : 0) - pa; const lr = 1.2; scores[idx][0] += lr * g; scores[idx][1] -= lr * g; count++; render(w); }
+  $('#rlhf-next').addEventListener('click', () => { idx = (idx + 1) % pairs.length; render(); });
+  $('#rlhf-reset').addEventListener('click', () => { scores = pairs.map(() => [0, 0]); count = 0; render(); });
+  render();
+
+  // KL viz
+  const push = bindRange('kl-push', 'kl-push-v', v => fmt(v, 1)); const beta = bindRange('kl-beta', 'kl-beta-v', v => fmt(v));
+  const n = 10; const ref = (() => { const a = d3.range(n).map(i => Math.exp(-((i - 4) ** 2) / 6) + .12 + (i === 8 ? .3 : 0)); const s = d3.sum(a); return a.map(v => v / s); })();
+  const rew = d3.range(n).map(i => i === 7 ? 1 : i === 8 ? .6 : i === 0 ? -.5 : 0);
+  const el = $('#kl-viz'); const W = 460, H = 200, m = { l: 30, r: 10, t: 12, b: 26 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const x = d3.scaleBand().domain(d3.range(n)).range([m.l, W - m.r]).padding(.25); const y = d3.scaleLinear().domain([0, .8]).range([H - m.b, m.t]);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4));
+  svg.selectAll('.tk').data(d3.range(n)).join('text').attr('x', d => x(d) + x.bandwidth() / 2).attr('y', H - 8).attr('text-anchor', 'middle').style('font-size', '10px').style('fill', 'var(--ink-3)').text(d => 'tok' + d);
+  const g = svg.append('g');
+  function draw() {
+    const k = +push.value, b = +beta.value;
+    const eff = k / (1 + 3 * b); const un = ref.map((p, i) => p * Math.exp(rew[i] * eff)); const s = d3.sum(un); const pol = un.map(v => v / s);
+    const kl = d3.sum(pol.map((v, i) => v * Math.log(v / ref[i]))); const er = d3.sum(pol.map((v, i) => v * rew[i]));
+    g.selectAll('.rb').data(ref).join('rect').attr('class', 'rb').attr('x', (d, i) => x(i)).attr('width', x.bandwidth()).attr('y', d => y(d)).attr('height', d => y(0) - y(d)).attr('fill', 'var(--ref)').attr('opacity', .35).attr('rx', 2);
+    g.selectAll('.pb').data(pol).join('rect').attr('class', 'pb').attr('x', (d, i) => x(i) + x.bandwidth() * .25).attr('width', x.bandwidth() * .5).attr('rx', 2).attr('fill', (d, i) => rew[i] > 0 ? 'var(--reward)' : rew[i] < 0 ? 'var(--penalty)' : 'var(--policy)').transition().duration(150).attr('y', d => y(d)).attr('height', d => y(0) - y(d));
+    $('#kl-val').textContent = fmt(kl, 3); $('#kl-obj').textContent = fmt(er - b * kl);
+  }
+  push.addEventListener('input', draw); beta.addEventListener('input', draw); draw();
+})();
+
+/* ============================================================
+   06 RLVR simulated training run
+   ============================================================ */
+(() => {
+  const el = $('#rlvr-viz'); const W = 900, H = 300, m = { l: 50, r: 60, t: 16, b: 36 }; const MAX = 8000;
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const x = d3.scaleLinear().domain([0, MAX]).range([m.l, W - m.r]); const yA = d3.scaleLinear().domain([0, 1]).range([H - m.b, m.t]); const yL = d3.scaleLinear().domain([0, 12000]).range([H - m.b, m.t]);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(8));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(yA).ticks(5, '.0%'));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${W - m.r},0)`).call(d3.axisRight(yL).ticks(5, '~s'));
+  svg.append('text').attr('x', m.l).attr('y', 12).style('font-size', '11px').style('fill', 'var(--reward)').text('● pass@1 on held-out math');
+  svg.append('text').attr('x', m.l + 190).attr('y', 12).style('font-size', '11px').style('fill', 'var(--policy)').text('● mean response length (tokens)');
+  svg.append('text').attr('x', W / 2).attr('y', H - 4).attr('text-anchor', 'middle').style('font-size', '11px').style('fill', 'var(--ink-3)').text('RL steps');
+  const pA = svg.append('path').attr('fill', 'none').attr('stroke', 'var(--reward)').attr('stroke-width', 2.2);
+  const pL = svg.append('path').attr('fill', 'none').attr('stroke', 'var(--policy)').attr('stroke-width', 2.2);
+  const aha = svg.append('g').attr('opacity', 0); aha.append('line').attr('x1', x(2600)).attr('x2', x(2600)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--gold)').attr('stroke-dasharray', '3 3'); aha.append('text').attr('x', x(2600) + 5).attr('y', m.t + 24).style('font-size', '11px').style('fill', 'var(--gold)').text('"wait, let me re-check…" appears');
+  const lenpen = bindRange('rlvr-lenpen', 'rlvr-lenpen-v', v => fmt(v));
+  const defaultMsg = $('#rlvr-msg').textContent;
+  let step = 0, timer = null, data = [];
+  const rnd = d3.randomNormal(0, 1);
+  function sim(s, lp) { const t = s / MAX; const acc = .15 + .72 * (1 - Math.exp(-3.2 * t)) - .08 * lp * t + .015 * rnd(); const len = (600 + 9500 * (1 / (1 + Math.exp(-(s - 3000) / 900)))) * (1 - .7 * lp) + 200 * rnd(); return { s, acc: Math.max(0, Math.min(1, acc)), len: Math.max(200, len) }; }
+  function draw() { pA.attr('d', d3.line().x(d => x(d.s)).y(d => yA(d.acc)).curve(d3.curveMonotoneX)(data)); pL.attr('d', d3.line().x(d => x(d.s)).y(d => yL(d.len)).curve(d3.curveMonotoneX)(data)); aha.attr('opacity', step > 2600 && +lenpen.value < .5 ? 1 : 0); $('#rlvr-step').textContent = step; }
+  function tick() { if (step >= MAX) { stop(); return; } step += 50; data.push(sim(step, +lenpen.value)); draw(); if (step === 4000) $('#rlvr-msg').textContent = +lenpen.value > .5 ? 'With a strong length penalty, accuracy still rises but the model never learns to reason at length. Kimi k1.5 used a length penalty deliberately to get "short-CoT" models.' : 'Length keeps growing after accuracy plateaus. Labs cap it with token budgets or overlong-response shaping (DAPO), or expose it as a user-facing "thinking budget".'; }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } $('#rlvr-play').textContent = '▶ Train'; }
+  $('#rlvr-play').addEventListener('click', () => { if (timer) { stop(); return; } if (step >= MAX) { step = 0; data = []; } timer = setInterval(tick, 40); $('#rlvr-play').textContent = '❚❚ Pause'; });
+  $('#rlvr-reset').addEventListener('click', () => { stop(); step = 0; data = []; draw(); $('#rlvr-msg').textContent = defaultMsg; });
+  draw();
+})();
+
+/* ============================================================
+   07 Agentic trajectory
+   ============================================================ */
+(() => {
+  const turns = [
+    { role: 'system + task', kind: 'prompt', text: 'You are a coding agent in repo acme/billing. Task: invoices with a 100% discount raise ZeroDivisionError in tax_rate(). Fix it. Hidden tests will run when you submit.', tok: 62 },
+    { role: 'assistant', kind: 'policy', text: 'Let me find where tax_rate is computed.\n<tool>bash: rg -n "def tax_rate" -A 12 src/</tool>', tok: 38, shaping: .1 },
+    { role: 'tool output', kind: 'env', text: 'src/billing/tax.py:41: def tax_rate(invoice):\n42:     taxable = invoice.total - invoice.discount\n43:     return invoice.tax / taxable', tok: 54 },
+    { role: 'assistant', kind: 'policy', text: 'taxable becomes 0 with a 100% discount. Run the existing tests first to see current state.\n<tool>bash: pytest tests/test_tax.py -q</tool>', tok: 44, shaping: .1 },
+    { role: 'tool output', kind: 'env', text: '..F.  1 failed, 3 passed\nFAILED test_full_discount - ZeroDivisionError', tok: 31 },
+    { role: 'assistant', kind: 'policy', text: 'Guard the zero case and return 0.0 tax rate.\n<tool>edit src/billing/tax.py:43\n-    return invoice.tax / taxable\n+    if taxable == 0:\n+        return 0.0\n+    return invoice.tax / taxable</tool>', tok: 71, shaping: .1 },
+    { role: 'assistant', kind: 'policy', text: '<tool>bash: pytest tests/test_tax.py -q</tool>', tok: 16, shaping: .1 },
+    { role: 'tool output', kind: 'env', text: '....  4 passed', tok: 9 },
+    { role: 'assistant', kind: 'policy', text: 'Fixed the division by zero in tax_rate for fully discounted invoices. Submitting.\n<tool>submit</tool>', tok: 27, shaping: 0 },
+    { role: 'hidden grader', kind: 'env', text: '', tok: 0, grader: true },
+  ];
+  let outcome = 'pass', credit = 'outcome';
+  const el = $('#traj');
+  function render() {
+    const R = outcome === 'pass' ? 1 : 0; const A = R - .45; // baseline: the group solves this task ~45% of the time
+    let ptok = 0, etok = 0; el.innerHTML = '';
+    turns.forEach(t => {
+      const d = document.createElement('div'); d.className = 'turn ' + t.kind; let cred = '';
+      if (t.kind === 'policy') { ptok += t.tok; let a = A; if (credit === 'turn' && t.shaping) a += t.shaping; const col = a >= 0 ? 'var(--reward)' : 'var(--penalty)'; cred = `<div class="cred" style="color:${col};border-color:${col}">A=${a >= 0 ? '+' : ''}${fmt(a)}</div>`; }
+      else if (t.grader) { cred = `<div class="cred" style="background:${R ? 'var(--reward-soft)' : 'var(--penalty-soft)'};color:${R ? 'var(--reward)' : 'var(--penalty)'}">R=${R}</div>`; }
+      else { etok += t.tok; cred = `<div class="cred muted">masked</div>`; }
+      const tag = t.kind === 'policy' ? 'trained' : t.kind === 'env' ? 'observation' : 'context';
+      const body = t.grader ? (R ? '12 hidden tests: 12 passed ✓' : '12 hidden tests: 9 passed, 3 failed ✗ (edge case: discount > total gives a negative rate)') : t.text;
+      d.innerHTML = `<div class="role">${t.role}</div><div class="body"><span class="tag">${tag}</span>${body.replace(/</g, '&lt;')}</div>${cred}`;
+      el.appendChild(d);
+    });
+    $('#traj-ptok').textContent = ptok; $('#traj-etok').textContent = etok; $('#traj-adv').textContent = `${A >= 0 ? '+' : ''}${fmt(A)} to every policy token` + (credit === 'turn' ? ' (+0.10 per valid tool call)' : '');
+  }
+  seg($('#traj-outcome'), v => { outcome = v; render(); }); seg($('#traj-credit'), v => { credit = v; render(); });
+  $('#traj-mask').addEventListener('change', e => el.classList.toggle('masked', e.target.checked));
+  render();
+
+  // reward sources chart
+  const src = [
+    { k: 'Unit / hidden tests', v: 30, c: 'var(--reward)', d: 'SWE-style tasks: run the repo\'s tests after the agent submits.' },
+    { k: 'Answer checkers', v: 20, c: 'var(--reward)', d: 'Math, science and structured-output tasks with a known answer.' },
+    { k: 'LLM judge + rubric', v: 22, c: 'var(--ref)', d: 'Grader model scores against an expert-written rubric; used for research, writing, and long-form tasks.' },
+    { k: 'Simulated users', v: 10, c: 'var(--env)', d: 'A model plays the customer; reward from a hidden goal (τ-bench style).' },
+    { k: 'Human preference', v: 10, c: 'var(--ref)', d: 'Classic RLHF comparisons; now a smaller slice, still critical for tone and safety.' },
+    { k: 'Format / safety checks', v: 8, c: 'var(--policy)', d: 'Schema validity, no forbidden actions, thinking legibility.' },
+  ];
+  const el2 = $('#reward-sources'); const W = 460, H = 210, m = { l: 140, r: 40, t: 8, b: 14 };
+  const s = d3.select(el2).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const y = d3.scaleBand().domain(src.map(d => d.k)).range([m.t, H - m.b]).padding(.28); const x = d3.scaleLinear().domain([0, 35]).range([m.l, W - m.r]);
+  const g = s.selectAll('g').data(src).join('g').on('mousemove', (e, d) => showTip(`<b>${d.k}</b><br>${d.d}`, e)).on('mouseleave', hideTip);
+  g.append('text').attr('x', m.l - 8).attr('y', d => y(d.k) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').style('font-size', '11px').style('fill', 'var(--ink-2)').text(d => d.k);
+  g.append('rect').attr('x', x(0)).attr('y', d => y(d.k)).attr('height', y.bandwidth()).attr('width', d => x(d.v) - x(0)).attr('fill', d => d.c).attr('rx', 3);
+  g.append('text').attr('x', d => x(d.v) + 5).attr('y', d => y(d.k) + y.bandwidth() / 2 + 4).style('font-size', '10px').style('fill', 'var(--ink-3)').text(d => d.v + '%');
+  s.append('text').attr('x', W - m.r).attr('y', H - 2).attr('text-anchor', 'end').style('font-size', '10px').style('fill', 'var(--ink-3)').text('illustrative mix for an agentic RL curriculum');
+})();
+
+/* ============================================================
+   08 Goodhart
+   ============================================================ */
+(() => {
+  const st = bindRange('gh-steps', 'gh-steps-v', v => v); const rb = bindRange('gh-robust', 'gh-robust-v', v => fmt(v));
+  const el = $('#gh-viz'); const W = 460, H = 250, m = { l: 36, r: 16, t: 14, b: 40 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const x = d3.scaleLinear().domain([0, 100]).range([m.l, W - m.r]); const y = d3.scaleLinear().domain([0, 1]).range([H - m.b, m.t]);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5)); svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4));
+  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').style('font-size', '11px').style('fill', 'var(--ink-3)').text('optimization steps');
+  const g = svg.append('g');
+  function proxy(s) { return 1 - Math.exp(-s / 25); }
+  function truth(s, r) { const peak = 30 + 60 * r; const rise = 1 - Math.exp(-s / 25); const fall = s > peak ? (s - peak) / (100 - peak + 1e-6) * (1 - r) * .9 : 0; return Math.max(0, rise * (1 - fall) - (s > peak ? .05 : 0)); }
+  function draw() {
+    const S = +st.value, r = +rb.value; g.selectAll('*').remove(); const xs = d3.range(0, S + .5, 1);
+    g.append('path').attr('d', d3.line().x(d => x(d)).y(d => y(proxy(d)))(xs)).attr('fill', 'none').attr('stroke', 'var(--policy)').attr('stroke-width', 2.2);
+    g.append('path').attr('d', d3.line().x(d => x(d)).y(d => y(truth(d, r)))(xs)).attr('fill', 'none').attr('stroke', 'var(--reward)').attr('stroke-width', 2.2);
+    const gap = proxy(S) - truth(S, r);
+    g.append('line').attr('x1', x(S)).attr('x2', x(S)).attr('y1', y(proxy(S))).attr('y2', y(truth(S, r))).attr('stroke', 'var(--penalty)').attr('stroke-width', 2).attr('stroke-dasharray', '3 2');
+    g.append('text').attr('x', x(S) - 6).attr('y', y((proxy(S) + truth(S, r)) / 2) + 4).attr('text-anchor', 'end').style('font-size', '11px').style('fill', 'var(--penalty)').text(gap > .08 ? `hacked gap: ${fmt(gap)}` : '');
+    g.append('text').attr('x', m.l + 4).attr('y', m.t + 10).style('font-size', '11px').style('fill', 'var(--policy)').text('● proxy reward (what the grader measures)');
+    g.append('text').attr('x', m.l + 4).attr('y', m.t + 24).style('font-size', '11px').style('fill', 'var(--reward)').text('● true reward (what you meant)');
+  }
+  st.addEventListener('input', draw); rb.addEventListener('input', draw); draw();
+})();
+
+/* ============================================================
+   09 Labs + timeline
+   ============================================================ */
+(() => {
+  const labs = [
+    { name: 'OpenAI', c: '#10a37f', sig: 'Reasoning models · RL on tool use · rubric graders', tags: ['reasoning', 'agents', 'coding', 'safety', 'scaling'], items: [
+      'o1 (Sep 2024): "large-scale RL" that teaches the model to use chain-of-thought productively. Showed test-time compute scaling.',
+      'o3 / o4-mini (Apr 2025): RL over tool use; the model learns when to search, run code, or look at images mid-reasoning. Reported ~10× the RL compute of o1.',
+      'Deep Research (Feb 2025) and Operator: agents trained end-to-end with RL on browsing tasks, not just prompted.',
+      'Codex (May 2025) and GPT-5-Codex: RL on real software engineering tasks in sandboxed repos, optimizing for tests and PR-quality output.',
+      'GPT-5 (Aug 2025) and GPT-5.x: unified system with a router; reasoning effort exposed to developers; rubric-graded RL (HealthBench) for open-ended domains.',
+      'Reinforcement Fine-Tuning API: customers bring graders; OpenAI runs the RL. Chain-of-thought monitoring research warned against optimizing the CoT directly.',
+    ] },
+    { name: 'Anthropic', c: '#d97757', sig: 'Constitutional AI · agentic coding · reward-hacking research', tags: ['agents', 'coding', 'safety', 'reasoning'], items: [
+      'Constitutional AI / RLAIF (2022): AI-generated preference labels against written principles; the ancestor of today\'s LLM-judge rewards.',
+      'Claude 3.7 Sonnet (Feb 2025): extended thinking with a user-set budget; first Claude Code release, an agentic terminal coding tool.',
+      'Claude 4 family (May 2025 onward: Opus/Sonnet 4, 4.1, 4.5 and successors): system cards describe heavy RL on agentic coding and long-running tool use, with SWE-bench-style environments and multi-hour autonomous tasks as the headline metric.',
+      'Explicit reward-hacking work: system cards report measured rates of test special-casing; 2025 research showed hacking can generalize to broader misalignment and introduced "inoculation prompting" as a training-time mitigation.',
+      'Interleaved thinking between tool calls, and training for legible, faithful reasoning as a monitoring aid.',
+    ] },
+    { name: 'Google DeepMind', c: '#4285f4', sig: 'Thinking models · formal self-play · evolutionary search', tags: ['reasoning', 'agents', 'scaling', 'coding'], items: [
+      'Gemini 2.5 (Mar 2025) "thinking" models with a controllable thinking budget, then Gemini 3 (late 2025) and 3.x: RL-trained reasoning across text, code, image, audio and video.',
+      'Gemini Deep Think: parallel, multi-hypothesis reasoning trained with "novel RL techniques"; reached gold-medal level at IMO 2025 in natural language.',
+      'AlphaProof and AlphaGeometry: RL self-play in Lean with a verifier, the purest form of RLVR, producing millions of proved/disproved problems.',
+      'AlphaEvolve (May 2025): Gemini-driven evolutionary search with automated evaluators that found new algorithms and datacenter optimizations.',
+      'Agent products (Jules, Gemini CLI, Project Mariner / Agent Mode) trained on coding and browsing environments.',
+    ] },
+    { name: 'DeepSeek', c: '#4d6bfe', sig: 'GRPO · pure-RL reasoning · open weights', tags: ['reasoning', 'open', 'scaling', 'coding'], items: [
+      'DeepSeekMath (Feb 2024) introduced GRPO: critic-free group-normalized advantages, later the default algorithm for open RLVR.',
+      'R1-Zero (Jan 2025): RL directly on the base model with rule-based rewards (answer correctness + format). Reasoning behaviors emerged with no SFT; the "aha moment".',
+      'R1: cold-start SFT, then reasoning RL, rejection sampling, then RLHF-style RL for general tasks. Distilled to small Qwen/Llama models, catalyzing the open reasoning wave.',
+      'V3.1 / V3.2 (late 2025) and later: hybrid thinking modes and agentic post-training for tool use and code, with emphasis on efficiency (sparse attention, cheaper long contexts).',
+    ] },
+    { name: 'Alibaba Qwen', c: '#615ced', sig: 'GSPO · massive parallel environments · hybrid thinking', tags: ['reasoning', 'coding', 'agents', 'open'], items: [
+      'Qwen3 (Apr 2025): unified thinking / non-thinking modes; four-stage post-training with long-CoT cold start, reasoning RL, mode fusion, and general RL.',
+      'Qwen3-Coder (Jul 2025): "agentic RL" on real software tasks, running 20,000 independent environments in parallel on Alibaba Cloud.',
+      'GSPO (Jul 2025): sequence-level importance ratios and clipping; reported necessary for stable RL on large MoE models.',
+      'Later Qwen3 releases continue with long-horizon agent training and open weights, making them the base for much academic RL research.',
+    ] },
+    { name: 'Moonshot AI (Kimi)', c: '#e11d48', sig: 'Agentic data synthesis · self-critique rubric reward', tags: ['agents', 'reasoning', 'open'], items: [
+      'Kimi k1.5 (Jan 2025): RL with long-context scaling and a length penalty for "short-CoT" models; described online policy mirror descent rather than PPO.',
+      'Kimi K2 (Jul 2025, 1T MoE): large-scale synthetic agentic tool-use data, then a joint RL stage mixing verifiable rewards with a self-critique rubric reward for non-verifiable tasks.',
+      'K2 Thinking (Nov 2025) and successors: interleaved thinking with hundreds of sequential tool calls, trained end-to-end.',
+    ] },
+    { name: 'xAI', c: '#555555', sig: 'RL compute scaled to pretraining scale', tags: ['reasoning', 'scaling', 'agents'], items: [
+      'Grok 3 (Feb 2025): reasoning mode; Grok 4 (Jul 2025): claimed to spend as much compute on RL as on pretraining, with native tool use trained in, and Grok 4 Heavy using multi-agent parallel test-time compute.',
+      'Grok Code and later Grok releases emphasize agentic coding trained with RL on Colossus-scale clusters.',
+    ] },
+    { name: 'Meta', c: '#0668e1', sig: 'Online RL with curriculum · open weights', tags: ['open', 'agents', 'scaling'], items: [
+      'Llama 3 (2024): iterative rounds of rejection sampling, SFT and DPO, deliberately avoiding PPO for stability and scale.',
+      'Llama 4 (Apr 2025): "continuous online RL" with a curriculum that filters to medium-and-hard prompts, alternating training and prompt filtering.',
+      'Meta Superintelligence Labs (mid-2025 onward): large reorganization around frontier reasoning and agents; details of RL methods remain largely unpublished.',
+    ] },
+    { name: 'Mistral, ByteDance & others', c: '#f59e0b', sig: 'Open RL systems and algorithm papers', tags: ['open', 'reasoning', 'coding'], items: [
+      'Mistral Magistral (Jun 2025): reasoning via "pure RL" from Mistral Medium with a modified GRPO (no KL, clip-higher, minibatch normalization).',
+      'ByteDance Seed: DAPO (Mar 2025) and VAPO; verl, the most widely used open RL training framework, came out of ByteDance.',
+      'MiniMax M1 (Jun 2025): CISPO, clipping importance weights instead of token updates, and the diagnosis of train/inference numerical mismatch.',
+      'Open infrastructure: OpenRLHF, TRL, AReaL (async), PRIME-RL and Prime Intellect\'s Environments Hub, slime, SkyRL; plus a market of "RL environment" vendors.',
+    ] },
+  ];
+  const tags = ['all', 'reasoning', 'agents', 'coding', 'safety', 'scaling', 'open'];
+  const chips = $('#lab-chips'), grid = $('#labs-grid'); let cur = 'all';
+  tags.forEach(t => { const b = document.createElement('button'); b.className = 'chip' + (t === 'all' ? ' on' : ''); b.textContent = t; b.addEventListener('click', () => { cur = t; $$('.chip', chips).forEach(x => x.classList.toggle('on', x === b)); render(); }); chips.appendChild(b); });
+  function render() {
+    grid.innerHTML = '';
+    labs.filter(l => cur === 'all' || l.tags.includes(cur)).forEach(l => { const d = document.createElement('div'); d.className = 'lab'; d.style.setProperty('--c', l.c); d.innerHTML = `<h4>${l.name}</h4><div class="sig">${l.sig}</div><ul>${l.items.map(i => `<li>${i}</li>`).join('')}</ul><div class="tags">${l.tags.map(t => `<span>${t}</span>`).join('')}</div>`; grid.appendChild(d); });
+  }
+  render();
+
+  // timeline
+  const ev = [
+    { y: 1992, k: 'algo', t: 'REINFORCE', d: 'Williams. The basic policy-gradient estimator every LLM RL method descends from.' },
+    { y: 2015.5, k: 'algo', t: 'TRPO', d: 'Trust-region policy optimization: bound the policy change per step.' },
+    { y: 2017.5, k: 'algo', t: 'PPO', d: 'Clipped surrogate objective. The default RLHF algorithm for seven years.' },
+    { y: 2017.6, k: 'milestone', t: 'RL from preferences', d: 'Christiano et al. Learn a reward model from comparisons of trajectories.' },
+    { y: 2019.7, k: 'milestone', t: 'GPT-2 from preferences', d: 'First RLHF on a language model (Ziegler et al.).' },
+    { y: 2022.2, k: 'milestone', t: 'InstructGPT', d: 'SFT → reward model → PPO. The recipe behind ChatGPT.' },
+    { y: 2022.95, k: 'milestone', t: 'Constitutional AI', d: 'Anthropic: AI feedback against written principles (RLAIF).' },
+    { y: 2023.4, k: 'algo', t: 'DPO', d: 'Preference optimization without a reward model or sampling.' },
+    { y: 2024.1, k: 'algo', t: 'GRPO', d: 'DeepSeekMath: group-normalized advantages, no critic.' },
+    { y: 2024.7, k: 'milestone', t: 'o1', d: 'OpenAI: large-scale RL on reasoning; test-time compute scaling.' },
+    { y: 2025.05, k: 'milestone', t: 'DeepSeek-R1', d: 'Open reasoning via pure RL; GRPO becomes the standard.' },
+    { y: 2025.2, k: 'algo', t: 'DAPO / Dr. GRPO', d: 'Clip-higher, dynamic sampling, token-level loss, length-bias fixes.' },
+    { y: 2025.35, k: 'milestone', t: 'o3, Claude 4, Codex', d: 'RL over tool use; coding agents trained in sandboxed repos.' },
+    { y: 2025.5, k: 'algo', t: 'GSPO / CISPO', d: 'Sequence-level ratios; importance-weight clipping; off-policy corrections.' },
+    { y: 2025.6, k: 'milestone', t: 'Grok 4 · Kimi K2', d: 'RL compute ≈ pretraining; agentic data synthesis; 20k parallel envs.' },
+    { y: 2025.85, k: 'milestone', t: 'Hacking → misalignment', d: 'Anthropic shows reward hacking generalizes; inoculation prompting.' },
+    { y: 2026.3, k: 'milestone', t: 'Long-horizon agents', d: 'Multi-hour autonomous coding and research agents; environment marketplaces; async RL stacks standard.' },
+  ];
+  const el = $('#tl-viz'); const W = 1000, H = 280, m = { l: 30, r: 30, t: 40, b: 30 }; const mid = 150;
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const px = d3.scaleLinear().domain([1991, 2017, 2022, 2024, 2027]).range([m.l, m.l + 100, m.l + 210, m.l + 330, W - m.r]);
+  svg.append('line').attr('x1', px(1991)).attr('x2', px(2027)).attr('y1', mid).attr('y2', mid).attr('stroke', 'var(--line-2)');
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(px).tickValues([1992, 2017, 2020, 2022, 2023, 2024, 2025, 2026]).tickFormat(d3.format('d')));
+  const det = $('#tl-detail');
+  const off = i => [-28, 28, -66, 66][i % 4];
+  const pts = svg.selectAll('g.pt').data(ev).join('g').attr('class', 'pt').style('cursor', 'pointer');
+  pts.append('line').attr('x1', d => px(d.y)).attr('x2', d => px(d.y)).attr('y1', mid).attr('y2', (d, i) => mid + off(i)).attr('stroke', 'var(--line-2)');
+  pts.append('circle').attr('cx', d => px(d.y)).attr('cy', (d, i) => mid + off(i)).attr('r', 7).attr('fill', d => d.k === 'algo' ? 'var(--policy)' : 'var(--gold)').attr('stroke', 'var(--bg-2)').attr('stroke-width', 2);
+  pts.append('text').attr('x', d => px(d.y)).attr('y', (d, i) => mid + off(i) + (off(i) > 0 ? 20 : -13)).attr('text-anchor', 'middle').style('font-size', '10px').style('fill', 'var(--ink-2)').text(d => d.t);
+  pts.on('mouseenter', (e, d) => show(d)).on('click', (e, d) => show(d));
+  function show(d) { det.innerHTML = `<b>${d.t}</b> <span class="muted small">(${Math.floor(d.y)}) · ${d.k === 'algo' ? 'algorithm' : 'milestone'}</span><br>${d.d}`; }
+  svg.append('text').attr('x', m.l).attr('y', 14).style('font-size', '11px').style('fill', 'var(--policy)').text('● algorithm');
+  svg.append('text').attr('x', m.l + 90).attr('y', 14).style('font-size', '11px').style('fill', 'var(--gold)').text('● milestone');
+})();
+
+/* ============================================================
+   10 Scaling chart
+   ============================================================ */
+(() => {
+  const gens = [
+    { g: 'GPT-4 class (2023)', rl: 3 }, { g: 'Claude 3 / Llama 3 (2024)', rl: 6 }, { g: 'o1 / R1 (late 2024–early 2025)', rl: 15 }, { g: 'o3 / Claude 4 / Gemini 2.5 (2025)', rl: 30 }, { g: 'Grok 4 / GPT-5 (mid-late 2025)', rl: 50 }, { g: '2026 frontier agents', rl: 55 },
+  ];
+  const el = $('#scale-viz'); const W = 460, H = 290, m = { l: 40, r: 20, t: 30, b: 100 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const x = d3.scaleBand().domain(gens.map(d => d.g)).range([m.l, W - m.r]).padding(.3); const y = d3.scaleLinear().domain([0, 100]).range([H - m.b, m.t]);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '%'));
+  svg.append('text').attr('x', m.l).attr('y', 14).style('font-size', '11px').style('fill', 'var(--ink-2)').text('RL share of total training compute by model generation (illustrative)');
+  const g = svg.selectAll('g.b').data(gens).join('g');
+  g.append('rect').attr('x', d => x(d.g)).attr('y', y(100)).attr('width', x.bandwidth()).attr('height', y(0) - y(100)).attr('fill', 'var(--bg-3)').attr('rx', 3);
+  g.append('rect').attr('x', d => x(d.g)).attr('y', d => y(d.rl)).attr('width', x.bandwidth()).attr('height', d => y(0) - y(d.rl)).attr('fill', 'var(--policy)').attr('rx', 3);
+  g.append('text').attr('x', d => x(d.g) + x.bandwidth() / 2).attr('y', d => y(d.rl) - 5).attr('text-anchor', 'middle').style('font-size', '11px').style('fill', 'var(--ink-2)').text(d => d.rl + '%');
+  g.append('text').attr('transform', d => `translate(${x(d.g) + x.bandwidth() / 2},${H - m.b + 8}) rotate(35)`).attr('text-anchor', 'start').style('font-size', '9.5px').style('fill', 'var(--ink-3)').text(d => d.g);
+  svg.append('text').attr('x', m.l + 4).attr('y', y(88)).style('font-size', '10px').style('fill', 'var(--ink-3)').text('grey = pretraining + SFT share');
+})();
+</script>
+</body>
+</html>
