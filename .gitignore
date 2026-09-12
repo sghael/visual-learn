@@ -6,3 +6,6 @@ test-results/
 .worktrees/
 .claude/worktrees/
 .codex-worktrees/
+
+# worktree tooling marker
+.worktree-owner
