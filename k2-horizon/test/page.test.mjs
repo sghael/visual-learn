@@ -1,7 +1,7 @@
 // Browser regression tests. Drives index.html in headless Chrome (the installed
 // Google Chrome via Playwright's "chrome" channel, falling back to Playwright's
-// own Chromium). Run with `pnpm test`. D3 is served from a local stub route so
-// the tests do not depend on cdnjs being reachable.
+// own Chromium). Run with `pnpm test`. D3 is fetched from cdnjs once, cached in
+// test/.d3.min.js and served from there, so only the first run needs the network.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -19,7 +19,11 @@ let browser, d3src;
 before(async () => {
   try { browser = await chromium.launch({ channel: 'chrome', headless: true }); }
   catch { browser = await chromium.launch({ headless: true }); }
-  if (!fs.existsSync(D3_CACHE)) fs.writeFileSync(D3_CACHE, await (await fetch(D3_URL)).text());
+  if (!fs.existsSync(D3_CACHE)) {
+    const res = await fetch(D3_URL);
+    if (!res.ok) throw new Error(`could not fetch D3 fixture: ${res.status} ${D3_URL}`);
+    fs.writeFileSync(D3_CACHE, await res.text());
+  }
   d3src = fs.readFileSync(D3_CACHE, 'utf8');
 });
 after(async () => { if (browser) await browser.close(); });
@@ -124,13 +128,32 @@ test('Uno: reset mid-run stops the old timer, and block size applies to the next
   await context.close();
 });
 
-test('benchmark model select redraws with that model card\'s competitors', async () => {
+test('benchmark model select covers all six models and redraws with each card\'s competitors', async () => {
   const { page, context, errors } = await open();
+  assert.deepEqual(await page.$$eval('#benchModel option', (els) => els.map((o) => o.value)), ['0.9B', '3.7B', '7B', '32B', '36B-A4B', '375B-A23B']);
+  await page.selectOption('#benchModel', '32B');
+  assert.match(await page.locator('#benchLegend').innerText(), /Qwen3.8-27B/);
+  assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 24, '6 rows × 4 competitors');
   await page.selectOption('#benchModel', '375B-A23B');
   assert.match(await page.locator('#benchLegend').innerText(), /Claude Sonnet 5/);
   assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 24, '6 rows × 4 competitors');
   await page.selectOption('#benchModel', '3.7B');
   assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 10, '5 rows × 2 competitors');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('training stages are keyboard-reachable buttons that drive the detail and the chart', async () => {
+  const { page, context, errors } = await open();
+  const chips = page.locator('#trainChips button');
+  assert.equal(await chips.count(), 8);
+  await chips.nth(0).focus();
+  await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  assert.equal(await chips.nth(3).getAttribute('aria-pressed'), 'true');
+  assert.match(await page.locator('#trainDetail').innerText(), /Midtrain 2 · context 131,072/);
+  const outlined = await page.$$eval('#trainDiagram .stbar', (els) => els.filter((e) => e.getAttribute('stroke') !== 'none').length);
+  assert.equal(outlined, 1);
   assert.deepEqual(errors, []);
   await context.close();
 });

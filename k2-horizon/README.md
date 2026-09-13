@@ -26,10 +26,10 @@ no network the charts do not draw but the prose still reads.
 | 2 Inside a layer | switchable block diagram | Dense, MoE (375B) and MoE + MoVA (36B-A4B) layers; "Route a token" lights the experts one token uses |
 | 3 MoVA attention | routed value pool | Sliders for pool size and active experts; shows why capacity grows while value compute stays fixed |
 | 4 Uno decoding | two-lane simulation | Autoregressive decoding versus diffusion-drafted blocks verified by the base model; block size and agreement sliders, forward-pass counter |
-| 5 Training pipeline | stage track | Pretraining, four midtraining context extensions (8K to 512K), SFT and RL-then-merge for the 375B model; click a stage |
-| 6 The data | two-ring donut | Roughly 20T tokens, half synthetic, about 17% reasoning trajectories |
-| 7 Benchmarks | grouped bars | Each model against the competitors IFM chose in its model card |
-| 8 Fully open | table | Weights, checkpoints, code, corpus, evaluation protocols |
+| 5 Training pipeline | stage track + stage buttons | Pretraining, four midtraining context extensions (8K to 512K), SFT and RL-then-merge for the 375B model; pick a stage |
+| 6 The data | two-ring donut (static) | Roughly 20T tokens, half synthetic, about 17% reasoning trajectories |
+| 7 Benchmarks | grouped bars | Each of the six models against the competitors IFM chose in its model card |
+| 8 Fully open | table (static) | Weights, checkpoints, code, corpus, evaluation protocols |
 
 The page supports light and dark themes (system, or the toggle in the rail).
 
@@ -55,7 +55,8 @@ The page supports light and dark themes (system, or the toggle in the rail).
 ## Tests
 
 Playwright drives the page in headless Chrome (the installed Google Chrome, or
-Playwright's own Chromium as a fallback) and checks that every stage renders
+Playwright's own Chromium as a fallback). D3 is fetched from cdnjs once and
+cached in `test/.d3.min.js` (gitignored), so later runs are offline. The tests check that every stage renders
 at 1440 px and 390 px with no console or page errors and no horizontal
 overflow, that switching layer variants and models redraws, that the Uno
 simulation survives reset mid-run and honours block-size changes, and that the
