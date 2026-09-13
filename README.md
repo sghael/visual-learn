@@ -11,6 +11,7 @@ Live site: https://sghael.github.io/visual-learn/
 |---|---|---|
 | [`jax-vs-pytorch/`](jax-vs-pytorch/) | [JAX Explainer](https://sghael.github.io/visual-learn/jax-vs-pytorch/) | How JAX, XLA and TPUs run your code, side by side with PyTorch and CUDA |
 | [`qat-explainer/`](qat-explainer/) | [Quantization-Aware Training](https://sghael.github.io/visual-learn/qat-explainer/) | How LLMs are trained to survive 4-bit weights: fake quantization, the straight-through estimator, and a live PTQ vs QAT lab |
+| [`gcp-accelerators/`](gcp-accelerators/) | [Accelerator Atlas](https://sghael.github.io/visual-learn/gcp-accelerators/) | Every GPU and TPU on Google Cloud in 2026: anatomy, lineup, roofline, interconnects, and a model-fit calculator |
 
 ## How the repo works
 
