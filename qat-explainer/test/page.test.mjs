@@ -62,7 +62,7 @@ test('quantizer: symmetric grid, clipping at the edge level, and exact zero', as
   assert.deepEqual(r.four.mask, [1, 1, 1, 1, 1], 'a symmetric max lands on ±qmax, nothing is clipped');
   assert.equal(r.neg.out[0], -1, 'negative max defines the scale and is representable');
   assert.ok(Math.abs(r.neg.s - 1 / 3) < 1e-12);
-  // 2-bit: levels {-2s, -s, 0, s} with s = 1; 0.3 rounds to 0, -1 to -1
+  // 2-bit: three symmetric levels {-s, 0, s} with s = 1; 0.3 rounds to 0, -1 to -1
   assert.deepEqual(r.two.out.map((v) => v + 0), [-1, 0, 0, 1]); // + 0 folds -0 into 0
   assert.equal(r.two.qmax, 1);
   assert.equal(r.tiny.out.length, 2);
@@ -113,6 +113,27 @@ test('loop diagram: every step button changes the caption', async () => {
     seen.add(await page.locator('#loopCaption').innerText());
   }
   assert.equal(seen.size, 6);
+  await context.close();
+});
+
+test('STE plot: the surrogate gradient is 1 just inside the clipping range and 0 just outside', async () => {
+  const { page, context } = await open();
+  const grad = async (x) => { await page.locator('#steX').fill(String(x)); return page.$$eval('#steBwd text', (els) => els.map((e) => e.textContent).find((s) => s.startsWith('grad='))); };
+  assert.equal(await grad(1.9), 'grad=1');
+  assert.equal(await grad(2.1), 'grad=0');
+  assert.equal(await grad(-2.1), 'grad=0');
+  await page.locator('#steSeg button', { hasText: 'true derivative' }).click();
+  assert.equal(await grad(1.9), 'grad=0');
+  await context.close();
+});
+
+test('drift: under reduced motion Play jumps to the end state without scheduling an animation', async () => {
+  const { page, context, errors } = await open({ reduced: true });
+  await page.locator('#driftPlay').click();
+  const label = await page.$$eval('#driftSvg text', (els) => els.map((e) => e.textContent).find((s) => s.startsWith('W = ')));
+  assert.equal(label, 'W = -1.97');
+  assert.equal(await page.locator('#driftPlay').innerText(), 'Play');
+  assert.deepEqual(errors, []);
   await context.close();
 });
 

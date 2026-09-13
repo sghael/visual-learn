@@ -175,7 +175,7 @@ footer p{margin:.3rem 0}
     <p class="caption">Weight memory only, approximate (parameters × bytes per weight, ignoring group scales). Activations, the KV cache and framework overhead come on top. Reference lines: 16 GB laptop GPU, 24 GB RTX 4090, 80 GB H100.</p>
   </div>
   <div class="prose">
-    <p>Fewer bits also means less memory traffic per token, and decoding an LLM is memory-bandwidth-bound, so 4-bit weights are faster too. The catch: 4 bits gives you only 16 distinct values per weight. The whole game is deciding <em>which</em> 16 values, and making the model robust to landing on them.</p>
+    <p>Fewer bits also means less memory traffic per token, and decoding an LLM is memory-bandwidth-bound, so 4-bit weights are faster too. The catch: 4 bits gives you only 16 storage codes per weight, and a symmetric grid uses 15 of them. The whole game is deciding <em>which</em> 15 values, and making the model robust to landing on them.</p>
   </div>
 </section>
 
@@ -287,7 +287,7 @@ footer p{margin:.3rem 0}
       <div><p class="panel-title">forward: x̂ = s·round(x/s), clipped at ±2</p><svg id="steFwd" viewBox="0 0 360 230"></svg></div>
       <div><p class="panel-title">backward: dx̂/dx</p><svg id="steBwd" viewBox="0 0 360 230"></svg></div>
     </div>
-    <p class="caption">Left: the staircase every weight passes through (s = 1 here). Right: the true derivative is 0 everywhere except undefined spikes at the jumps. The STE replaces it with 1 inside the range and 0 where the value is clipped.</p>
+    <p class="caption">Left: the staircase every weight passes through (s = 1 here), clipped to [−2, 2] before rounding. Right: the true derivative is 0 everywhere except undefined spikes at the jumps. The STE replaces it with 1 inside [−2, 2] and 0 where the value is clipped.</p>
   </div>
   <div class="prose">
     <h3>Why a fake gradient still works</h3>
@@ -335,7 +335,7 @@ footer p{margin:.3rem 0}
     <p class="caption">Simplified on purpose: a 97-parameter regression network with per-tensor weight quantization only, no activation quantization, no distillation. Mean squared error on the training points; the loss axis is logarithmic. The histogram shows the fp32 master weights of the first layer; the vertical ticks are the representable levels for the chosen bit-width. Under QAT the master weights drift toward the levels, because sitting between two levels is a place where the forward pass is unstable.</p>
   </div>
   <div class="prose">
-    <p>Try 2 bits. Only four levels per tensor, so PTQ is often catastrophic, and QAT recovers a lot but not everything: with that few levels, the network genuinely has less capacity. The gap between fp32 and QAT is the true cost of the bit-width; the gap between PTQ and QAT is what training-in-the-loop buys you.</p>
+    <p>Try 2 bits. Only three usable levels per tensor (−s, 0, +s; the fourth code goes unused in a symmetric grid), so PTQ is often catastrophic, and QAT recovers a lot but not everything: with that few levels, the network genuinely has less capacity. The gap between fp32 and QAT is the true cost of the bit-width; the gap between PTQ and QAT is what training-in-the-loop buys you.</p>
     <p>Small details that matter even here, and matter more at LLM scale: the scale is recomputed from the current master weights each step (so here nothing is ever clipped; α is the largest weight), the STE is applied to every weight, and the learning rate decays to zero so the weights settle onto the grid instead of oscillating around it.</p>
   </div>
 </section>
@@ -602,7 +602,7 @@ document.querySelectorAll("section.step").forEach(s=>obs.observe(s));
   let mode="ste", x0=1.3;
   const el={x:document.getElementById("steX"),xV:document.getElementById("steXV")};
   const clip=2;
-  function q(v){return Math.max(-clip,Math.min(clip,Math.round(v)))}
+  function q(v){return Math.round(Math.max(-clip,Math.min(clip,v)))} // clamp, then round: identical to round-then-clamp for the values drawn here
   function draw(){
     const W=360,H=230,m={t:12,r:12,b:28,l:34};
     const xs=d3.scaleLinear().domain([-3,3]).range([m.l,W-m.r]);
@@ -626,9 +626,10 @@ document.querySelectorAll("section.step").forEach(s=>obs.observe(s));
      svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(ys).ticks(4));
      const c=css("--qat");
      if(mode==="ste"){
-       svg.append("path").attr("d",d3.line()([[xs(-3),ys(0)],[xs(-clip-0.5),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
-       svg.append("path").attr("d",d3.line()([[xs(-clip-0.5),ys(1)],[xs(clip+0.5),ys(1)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
-       svg.append("path").attr("d",d3.line()([[xs(clip+0.5),ys(0)],[xs(3),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
+       svg.append("path").attr("d",d3.line()([[xs(-3),ys(0)],[xs(-clip),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
+       svg.append("path").attr("d",d3.line()([[xs(-clip),ys(1)],[xs(clip),ys(1)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
+       svg.append("path").attr("d",d3.line()([[xs(clip),ys(0)],[xs(3),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
+       [-clip,clip].forEach(k=>svg.append("line").attr("x1",xs(k)).attr("x2",xs(k)).attr("y1",ys(0)).attr("y2",ys(1)).attr("stroke",c).attr("stroke-dasharray","2 3"));
        svg.append("text").attr("x",xs(0)).attr("y",ys(1)-8).attr("text-anchor","middle").style("font-size","11px").attr("fill",c).text("pretend dx̂/dx = 1");
        svg.append("text").attr("x",xs(2.75)).attr("y",ys(0)-8).attr("text-anchor","middle").style("font-size","10px").attr("fill",c).text("clipped: 0");
      } else {
@@ -636,7 +637,7 @@ document.querySelectorAll("section.step").forEach(s=>obs.observe(s));
        for(let k=-2.5;k<=2.5;k+=1){if(Math.abs(k)>clip)continue;svg.append("line").attr("x1",xs(k)).attr("x2",xs(k)).attr("y1",ys(0)).attr("y2",ys(1.35)).attr("stroke",c).attr("stroke-width",1.5).attr("stroke-dasharray","2 3");svg.append("text").attr("x",xs(k)).attr("y",ys(1.35)-4).attr("text-anchor","middle").style("font-size","9px").attr("fill",c).text("∞")}
        svg.append("text").attr("x",xs(0)).attr("y",ys(0)+16).attr("text-anchor","middle").style("font-size","11px").attr("fill",c).text("dx̂/dx = 0 almost everywhere");
      }
-     const gv = mode==="ste" ? (Math.abs(x0)<=clip+0.5?1:0) : 0;
+     const gv = mode==="ste" ? (Math.abs(x0)<=clip?1:0) : 0;
      svg.append("circle").attr("cx",xs(x0)).attr("cy",ys(gv)).attr("r",5).attr("fill",css("--fp32")).attr("stroke",css("--surface")).attr("stroke-width",2);
      svg.append("text").attr("x",xs(x0)+8).attr("y",ys(gv)+(gv?16:-8)).attr("class","mono").style("font-size","11px").attr("fill",css("--fp32")).text("grad="+gv);
     }
@@ -664,7 +665,10 @@ document.querySelectorAll("section.step").forEach(s=>obs.observe(s));
   }
   const play=document.getElementById("driftPlay");
   function stop(){if(timer){clearInterval(timer);timer=null;play.textContent="Play"}}
-  play.addEventListener("click",()=>{ if(timer){stop();return} play.textContent="Pause"; timer=setInterval(()=>{ if(w<=-1.95){stop();return} w-=0.03;t++;drawDrift() },90) });
+  const driftReduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  play.addEventListener("click",()=>{ if(timer){stop();return}
+    if(driftReduced){ while(w>-1.95){w-=0.03;t++} drawDrift(); return } // no motion: jump straight to the end state
+    play.textContent="Pause"; timer=setInterval(()=>{ if(w<=-1.95){stop();return} w-=0.03;t++;drawDrift() },90) });
   document.getElementById("driftReset").addEventListener("click",()=>{stop();w=1.42;t=0;drawDrift()});
   drawDrift(); onTheme(drawDrift);
 })();
