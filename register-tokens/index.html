@@ -92,7 +92,7 @@ figure .bar{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;padding
 figure .body{padding:18px 16px}
 figcaption{padding:12px 16px 14px;border-top:1px solid var(--line);color:var(--ink-2);font-size:.92rem;line-height:1.5}
 .ctl{display:flex;align-items:center;gap:8px}
-.ctl label{color:var(--ink-2)}
+.ctl label,.ctl .ctl-label{color:var(--ink-2)}
 .ctl output{font-family:"JetBrains Mono",monospace;font-size:.85rem;min-width:2.2ch;text-align:right;color:var(--ink)}
 input[type=range]{accent-color:var(--reg);width:150px}
 .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden}
@@ -108,7 +108,8 @@ input[type=range]{accent-color:var(--reg);width:150px}
 /* patch grids */
 .gridwrap{display:grid;gap:2px;background:var(--line);border:1px solid var(--line);padding:2px;border-radius:6px;aspect-ratio:1;width:100%;max-width:420px}
 .gridwrap.no-gap{gap:0;padding:0}
-.cell{position:relative;cursor:pointer;transition:transform .12s}
+.cell{position:relative;cursor:pointer;transition:transform .12s;border:0;padding:0;margin:0;font:inherit;display:block;width:100%;height:100%;background:var(--surface-2)}
+.cell:focus-visible{outline:2px solid var(--focus);outline-offset:-2px;z-index:4}
 .cell:hover{outline:2px solid var(--ink);z-index:2}
 .cell.sel{outline:2px solid var(--ink);z-index:3}
 .cell.outlier::after{content:"";position:absolute;inset:18%;border:2px solid var(--art);border-radius:50%;box-sizing:border-box}
@@ -119,7 +120,8 @@ input[type=range]{accent-color:var(--reg);width:150px}
 
 /* token strip */
 .strip{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
-.tok{width:18px;height:26px;border-radius:3px;background:var(--surface-2);border:1px solid var(--line);position:relative;cursor:pointer}
+.tok{width:18px;height:26px;border-radius:3px;background:var(--surface-2);border:1px solid var(--line);position:relative;cursor:pointer;padding:0;margin:0;font:inherit}
+.tok:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .tok.cls{background:var(--cls-soft);border-color:var(--cls)}
 .tok.reg{background:var(--reg-soft);border-color:var(--reg)}
 .tok.art{background:var(--art-soft);border-color:var(--art)}
@@ -170,6 +172,7 @@ th{color:var(--ink-3);font-weight:500;font-size:.8rem;letter-spacing:.04em;text-
 td:first-child,th:first-child{text-align:left}
 td.up{color:var(--reg-ink);font-weight:600}
 td.same{color:var(--ink-3)}
+td.down{color:var(--art-ink);font-weight:600}
 .tablewrap{overflow-x:auto}
 
 /* callouts */
@@ -190,7 +193,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 @media (max-width:760px){.split{grid-template-columns:1fr}}
 .hero-fig .split{gap:14px}
 .hero-fig .cap{font-family:"Bricolage Grotesque",sans-serif;font-size:.8rem;color:var(--ink-2);text-align:center;margin-top:6px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
@@ -223,8 +226,8 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
     </div>
     <figure class="hero-fig" style="margin:0">
       <div class="bar">
-        <div class="ctl"><label for="heroReg">Registers</label>
-          <div class="seg" id="heroSeg">
+        <div class="ctl"><span class="ctl-label" id="heroRegLabel">Registers</span>
+          <div class="seg" id="heroSeg" role="group" aria-labelledby="heroRegLabel">
             <button type="button" data-n="0" aria-pressed="true">0</button>
             <button type="button" data-n="4" aria-pressed="false">4</button>
           </div>
@@ -283,16 +286,16 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
   <div class="head"><div class="eyebrow">02 · The problem</div><h2>Some tokens go rogue in the middle of the network</h2></div>
   <div class="prose">
     <p>If you look at the attention map of a modern self-supervised ViT like DINOv2, you expect it to light up the object. Instead the map is peppered with a few bright spots in flat, featureless regions: sky, wall, road. These spots come from <span class="kw art">artifact</span> tokens whose embedding norm is roughly ten times larger than their neighbours'.</p>
-    <p>Drag the layer slider. In the simulated ViT-L below, artifacts do not exist early in the network. They appear in the middle layers, in patches that look like their surroundings, and stay until the end. Click any patch to run a probe on its token.</p>
+    <p>Drag the layer slider. In the simulated DINOv2 ViT-L below, artifacts do not exist early in the network. They appear in the middle layers, in patches that look like their surroundings, and stay until the end. Click any patch to run a probe on its token.</p>
   </div>
   <figure>
     <div class="bar">
       <div class="ctl"><label for="layer">Layer</label><input type="range" id="layer" min="1" max="24" value="18"><output id="layerOut">18</output><span style="color:var(--ink-3)">/ 24</span></div>
-      <div class="ctl"><label>Model</label>
+      <div class="ctl"><span class="ctl-label">Model</span>
         <div class="seg" id="modelSeg">
-          <button type="button" data-m="S" aria-pressed="false">ViT-S</button>
-          <button type="button" data-m="B" aria-pressed="false">ViT-B</button>
-          <button type="button" data-m="L" aria-pressed="true">ViT-L</button>
+          <button type="button" data-m="S" aria-pressed="false">DINOv2 ViT-S</button>
+          <button type="button" data-m="B" aria-pressed="false">DINOv2 ViT-B</button>
+          <button type="button" data-m="L" aria-pressed="true">DINOv2 ViT-L</button>
         </div>
       </div>
       <label class="toggle"><input type="checkbox" id="showImg"> Overlay image</label>
@@ -314,7 +317,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         </div>
       </div>
     </div>
-    <figcaption>Simulation calibrated to the paper's observations: artifacts appear around the middle of the network, only in models of ViT-B size and up, and only in low-information patches. The probe numbers are the paper's reported values for DINOv2 ViT-g (position top-1 accuracy, reconstruction L2, ImageNet linear-probe top-1).</figcaption>
+    <figcaption>Simplified simulation calibrated to the paper's DINOv2 size study: artifacts appear around the middle of the network, only at ViT-L and above, and only in low-information patches. The paper also finds them in DeiT-III and OpenCLIP at ViT-B, so size is recipe-dependent. The probe numbers are the paper's reported values for DINOv2 ViT-g (position top-1 accuracy, reconstruction L2, ImageNet linear-probe top-1).</figcaption>
   </figure>
 </div>
 </section>
@@ -328,7 +331,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
       <p>Put the clues together:</p>
       <p><b>They appear in redundant patches.</b> An artifact token almost always sits in a patch whose embedding was nearly identical to its neighbours' just before the switch. A sky patch surrounded by sky carries no information the network could not recover from next door.</p>
       <p><b>They drop their local content and pick up global content.</b> The token stops encoding where it is or what it looked like, and starts encoding what the image is.</p>
-      <p><b>They only show up in big models trained long enough.</b> Small models do not have spare capacity to spend on the trick; large ones learn it during training.</p>
+      <p><b>They only show up in big models trained long enough.</b> In the DINOv2 size study they start at ViT-L and grow during training. Supervised DeiT-III and text-supervised OpenCLIP show them already at ViT-B, so the threshold depends on the recipe, not on a fixed parameter count.</p>
       <p>The interpretation: the transformer needs somewhere to store and mix global information while it processes the image, and the only slots it has are tokens. So it overwrites the least useful ones. The high norm is a side effect: an easy way to make a token dominate softmax attention so other tokens can read from it.</p>
       <p>That is fine for classification. It is bad for anything that reads patch tokens directly: segmentation, depth, object discovery, and any attention-map visualization.</p>
     </div>
@@ -349,13 +352,13 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <div class="wrap">
   <div class="head"><div class="eyebrow">04 · The fix</div><h2>Give it scratch space on purpose: register tokens</h2></div>
   <div class="prose">
-    <p>If the model wants extra slots, hand them over. A <span class="kw reg">register</span> is just another learned token, exactly like <span class="kw cls">[CLS]</span>, appended to the sequence after the patch tokens. Registers have no pixels, no position in the image, and no loss attached to them. They participate in every attention layer, and at the output they are simply thrown away.</p>
+    <p>If the model wants extra slots, hand them over. A <span class="kw reg">register</span> is just another learned token, exactly like <span class="kw cls">[CLS]</span>, added to the sequence after the patch-embedding layer. The paper calls this appending; the DINOv2 implementation places them right after <span class="kw cls">[CLS]</span>, before the patch tokens. Registers have no pixels, no position in the image, and no loss attached to them. They participate in every attention layer, and at the output they are simply thrown away.</p>
     <p>With even one register available, the model stops overwriting patches. The high norms move into the registers, where nobody is reading them, and the patch tokens keep describing their patches. Slide the register count below and watch the norm map and the attention map.</p>
   </div>
   <figure>
     <div class="bar">
       <div class="ctl"><label for="nreg">Registers</label><input type="range" id="nreg" min="0" max="8" value="0"><output id="nregOut">0</output></div>
-      <div class="ctl"><label>Show</label>
+      <div class="ctl"><span class="ctl-label">Show</span>
         <div class="seg" id="viewSeg">
           <button type="button" data-v="norm" aria-pressed="true">Token norms</button>
           <button type="button" data-v="attn" aria-pressed="false">[CLS] attention</button>
@@ -374,7 +377,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         <div>
           <div class="eyebrow">Where the high norms live</div>
           <div class="strip" id="fixStrip" style="margin-top:8px"></div>
-          <div class="toklabel"><span>■ <span class="kw cls">[CLS]</span></span><span>■ <span class="kw reg">[REG]</span></span><span>■ patch</span><span>■ <span class="kw art">artifact</span></span></div>
+          <div class="toklabel"><span>■ <span class="kw cls">[CLS]</span></span><span>■ <span class="kw reg">[REG]</span></span><span>■ patch (every 2nd shown)</span><span>■ <span class="kw art">artifact</span></span></div>
           <div class="probe" style="margin-top:16px">
             <h3>Norm budget <span class="pill reg" id="budgetPill">0 registers</span></h3>
             <div class="kv" id="budgetKv"></div>
@@ -383,7 +386,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         </div>
       </div>
       <div class="pipeline" style="margin-top:22px">
-        <div class="stage"><b>[CLS] + 196 patches + <span id="pipeN">0</span> registers</b>input sequence</div><div class="arrow">→</div>
+        <div class="stage"><b>[CLS] + <span id="pipeN">0</span> registers + 196 patches</b>input sequence</div><div class="arrow">→</div>
         <div class="stage"><b>L transformer blocks</b>unchanged architecture</div><div class="arrow">→</div>
         <div class="stage drop"><b>Registers discarded</b>use [CLS] and patch tokens as before</div>
       </div>
@@ -400,25 +403,25 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
   <div class="head"><div class="eyebrow">05 · Evidence</div><h2>What changes when you add four registers</h2></div>
   <div class="grid2">
     <div class="prose">
-      <p>The authors retrained three very different ViT-L models with four registers: DeiT-III (supervised), OpenCLIP (text-supervised) and DINOv2 (self-supervised). In all three the artifacts disappear and the attention maps become clean.</p>
-      <p>Classification barely moves, which makes sense because <span class="kw cls">[CLS]</span> was already getting what it needed. Dense tasks that read the patch tokens improve, and the unsupervised object-discovery method LOST, which relies on patch-to-patch similarity, improves dramatically on DINOv2.</p>
+      <p>The authors retrained three very different models with four registers: DeiT-III (supervised, ViT-B), OpenCLIP (text-supervised, ViT-B) and DINOv2 (self-supervised, ViT-L). In all three the artifacts disappear and the attention maps become clean.</p>
+      <p>Classification barely moves, which makes sense because <span class="kw cls">[CLS]</span> was already getting what it needed. Dense tasks that read the patch tokens improve. The unsupervised object-discovery method LOST, which relies on patch-to-patch similarity, improves dramatically on DeiT-III and DINOv2 but slips slightly on OpenCLIP.</p>
       <p>Numbers below are from the paper's Tables 2 and 3 (ImageNet top-1, ADE20k mIoU, NYUd depth RMSE where lower is better, and LOST corloc on VOC 2007).</p>
     </div>
     <figure style="margin:0">
       <div class="tablewrap">
       <table>
-        <thead><tr><th>Model</th><th>Registers</th><th>ImageNet ↑</th><th>ADE20k ↑</th><th>NYUd ↓</th><th>LOST ↑</th></tr></thead>
+        <thead><tr><th>Model (size)</th><th>Registers</th><th>ImageNet ↑</th><th>ADE20k ↑</th><th>NYUd ↓</th><th>LOST ↑</th></tr></thead>
         <tbody>
-          <tr><td>DeiT-III</td><td>0</td><td>84.7</td><td>38.9</td><td>0.511</td><td>11.7</td></tr>
+          <tr><td>DeiT-III (ViT-B)</td><td>0</td><td>84.7</td><td>38.9</td><td>0.511</td><td>11.7</td></tr>
           <tr><td></td><td>4</td><td class="same">84.7</td><td class="up">39.1</td><td class="same">0.512</td><td class="up">27.1</td></tr>
-          <tr><td>OpenCLIP</td><td>0</td><td>78.2</td><td>26.6</td><td>0.702</td><td>7.5</td></tr>
-          <tr><td></td><td>4</td><td class="same">78.2</td><td class="up">26.7</td><td class="up">0.661</td><td class="up">14.2</td></tr>
-          <tr><td>DINOv2</td><td>0</td><td>84.3</td><td>46.6</td><td>0.378</td><td>35.3</td></tr>
+          <tr><td>OpenCLIP (ViT-B)</td><td>0</td><td>78.2</td><td>26.6</td><td>0.702</td><td>38.8</td></tr>
+          <tr><td></td><td>4</td><td class="down">78.1</td><td class="up">26.7</td><td class="up">0.661</td><td class="down">37.1</td></tr>
+          <tr><td>DINOv2 (ViT-L)</td><td>0</td><td>84.3</td><td>46.6</td><td>0.378</td><td>35.3</td></tr>
           <tr><td></td><td>4</td><td class="up">84.8</td><td class="up">47.9</td><td class="up">0.366</td><td class="up">55.4</td></tr>
         </tbody>
       </table>
       </div>
-      <figcaption>Green values improved with registers. Small deltas on classification, large ones wherever patch tokens are read directly. Values transcribed from the paper; check the original before quoting them.</figcaption>
+      <figcaption>Green values improved with registers, orange ones got worse. Small deltas on classification, large ones wherever patch tokens are read directly. Values transcribed from Tables 2 and 3 of the paper.</figcaption>
     </figure>
   </div>
 </div>
@@ -430,11 +433,11 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
   <div class="head"><div class="eyebrow">06 · Details</div><h2>Questions people ask next</h2></div>
   <div class="faq">
     <details open><summary>How many registers do I need?</summary><div class="a">One is enough to remove the artifacts. The paper uses four by default because dense-task performance keeps creeping up to about four and then flattens. Beyond that you pay sequence length for nothing.</div></details>
-    <details><summary>Where do they go in the sequence?</summary><div class="a">After the patch tokens. Position does not matter to attention, but putting them at the end keeps the [CLS]-first, patches-next convention that downstream code assumes. They get no positional embedding.</div></details>
+    <details><summary>Where do they go in the sequence?</summary><div class="a">Right after [CLS] and before the patch tokens, in the official DINOv2 code: the sequence is [CLS], [REG1..n], then patches. Attention itself is order-agnostic, so any fixed slot would work; keeping them next to [CLS] means downstream code can drop the first 1+n tokens and treat the rest as the patch grid. They get no positional embedding.</div></details>
     <details><summary>Are registers the same as [CLS]?</summary><div class="a">Mechanically yes: a learned vector, prepended or appended, updated by every layer. The difference is intent. [CLS] is read at the output and has a loss attached; registers are never read and have no loss. Interestingly, registers end up specializing: different registers attend to different parts of the object.</div></details>
     <details><summary>Is this the same as attention sinks in language models?</summary><div class="a">Closely related. LLMs also grow a few massive-activation tokens, usually the first token, that soak up attention mass. StreamingLLM's "attention sink" tokens and the "massive activations" line of work describe the same pressure: softmax needs somewhere to dump probability, and the model needs somewhere to keep global state. Registers are the vision-side answer.</div></details>
     <details><summary>Can I add registers to a model I already have?</summary><div class="a">Not for free. The artifacts are learned behaviour; a frozen model will keep producing them and ignore new tokens. You need to fine-tune with the registers present. Training from scratch is what the paper did. Later work explores test-time and training-free variants, but the clean result needs training.</div></details>
-    <details><summary>Why did small models not have artifacts?</summary><div class="a">The paper observes artifacts in ViT-B and larger and after enough training. A plausible reading is capacity: a small model cannot afford to sacrifice patch information, and the global-scratch trick only pays off once the model is big enough to exploit it.</div></details>
+    <details><summary>Why did small models not have artifacts?</summary><div class="a">In the paper's DINOv2 size study, artifacts appear at ViT-L and above and only after enough training; ViT-S and ViT-B stay clean. DeiT-III and OpenCLIP at ViT-B do show them. A plausible reading is capacity relative to the training signal: a model cannot afford to sacrifice patch information until it is big enough that the global-scratch trick pays off.</div></details>
   </div>
 </div>
 </section>
@@ -492,7 +495,8 @@ const r = rng(7);
 const cand = info.map((v,i)=>({i,s:redundancy[i] + (r()-.5)*.25})).filter(o=>scene[o.i]!==2 && redundancy[o.i]>.85).sort((a,b)=>b.s-a.s).map(o=>o.i);
 
 // ---------- model ----------
-const MODEL = {S:{layers:12,start:99,max:0}, B:{layers:12,start:7,max:4}, L:{layers:24,start:11,max:7}};
+// DINOv2 size study (paper Fig. 4c): outliers only at ViT-L and above.
+const MODEL = {S:{layers:12,start:99,max:0}, B:{layers:12,start:99,max:0}, L:{layers:24,start:11,max:7}};
 function state(model, layer, nreg){
   const m = MODEL[model];
   const frac = Math.min(1,(layer - m.start)/6);
@@ -520,8 +524,9 @@ function buildGrid(el, onCell){
   el.style.gridTemplateColumns = `repeat(${N},1fr)`;
   el.innerHTML='';
   const cells=[];
-  for(let i=0;i<N*N;i++){const c=document.createElement('div');c.className='cell';c.dataset.i=i;el.appendChild(c);cells.push(c);}
+  for(let i=0;i<N*N;i++){const c=document.createElement('button');c.type='button';c.className='cell';c.dataset.i=i;c.setAttribute('aria-label',`patch column ${i%N}, row ${(i/N)|0}`);el.appendChild(c);cells.push(c);}
   if(onCell){ el.addEventListener('mouseover',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
+              el.addEventListener('focusin',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
               el.addEventListener('click',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'click');}); }
   return cells;
 }
@@ -539,11 +544,17 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
   const seg = document.getElementById('heroSeg');
   const render = n => { const s=state('L',24,n); paintHeat(at,s.attn,tok('--attn0'),tok('--attn1'),{max:1,gamma:.8});
     document.getElementById('heroCap').textContent = n? `Attention map, ${n} registers: follows the object` : 'Attention map, 0 registers: spikes on background'; };
-  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...seg.children].forEach(x=>x.setAttribute('aria-pressed',x===b));render(+b.dataset.n);});
-  render(0);
-  // gentle autoplay once to show the flip, then leave it to the user
-  let flips=0; const timer=setInterval(()=>{ if(flips++>=3||document.hidden){clearInterval(timer);return;} const cur=[...seg.children].find(b=>b.getAttribute('aria-pressed')==='true'); const next=cur.dataset.n==='0'?seg.children[1]:seg.children[0]; next.click(); },1800);
-  seg.addEventListener('click',()=>clearInterval(timer),{once:true});
+  const setN = n => { [...seg.children].forEach(x=>x.setAttribute('aria-pressed', String(+x.dataset.n===n))); render(n); };
+  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;setN(+b.dataset.n);});
+  setN(0);
+  // Flip three times on load so the contrast is visible, then leave it to the reader.
+  // Skipped under prefers-reduced-motion; a real click on the toggle cancels it.
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!reduced){
+    let flips=0;
+    const timer=setInterval(()=>{ if(flips>=3||document.hidden){clearInterval(timer);return;} flips++; const cur=[...seg.children].find(b=>b.getAttribute('aria-pressed')==='true'); setN(cur.dataset.n==='0'?4:0); },1800);
+    seg.addEventListener('click',()=>clearInterval(timer),{once:true});
+  }
 }
 
 // =============== RECAP ===============
@@ -551,9 +562,9 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
   const cells = buildGrid(document.getElementById('recapImg'), (i)=>select(i)); paintScene(cells);
   const strip = document.getElementById('recapStrip'); const toks=[];
   const s = state('L',6,0);
-  const mk=(cls,h)=>{const t=document.createElement('div');t.className='tok '+cls;const b=document.createElement('i');b.style.height=h+'px';t.appendChild(b);strip.appendChild(t);return t;};
-  mk('cls',14); for(let i=0;i<N*N;i++) toks.push(mk('',4+Math.round(s.norms[i]/40*10)));
-  toks.forEach((t,i)=>t.addEventListener('mouseover',()=>select(i)));
+  const mk=(cls,h,label)=>{const t=document.createElement('button');t.type='button';t.className='tok '+cls;t.setAttribute('aria-label',label);const b=document.createElement('i');b.style.height=h+'px';t.appendChild(b);strip.appendChild(t);return t;};
+  mk('cls',14,'[CLS] token'); for(let i=0;i<N*N;i++) toks.push(mk('',4+Math.round(s.norms[i]/40*10),`token ${i+1}`));
+  toks.forEach((t,i)=>{t.addEventListener('mouseover',()=>select(i));t.addEventListener('focus',()=>select(i));});
   const infoEl=document.getElementById('recapInfo');
   function select(i){ cells.forEach((c,k)=>c.classList.toggle('sel',k===i)); toks.forEach((t,k)=>t.classList.toggle('sel',k===i));
     const x=i%N,y=(i/N)|0; const lab=['sky','ground','object'][scene[i]];
@@ -605,10 +616,10 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
     kv.innerHTML = row('Norm', Math.round(s.norms[sel]/400*100), s.norms[sel].toFixed(0), c)
       + row('Position probe (local)', isArt?22.8:41.7, (isArt?22.8:41.7)+'%', c)
       + row('Reconstruction L2 (local, ↓)', isArt?25.2*2.6:18.4*2.6, (isArt?25.23:18.38).toFixed(2), c)
-      + row('ImageNet from this token (global)', isArt?78.5:65.8, (isArt?78.5:65.8)+'%', c);
+      + row('ImageNet from this token (global)', isArt?69.0:65.8, (isArt?69.0:65.8).toFixed(1)+'%', c);
     note.innerHTML = isArt
       ? `Patch (${x}, ${y}) is <b>${['sky','ground','object'][scene[sel]]}</b> and looks like its neighbours. By layer ${layer} the model has overwritten it: position and pixels are mostly gone, but you can classify the whole image from this single token better than from any normal patch.`
-      : `Patch (${x}, ${y}) still describes itself. ${s.outliers.size? 'Compare it with one of the circled tokens.' : (MODEL[model].max? `Move the layer slider past ${MODEL[model].start} to see artifacts appear.` : 'ViT-S never develops artifacts in the paper; it has no capacity to spare.')}`;
+      : `Patch (${x}, ${y}) still describes itself. ${s.outliers.size? 'Compare it with one of the circled tokens.' : (MODEL[model].max? `Move the layer slider past ${MODEL[model].start} to see artifacts appear.` : `DINOv2 ${model==='S'?'ViT-S':'ViT-B'} never develops artifacts in the paper's size study; only ViT-L and larger do.`)}`;
   }
   render();
 }
@@ -636,9 +647,10 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
     nOut.textContent=n; document.getElementById('pipeN').textContent=n; document.getElementById('fixStatus').textContent = n? 'Artifacts: none' : 'Artifacts: present';
     const s=state('L',24,n);
     // sequence diagram
-    let h=`<div class="blk cls">CLS</div><div class="blk pat">p1</div><div class="blk pat">p2</div><div class="blk dots">…</div><div class="blk pat">p196</div>`;
+    let h=`<div class="blk cls">CLS</div>`;
     for(let k=0;k<n;k++) h+=`<div class="blk reg">R${k+1}</div>`;
-    if(!n) h+=`<div class="blk dots" style="color:var(--reg-ink)">+ 0 registers</div>`;
+    if(!n) h+=`<div class="blk dots" style="color:var(--reg-ink)">0 registers</div>`;
+    h+=`<div class="blk pat">p1</div><div class="blk pat">p2</div><div class="blk dots">…</div><div class="blk pat">p196</div>`;
     seq.innerHTML=h;
     // grid
     if(view==='norm'){ paintHeat(grid,s.norms,tok('--heat0'),tok('--heat1'),{max:400,gamma:.6,outliers:s.outliers});
@@ -649,8 +661,8 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
     strip.innerHTML='';
     const mk=(cls,v,title)=>{const t=document.createElement('div');t.className='tok '+cls;t.title=title;const b=document.createElement('i');b.style.height=Math.max(2,Math.round(v/420*22))+'px';t.appendChild(b);strip.appendChild(t);};
     mk('cls',s.clsNorm,'[CLS] norm '+s.clsNorm.toFixed(0));
-    for(let i=0;i<N*N;i+=2){ const isArt=s.outliers.has(i)||s.outliers.has(i+1); const v=Math.max(s.norms[i],s.norms[i+1]); mk(isArt?'art':'',v,`patch ${i+1}–${i+2}, norm ${v.toFixed(0)}`); }
     s.regNorms.forEach((v,k)=>mk('reg',v,`[REG${k+1}] norm ${v.toFixed(0)}`));
+    for(let i=0;i<N*N;i+=2){ const isArt=s.outliers.has(i)||s.outliers.has(i+1); const v=Math.max(s.norms[i],s.norms[i+1]); mk(isArt?'art':'',v,`patch ${i+1}–${i+2}, norm ${v.toFixed(0)}`); }
     // budget
     bpill.textContent=`${n} register${n===1?'':'s'}`;
     const patchMax=Math.max(...s.norms), regMax=s.regNorms.length?Math.max(...s.regNorms):0;
