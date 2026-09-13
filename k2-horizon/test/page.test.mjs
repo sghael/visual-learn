@@ -132,7 +132,8 @@ test('benchmark model select covers all six models and redraws with each card\'s
   const { page, context, errors } = await open();
   assert.deepEqual(await page.$$eval('#benchModel option', (els) => els.map((o) => o.value)), ['0.9B', '3.7B', '7B', '32B', '36B-A4B', '375B-A23B']);
   await page.selectOption('#benchModel', '32B');
-  assert.match(await page.locator('#benchLegend').innerText(), /Qwen3.8-27B/);
+  assert.match(await page.locator('#benchLegend').innerText(), /K2-Horizon-32B-Stage1[\s\S]*Qwen3.8-27B/);
+  assert.match(await page.locator('#benchNote').innerText(), /Stage 1 checkpoint/);
   assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 24, '6 rows × 4 competitors');
   await page.selectOption('#benchModel', '375B-A23B');
   assert.match(await page.locator('#benchLegend').innerText(), /Claude Sonnet 5/);

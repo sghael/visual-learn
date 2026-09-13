@@ -39,6 +39,9 @@ The page supports light and dark themes (system, or the toggle in the rail).
   IFM's announcement as of September 2026 and are self-reported by IFM. The
   375B Terminal-Bench 2.1 score uses IFM's corrected 66.9%, not the launch
   figure of 70.2%.
+- The 32B benchmarks are for the `K2-Horizon-32B-Stage1` checkpoint; the model
+  card says the final checkpoint and Stage 2 results are forthcoming. The page
+  labels them as such.
 - IFM has not published MoVA's routing function or Uno's block schedule. The
   MoVA diagram shows the structure (a routed pool of value experts) with
   random routing, and the Uno widget is a toy: its "draft agreement" slider

@@ -296,7 +296,7 @@ main{min-width:0}
     <p class="cap">Scores are percentages except GDPVal-AA, which is an Elo rating. Numbers are transcribed from the Hugging Face model cards as of September 2026 and are self-reported by IFM.</p>
   </div>
   <div class="prose">
-    <p>The pattern that emerges: the three small models lead their brackets outright, especially on mathematics and software engineering, where a 3.7B model reaching 68.6% on SWE-bench Verified is unusual. The sparse 36B-A4B is strongest on agentic tasks (terminal use, tool calling) and trails on graduate-level science questions. The dense 32B is the weak spot of the fleet: it trails Qwen3.8-27B on every benchmark in its own model card, sometimes by a wide margin. The 375B flagship sits close behind the best closed model in most categories while matching or beating open-weight models up to 2.6 times its size.</p>
+    <p>The pattern that emerges: the three small models lead their brackets outright, especially on mathematics and software engineering, where a 3.7B model reaching 68.6% on SWE-bench Verified is unusual. The sparse 36B-A4B is strongest on agentic tasks (terminal use, tool calling) and trails on graduate-level science questions. The dense 32B numbers are provisional: the model card evaluates a Stage 1 checkpoint and says the final checkpoint and Stage 2 results are still to come. That checkpoint trails Qwen3.8-27B on every benchmark listed, sometimes by a wide margin. The 375B flagship sits close behind the best closed model in most categories while matching or beating open-weight models up to 2.6 times its size.</p>
     <div class="callout">After an internal audit found reward hacking in one evaluation, IFM corrected the 375B model's Terminal-Bench 2.1 score from 70.2% to 66.9%. The chart shows the corrected figure. Corrections like this are one argument for the "fully open" approach in the next chapter.</div>
   </div>
 </section>
@@ -368,7 +368,7 @@ const BENCH = {
     ['HMMT Feb 2026',70.5,61.6],['SWE-bench Verified',68.6,41.2],['GPQA Diamond',65.4,77.1],['Terminal-Bench 2.1',25.1,25.8],['BFCL v4',50.9,55.7]]},
   '7B':{note:'vs. 8–12B open models', comps:['K2-Horizon-7B','Qwen3.5-9B','Gemma 4-12B','Granite 4.2-8B'], rows:[
     ['HMMT',73.3,65.7,63.1,66.5],['SWE-bench Verified',70.6,50.8,30.6,47.7],["Humanity's Last Exam",18.6,14.9,15.7,9.7]]},
-  '32B':{note:'vs. ~30B open models', comps:['K2-Horizon-32B','Qwen3.8-27B','Muse Glimmer-30B','Granite 4.2-30B'], rows:[
+  '32B':{note:'Stage 1 checkpoint (final checkpoint and Stage 2 results still to come) vs. ~30B open models', comps:['K2-Horizon-32B-Stage1','Qwen3.8-27B','Muse Glimmer-30B','Granite 4.2-30B'], rows:[
     ['Terminal-Bench 2.1',36.6,79.8,51.7,26.6],['tau3-Banking',22.5,48.0,23.5,14.4],['SciCode',30.2,44.7,43.6,36.6],['GPQA Diamond',82.3,90.5,83.5,64.4],["Humanity's Last Exam",22.8,33.9,22.0,11.2],['AA-LCR long context',65.3,77.3,80.0,46.7]]},
   '36B-A4B':{note:'vs. Nemotron 3 Ultra (550B total)', comps:['K2-Horizon-36B-A4B','Nemotron 3 Ultra'], rows:[
     ['Terminal-Bench 2.1',58.6,53.9],['tau3-Banking',26.8,14.2],['GPQA Diamond',80.8,86.7],["Humanity's Last Exam",25.2,28.4]]},
