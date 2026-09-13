@@ -156,6 +156,7 @@ svg .grid line { stroke: var(--line); }
 .chip.ghost:hover { transform: none; box-shadow: none; }
 
 /* detail drawer */
+.detail[hidden] { display: none; }
 .detail { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 18px 20px; margin-top: 16px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
 @media (max-width: 800px) { .detail { grid-template-columns: 1fr; } }
 .detail h3 { font-size: 1.5rem; }
@@ -221,7 +222,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
       <p class="sub">Every GPU and TPU you can rent on Google Cloud today, explained from the silicon up: what the chips are, why they differ, how they scale into pods, and which one your model actually needs.</p>
       <div class="meta">
         <span class="tag"><i class="gpu"></i>NVIDIA GPUs · 13 models · 10 machine series</span>
-        <span class="tag"><i class="tpu"></i>Google TPUs · 4 generations rentable · 2 announced</span>
+        <span class="tag"><i class="tpu"></i>Google TPUs · 7 generations rentable · 2 announced</span>
       </div>
     </div>
     <div>
@@ -282,7 +283,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
 <section class="chapter" id="lineup">
   <div class="eyebrow">Chapter 2</div>
   <h2>The lineup, family by family</h2>
-  <p class="lede">Google Cloud sells GPUs through machine series (A4, A3, G2, and so on) and TPUs through generations. Click any chip to open its spec sheet. The bar under each name is memory per chip, on the same scale for every tile.</p>
+  <p class="lede">Google Cloud sells GPUs through machine series (A4, A3, G2, and so on) and TPUs through generations. Click any chip to open its spec sheet. The bar under each name is memory per chip, on the same scale for every tile. Throughput and bandwidth are vendor peaks, approximate; the price is the on-demand list rate where the chip is sold on demand, otherwise an indicative rate for Spot, Flex-start or reservations.</p>
   <div id="families"></div>
   <div class="detail" id="detail" hidden></div>
 </section>
@@ -294,10 +295,10 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
   <p class="lede">Put every chip on the same two axes and the generations line up as a diagonal march toward the top right. The interesting chips are the ones off the diagonal.</p>
   <div class="fig">
     <div class="fig-head">
-      <div class="fig-title">Peak dense throughput against memory per chip</div>
+      <div class="fig-title">Peak dense throughput against memory per chip (vendor peaks, approximate)</div>
       <div class="controls">
         <div class="seg" role="group" aria-label="Precision">
-          <button data-prec="fp8" aria-pressed="true">FP8 / INT8</button>
+          <button data-prec="fp8" aria-pressed="true">Low precision</button>
           <button data-prec="bf16" aria-pressed="false">BF16</button>
         </div>
         <div class="seg" role="group" aria-label="Size encoding">
@@ -308,7 +309,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
     </div>
     <div class="chip-legend" id="legend"></div>
     <svg id="scatter" width="100%" height="480" viewBox="0 0 900 480" role="img" aria-labelledby="scatter-title"><title id="scatter-title">Scatter plot of accelerator memory per chip against peak throughput</title></svg>
-    <div class="fig-note">Both axes are logarithmic. Throughput is NVIDIA's or Google's published peak <em>dense</em> figure (no 2:1 sparsity), which is what you can actually reach. Chips without native FP8 (A100, V100, T4) are plotted at their INT8 or FP16 peak. Older N1-attachable GPUs are shown at their FP16 tensor peak.</div>
+    <div class="fig-note">Both axes are logarithmic. Throughput is NVIDIA's or Google's published peak <em>dense</em> figure (no 2:1 sparsity), approximate and rarely reached in practice. "Low precision" means FP8 where the chip has it, otherwise INT8 (A100, T4, P4, v5e, v6e, v4) or FP16 (V100, P100); the tooltip names the basis for each dot.</div>
   </div>
   <p><b>What to see.</b> The v5e and L4 sit in the bottom-left corner: small memory, modest compute, and by far the cheapest per hour. The Blackwell parts and Ironwood share the top-right: around 180 to 280 GB and 4 to 5 PFLOPS of FP8 per chip. The H200 and Ironwood are the two chips with far more memory than their compute alone would suggest, which is exactly what you want for serving long-context models where the KV cache, not the weights, fills the memory.</p>
 </section>
@@ -317,6 +318,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
 <section class="chapter" id="roofline">
   <div class="eyebrow">Chapter 4</div>
   <h2>Where the bottleneck is</h2>
+  <div class="eyebrow" style="margin-top:4px">Simplified model · vendor peaks, approximate</div>
   <p class="lede">A chip has two speed limits: how fast it can compute, and how fast it can pull bytes from memory. Which one you hit depends on your workload's <b>arithmetic intensity</b>, the number of floating-point operations per byte loaded. The roofline model draws both limits on one chart.</p>
   <div class="fig">
     <div class="roof-ctl">
@@ -332,7 +334,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
     </div>
     <svg id="roofsvg" width="100%" height="380" viewBox="0 0 900 380" role="img" aria-labelledby="roof-title"><title id="roof-title">Roofline chart for the selected chip</title></svg>
     <div class="verdict" id="roof-verdict"></div>
-    <div class="fig-note">Ridge point = peak FLOPS ÷ memory bandwidth. Left of it, the chip is starved for bytes; right of it, starved for math. LLM decoding at small batch loads every weight once per token and does about 2 FLOPs per weight, so it sits far to the left on every chip in this atlas. That is why inference chips chase bandwidth and capacity (H200, Ironwood) rather than raw FLOPS.</div>
+    <div class="fig-note">A simplified roofline: peak dense low-precision FLOPS over peak HBM bandwidth, both vendor figures. Real kernels reach a fraction of either roof. Ridge point = peak FLOPS ÷ memory bandwidth. Left of it, the chip is starved for bytes; right of it, starved for math. LLM decoding at small batch loads every weight once per token and does about 2 FLOPs per weight, so it sits far to the left on every chip in this atlas. That is why inference chips chase bandwidth and capacity (H200, Ironwood) rather than raw FLOPS.</div>
   </div>
 </section>
 
@@ -342,7 +344,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
   <h2>How chips talk to each other</h2>
   <p class="lede">A single chip trains nothing interesting. The real product is the <b>fabric</b>: how many chips share a fast interconnect before you fall back to Ethernet. NVIDIA and Google draw that boundary in very different places.</p>
   <div class="topo-grid" id="topos"></div>
-  <p style="margin-top:18px"><b>NVLink islands.</b> On A3 and A4, eight GPUs in one VM share an NVSwitch at 900 GB/s (Hopper) or 1.8 TB/s (Blackwell) per GPU. Anything bigger goes over the VM's network: RoCE RDMA at up to 3.6 Tbps on A3 Ultra and A4, or GPUDirect-TCPXO at 4.8 Tbps on A3 Mega. The A4X series stretches the island to <b>72 GPUs</b> across 18 VMs in one NVL72 rack, so a 70B model's tensor-parallel group never leaves NVLink.</p>
+  <p style="margin-top:18px"><b>NVLink islands.</b> On A3 and A4, eight GPUs in one VM share an NVSwitch at 900 GB/s (Hopper) or 1.8 TB/s (Blackwell) per GPU. Anything bigger goes over the VM's network: RoCE RDMA at up to 3.6 Tbps on A3 Ultra and A4, or GPUDirect-TCPXO at 1.8 Tbps on A3 Mega. The A4X series stretches the island to <b>72 GPUs</b> across 18 VMs in one NVL72 rack, so a 70B model's tensor-parallel group never leaves NVLink.</p>
   <p><b>TPU tori.</b> Each TPU chip has direct ICI links to its neighbours in a 2D (v5e, v6e) or 3D (v5p, Ironwood) torus; the whole pod is one fabric. Google's optical circuit switches can carve a 9,216-chip Ironwood pod into any rectangular slice you ask for, and route around failed racks. There is no "island" boundary at 8 or 72; the cost is that communication patterns must be torus-friendly, which XLA handles for you.</p>
 </section>
 
@@ -384,11 +386,11 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
     </div>
     <div class="table-scroll">
       <table class="data" id="fit-table">
-        <thead><tr><th>Chip</th><th class="n">Mem/chip</th><th class="n">Chips</th><th>Fits in one fast domain?</th><th class="n">≈ $/hr</th><th>Relative cost</th></tr></thead>
+        <thead><tr><th>Chip</th><th class="n">Mem/chip</th><th class="n">Chips</th><th>Fits in one fast domain?</th><th class="n">≈ $/hr, list</th><th>Relative cost</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
-    <div class="fig-note">Rules of thumb: weights = parameters × bytes; full fine-tuning with Adam in mixed precision needs about 16 bytes per parameter before activations. Prices are approximate on-demand list, us-central1, per chip-hour, taken from the Google Cloud pricing pages and the Thunder Compute survey dated 11 Sep 2026; VM-level prices are divided by GPU count. B200, H200 and the A4X series are sold only through reservations, Spot or Dynamic Workload Scheduler, so their figures are indicative. GB300 has no public price and is shown without one.</div>
+    <div class="fig-note">* indicative rate; the chip is sold through Spot, Flex-start or reservations, not on demand, so it never wins "cheapest on demand". Rules of thumb: weights = parameters × bytes; full fine-tuning with Adam in mixed precision needs about 16 bytes per parameter before activations. Prices are approximate on-demand list, us-central1, per chip-hour, taken from the Google Cloud pricing pages and the Thunder Compute survey dated 11 Sep 2026; VM-level prices are divided by GPU count. B200, H200 and the A4X series are sold only through reservations, Spot or Dynamic Workload Scheduler, so their figures are indicative. GB300 has no public price and is shown without one.</div>
   </div>
 </section>
 
@@ -398,10 +400,10 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
   <h2>How you actually buy it</h2>
   <p class="lede">The same chip can cost a very different amount, and be very differently available, depending on how you ask for it. The frontier parts are not on the on-demand shelf at all.</p>
   <div class="buy">
-    <div class="opt"><h4>On demand</h4><p>Pay per second, stop when you like. Reliable for G2, G4, A2, A3 High and the older TPUs; often capacity-limited for anything newer.</p><div class="who">L4 · RTX PRO 6000 · A100 · H100 · v5e · v5p · v6e · Ironwood</div></div>
+    <div class="opt"><h4>On demand</h4><p>Pay per second, stop when you like. Reliable for G2, G4, A2, A3 High and the older TPUs; often capacity-limited for anything newer.</p><div class="who">L4 · RTX PRO 6000 · A100 · H100 (A3 High, Edge) · T4, V100, P4 · TPU v2 to Ironwood</div></div>
     <div class="opt"><h4>Spot</h4><p>60 to 91% cheaper, pre-emptible with 30 seconds' notice. Ideal for checkpointed training, batch inference and evaluation runs.</p><div class="who">most GPUs · all TPUs</div></div>
     <div class="opt"><h4>Dynamic Workload Scheduler</h4><p><b>Flex-start</b> queues your job and runs it for up to 7 days when capacity frees, at a discount. <b>Calendar mode</b> books a future block of 1 to 90 days.</p><div class="who">A3 · A4 · A4X · TPUs via GKE or MIGs</div></div>
-    <div class="opt"><h4>Reservations and CUDs</h4><p>Capacity you own for a term. The only way to get GB200, GB300 and full-pod TPU slices; 1- and 3-year commitments cut the rate by 30 to 55%.</p><div class="who">A4X Max · A4X · A4 · A3 Ultra · pod-scale TPU</div></div>
+    <div class="opt"><h4>Reservations and CUDs</h4><p>Capacity you own for a term. The only way to get GB200, GB300 and full-pod TPU slices; 1- and 3-year commitments cut the rate by 30 to 55%.</p><div class="who">A4X Max · A4X · A4 · A3 Ultra · A3 Mega · pod-scale TPU</div></div>
   </div>
   <div class="fig">
     <div class="fig-head"><div class="fig-title">Where each chip lives</div></div>
@@ -462,47 +464,55 @@ const FAM = {
   tpu:       { name: "Google TPU",       color: "var(--tpu)", hex: "#eb6834", kind: "tpu", blurb: "Google's own systolic-array chips, rented as VMs or pod slices. JAX and PyTorch/XLA; no CUDA." },
 };
 
-// mem GB per chip · bw GB/s · fp8 = dense FP8/INT8 TFLOPS · bf16 = dense BF16/FP16 TFLOPS · price $/chip-hr on-demand (null = not public)
+// mem GB per chip · bw GB/s · fp8 = dense low-precision peak TFLOPS at the precision named in peakBasis (FP8, INT8 or FP16) · bf16 = dense BF16/FP16 TFLOPS
+// price = $/chip-hr list in us-central1 (null = not public) · onDemand = sold on demand at that price; otherwise price is indicative and priceBasis says how it is sold
+// All throughput and bandwidth figures are vendor peaks and approximate.
 // domain = chips in one fast fabric · perVM = chips per VM options
 const CHIPS = [
-  { id:"gb300", name:"GB300 (B300)", short:"GB300", fam:"blackwell", series:"A4X Max · a4x-maxgpu-4g-metal", mem:279, memType:"HBM3e", bw:8000, fp8:5000, bf16:2500, price:null, domain:72, domainName:"NVL72 rack", perVM:"4 (bare metal)", vcpu:144, ram:960, net:3600, tag:"new", year:2026,
+  { id:"gb300", name:"GB300 (B300)", short:"GB300", fam:"blackwell", series:"A4X Max · a4x-maxgpu-4g-metal", mem:279, memType:"HBM3e", bw:8000, fp8:5000, bf16:2500, price:null, onDemand:false, priceBasis:"reservation only", peakBasis:"FP8", domain:72, domainName:"NVL72 rack", perVM:"4 (bare metal)", vcpu:144, ram:960, net:3600, tag:"new", year:2026,
     notes:"Grace Blackwell Ultra superchips, bare-metal only. 18 instances form one 72-GPU NVLink domain with about 20 TB of HBM. Reservation only." },
-  { id:"gb200", name:"GB200", short:"GB200", fam:"blackwell", series:"A4X · a4x-highgpu-4g", mem:186, memType:"HBM3e", bw:8000, fp8:4500, bf16:2250, price:null, domain:72, domainName:"NVL72 rack", perVM:"4", vcpu:140, ram:884, net:2000, tag:"new", year:2025,
+  { id:"gb200", name:"GB200", short:"GB200", fam:"blackwell", series:"A4X · a4x-highgpu-4g", mem:186, memType:"HBM3e", bw:8000, fp8:4500, bf16:2250, price:null, onDemand:false, priceBasis:"reservation or DWS", peakBasis:"FP8", domain:72, domainName:"NVL72 rack", perVM:"4", vcpu:140, ram:884, net:2000, tag:"new", year:2025,
     notes:"Two Grace CPUs (Arm) plus four B200s per VM joined by NVLink-C2C. Multi-VM NVLink to 72 GPUs. Sold via reservations and DWS; no on-demand list price." },
-  { id:"b200", name:"B200", short:"B200", fam:"blackwell", series:"A4 · a4-highgpu-8g", mem:180, memType:"HBM3e", bw:8000, fp8:4500, bf16:2250, price:16.11, domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:3968, net:3600, tag:"", year:2025,
+  { id:"b200", name:"B200", short:"B200", fam:"blackwell", series:"A4 · a4-highgpu-8g", mem:180, memType:"HBM3e", bw:8000, fp8:4500, bf16:2250, price:16.11, onDemand:false, priceBasis:"indicative: Spot, Flex-start or reservation", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:3968, net:3600, tag:"", year:2025,
     notes:"x86 host with 3.9 TB of RAM and 3.6 Tbps RoCE. The default choice for large training on GCP when you don't need a 72-GPU island." },
-  { id:"h200", name:"H200", short:"H200", fam:"hopper", series:"A3 Ultra · a3-ultragpu-8g", mem:141, memType:"HBM3e", bw:4800, fp8:1979, bf16:989, price:10.85, domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:2952, net:3600, tag:"", year:2024,
+  { id:"h200", name:"H200", short:"H200", fam:"hopper", series:"A3 Ultra · a3-ultragpu-8g", mem:141, memType:"HBM3e", bw:4800, fp8:1979, bf16:989, price:10.85, onDemand:false, priceBasis:"indicative: Spot, Flex-start or reservation", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:2952, net:3600, tag:"", year:2024,
     notes:"Same compute as H100, 76% more memory and 43% more bandwidth. The serving sweet spot for 70B-class models at long context." },
-  { id:"h100m", name:"H100 (Mega)", short:"H100 Mega", fam:"hopper", series:"A3 Mega · a3-megagpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:11.0, domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:2880, net:4800, tag:"", year:2024,
-    notes:"H100 with the fastest inter-VM network on GCP: 4.8 Tbps GPUDirect-TCPXO. Built for multi-node training." },
-  { id:"h100", name:"H100 (High)", short:"H100", fam:"hopper", series:"A3 High · a3-highgpu-1g…8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4 (Spot/Flex) or 8", vcpu:224, ram:1792, net:2400, tag:"", year:2023,
+  { id:"h100m", name:"H100 (Mega)", short:"H100 Mega", fam:"hopper", series:"A3 Mega · a3-megagpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:11.0, onDemand:false, priceBasis:"indicative: Spot, Flex-start or reservation", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:208, ram:1872, net:1800, tag:"", year:2024,
+    notes:"H100 with 1.8 Tbps of GPUDirect-TCPXO between VMs, built for multi-node training. Sold through Spot, Flex-start and reservations." },
+  { id:"h100", name:"H100 (High)", short:"H100", fam:"hopper", series:"A3 High · a3-highgpu-1g…8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4 (Spot/Flex) or 8", vcpu:208, ram:1872, net:1000, tag:"", year:2023,
     notes:"The only 8×H100 shape with a plain on-demand price. Smaller 1/2/4-GPU shapes exist for Spot and Flex-start." },
-  { id:"h100e", name:"H100 (Edge)", short:"H100 Edge", fam:"hopper", series:"A3 Edge · a3-edgegpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:1024, net:1200, tag:"", year:2024,
-    notes:"H100s with less host RAM and network, placed in more regions for latency-sensitive inference." },
-  { id:"a100_80", name:"A100 80 GB", short:"A100 80", fam:"ampere", series:"A2 Ultra · a2-ultragpu-1g…8g", mem:80, memType:"HBM2e", bw:2039, fp8:624, bf16:312, price:5.03, domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4, 8", vcpu:96, ram:1360, net:960, tag:"", year:2021,
+  { id:"h100e", name:"H100 (Edge)", short:"H100 Edge", fam:"hopper", series:"A3 Edge · a3-edgegpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:208, ram:1872, net:400, tag:"", year:2024,
+    notes:"H100s with a smaller network (400 Gbps, 600 in two regions), placed in more regions for latency-sensitive inference." },
+  { id:"a100_80", name:"A100 80 GB", short:"A100 80", fam:"ampere", series:"A2 Ultra · a2-ultragpu-1g…8g", mem:80, memType:"HBM2e", bw:2039, fp8:624, bf16:312, price:5.03, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4, 8", vcpu:96, ram:1360, net:960, tag:"", year:2021,
     notes:"INT8 only, no FP8. Still a solid single-node server for models up to about 70B at INT8." },
-  { id:"a100_40", name:"A100 40 GB", short:"A100 40", fam:"ampere", series:"A2 Standard · a2-highgpu-1g…16g", mem:40, memType:"HBM2", bw:1555, fp8:624, bf16:312, price:3.67, domain:16, domainName:"16-GPU NVSwitch (a2-megagpu)", perVM:"1, 2, 4, 8, 16", vcpu:96, ram:1360, net:384, tag:"", year:2020,
+  { id:"a100_40", name:"A100 40 GB", short:"A100 40", fam:"ampere", series:"A2 Standard · a2-highgpu-1g…16g", mem:40, memType:"HBM2", bw:1555, fp8:624, bf16:312, price:3.67, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:16, domainName:"16-GPU NVSwitch (a2-megagpu)", perVM:"1, 2, 4, 8, 16", vcpu:96, ram:1360, net:384, tag:"", year:2020,
     notes:"The a2-megagpu-16g is the only 16-GPU NVLink shape on GCP. Broadly available, on demand." },
-  { id:"rtx6000", name:"RTX PRO 6000", short:"RTX PRO 6000", fam:"pro", series:"G4 · g4-standard-48…384", mem:96, memType:"GDDR7", bw:1600, fp8:1000, bf16:500, price:4.50, domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:384, ram:1440, net:400, tag:"new", year:2025,
+  { id:"rtx6000", name:"RTX PRO 6000", short:"RTX PRO 6000", fam:"pro", series:"G4 · g4-standard-48…384", mem:96, memType:"GDDR7", bw:1600, fp8:1000, bf16:500, price:4.50, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:384, ram:1440, net:400, tag:"new", year:2025,
     notes:"Blackwell on a workstation card: 96 GB GDDR7, FP4 support, ray tracing. Cheap 96 GB for inference and rendering; no NVLink between cards." },
-  { id:"l4", name:"L4", short:"L4", fam:"pro", series:"G2 · g2-standard-4…96", mem:24, memType:"GDDR6", bw:300, fp8:242, bf16:121, price:0.70, domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:96, ram:384, net:100, tag:"", year:2023,
+  { id:"l4", name:"L4", short:"L4", fam:"pro", series:"G2 · g2-standard-4…96", mem:24, memType:"GDDR6", bw:300, fp8:242, bf16:121, price:0.70, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:96, ram:384, net:100, tag:"", year:2023,
     notes:"Ada Lovelace, 72 W. The mainstream inference, RAG and video-transcoding card. Available almost everywhere." },
-  { id:"t4", name:"T4", short:"T4", fam:"legacy", series:"N1 + nvidia-tesla-t4", mem:16, memType:"GDDR6", bw:320, fp8:130, bf16:65, price:0.35, domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"", year:2018,
+  { id:"t4", name:"T4", short:"T4", fam:"legacy", series:"N1 + nvidia-tesla-t4", mem:16, memType:"GDDR6", bw:320, fp8:130, bf16:65, price:0.35, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"", year:2018,
     notes:"Turing. Cheapest GPU-hour on GCP and the widest footprint of all. Good for small models and notebooks." },
-  { id:"v100", name:"V100", short:"V100", fam:"legacy", series:"N1 + nvidia-tesla-v100", mem:16, memType:"HBM2", bw:900, fp8:125, bf16:125, price:2.48, domain:8, domainName:"NVLink (P2P)", perVM:"1, 2, 4, 8", vcpu:96, ram:624, net:100, tag:"", year:2017,
+  { id:"v100", name:"V100", short:"V100", fam:"legacy", series:"N1 + nvidia-tesla-v100", mem:16, memType:"HBM2", bw:900, fp8:125, bf16:125, price:2.48, onDemand:true, priceBasis:"on demand", peakBasis:"FP16", domain:8, domainName:"NVLink (P2P)", perVM:"1, 2, 4, 8", vcpu:96, ram:624, net:100, tag:"", year:2017,
     notes:"Volta, the first Tensor Core GPU. Only worth renting for legacy CUDA pipelines." },
-  { id:"p100", name:"P100", short:"P100", fam:"legacy", series:"N1 + nvidia-tesla-p100", mem:16, memType:"HBM2", bw:732, fp8:21, bf16:21, price:1.46, domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"sunset", year:2016,
+  { id:"p100", name:"P100", short:"P100", fam:"legacy", series:"N1 + nvidia-tesla-p100", mem:16, memType:"HBM2", bw:732, fp8:21, bf16:21, price:1.46, onDemand:true, priceBasis:"on demand", peakBasis:"FP16", domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"sunset", year:2016,
     notes:"Pascal. No Tensor Cores. Reaches end of support in September 2026; do not start new work on it." },
-  { id:"p4", name:"P4", short:"P4", fam:"legacy", series:"N1 + nvidia-tesla-p4", mem:8, memType:"GDDR5", bw:192, fp8:22, bf16:5.5, price:0.60, domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"", year:2016,
+  { id:"p4", name:"P4", short:"P4", fam:"legacy", series:"N1 + nvidia-tesla-p4", mem:8, memType:"GDDR5", bw:192, fp8:22, bf16:5.5, price:0.60, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"", year:2016,
     notes:"Pascal inference card with INT8 only. Mostly used as a virtual-workstation GPU today." },
 
-  { id:"v5e", name:"TPU v5e", short:"v5e", fam:"tpu", series:"ct5lp-hightpu-1t…8t", mem:16, memType:"HBM2", bw:819, fp8:393, bf16:197, price:1.20, domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:224, ram:384, net:100, tag:"", year:2023,
+  { id:"v2", name:"TPU v2", short:"v2", fam:"tpu", series:"v2-8 … v2-512", mem:16, memType:"HBM", bw:700, fp8:45, bf16:45, price:1.50, onDemand:true, priceBasis:"on demand (pod rate)", peakBasis:"BF16", domain:512, domainName:"512-chip pod, 2D torus", perVM:"4 (v2-8) or slices", vcpu:96, ram:335, net:100, tag:"legacy", year:2017,
+    notes:"The 2017 chip: two TensorCores, 8 GB HBM each. v2-8 means 8 cores, which is 4 chips. Cloud TPU API only, no longer developed; rent it only for the price." },
+  { id:"v3", name:"TPU v3", short:"v3", fam:"tpu", series:"v3-8 … v3-2048", mem:32, memType:"HBM2", bw:900, fp8:123, bf16:123, price:2.00, onDemand:true, priceBasis:"on demand (pod rate)", peakBasis:"BF16", domain:1024, domainName:"1,024-chip pod, 2D torus", perVM:"4 (v3-8) or slices", vcpu:96, ram:335, net:100, tag:"legacy", year:2018,
+    notes:"Liquid-cooled successor to v2 with twice the HBM. Still rentable in us-central1 and europe-west4 for legacy JAX and TensorFlow jobs." },
+  { id:"v4", name:"TPU v4", short:"v4", fam:"tpu", series:"v4-8 … v4-4096", mem:32, memType:"HBM2", bw:1200, fp8:275, bf16:275, price:3.22, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4096, domainName:"4,096-chip pod, 3D torus", perVM:"4", vcpu:240, ram:407, net:100, tag:"", year:2022,
+    notes:"First 3D torus with optical circuit switches. Two TensorCores with four MXUs each. Only in us-central2; the cheapest way to rent a large 3D-torus slice." },
+  { id:"v5e", name:"TPU v5e", short:"v5e", fam:"tpu", series:"ct5lp-hightpu-1t…8t", mem:16, memType:"HBM2", bw:819, fp8:393, bf16:197, price:1.20, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:224, ram:384, net:100, tag:"", year:2023,
     notes:"The efficiency chip: one TensorCore, 400 GB/s ICI. Best price per token for models that fit in a few chips." },
-  { id:"v5p", name:"TPU v5p", short:"v5p", fam:"tpu", series:"ct5p-hightpu-4t", mem:95, memType:"HBM2e", bw:2765, fp8:459, bf16:459, price:4.20, domain:8960, domainName:"8,960-chip pod, 3D torus", perVM:"4", vcpu:208, ram:448, net:100, tag:"", year:2023,
+  { id:"v5p", name:"TPU v5p", short:"v5p", fam:"tpu", series:"ct5p-hightpu-4t", mem:95, memType:"HBM2e", bw:2765, fp8:459, bf16:459, price:4.20, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8960, domainName:"8,960-chip pod, 3D torus", perVM:"4", vcpu:208, ram:448, net:100, tag:"", year:2023,
     notes:"The previous training flagship: two TensorCores, four SparseCores, 1.2 TB/s ICI. Slices up to 6,144 chips." },
-  { id:"v6e", name:"TPU v6e Trillium", short:"Trillium", fam:"tpu", series:"ct6e-standard-1t…8t", mem:32, memType:"HBM3", bw:1638, fp8:1836, bf16:918, price:2.70, domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:360, ram:1440, net:100, tag:"", year:2024,
+  { id:"v6e", name:"TPU v6e Trillium", short:"Trillium", fam:"tpu", series:"ct6e-standard-1t…8t", mem:32, memType:"HBM3", bw:1638, fp8:1836, bf16:918, price:2.70, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:360, ram:1440, net:100, tag:"", year:2024,
     notes:"First 256×256 MXU. 4.7× the compute of v5e per chip for about 2.3× the price. The serving workhorse of Gemini." },
-  { id:"tpu7x", name:"TPU7x Ironwood", short:"Ironwood", fam:"tpu", series:"tpu7x-standard-4t", mem:192, memType:"HBM3e", bw:7380, fp8:4614, bf16:2307, price:12.00, domain:9216, domainName:"9,216-chip pod, 3D torus", perVM:"4", vcpu:224, ram:960, net:100, tag:"new", year:2026,
+  { id:"tpu7x", name:"TPU7x Ironwood", short:"Ironwood", fam:"tpu", series:"tpu7x-standard-4t", mem:192, memType:"HBM3e", bw:7380, fp8:4614, bf16:2307, price:12.00, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:9216, domainName:"9,216-chip pod, 3D torus", perVM:"4", vcpu:224, ram:960, net:100, tag:"new", year:2026,
     notes:"GA since 31 Mar 2026. Two TensorCores plus four SparseCores; the first TPU with native FP8. A full pod holds 1.77 PB of HBM in one fabric." },
 ];
 const ANNOUNCED = [
@@ -524,6 +534,8 @@ const REGIONS = [
   ["V100 / P100 / P4","N1","8–10 each","US, EU, APAC","P100 end of support Sep 2026"],
   ["v5e / v6e","ct5lp / ct6e","several","US, EU, APAC","AI zones added Apr 2026"],
   ["v5p / Ironwood","ct5p / tpu7x","few","US-centred","Pod slices via reservation"],
+  ["v4","tpu-v4-podslice","1","us-central2 only","Still on demand at $3.22/chip-hr"],
+  ["v2 / v3","v2-8 … v3-2048","3–5","US + EU, one APAC","Legacy; v2 via Cloud TPU API only"],
 ];
 
 /* =========================================================
@@ -548,21 +560,26 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
   const c = $("#hero-canvas"); let st = fitCanvas(c); let tiles = []; let hover = null;
   function layout() {
     st = fitCanvas(c); tiles = [];
-    const pad = 14, W = st.w - pad * 2; const scale = Math.sqrt(W * (st.h - pad * 2) / 2600) ;
-    const sorted = [...CHIPS].sort((a, b) => b.mem - a.mem);
-    let x = pad, y = pad, rowH = 0;
-    sorted.forEach(ch => { const s = Math.max(18, Math.sqrt(ch.mem) * scale * 1.05); if (x + s > st.w - pad) { x = pad; y += rowH + 8; rowH = 0; } tiles.push({ ch, x, y, s, ph: Math.random() * 6.28 }); x += s + 8; rowH = Math.max(rowH, s); });
+    const pad = 14, W = st.w - pad * 2, Hh = st.h - pad * 2; const sorted = [...CHIPS].sort((a, b) => b.mem - a.mem);
+    // pack rows left-to-right; if the packed height overflows, shrink the scale and try again
+    let scale = Math.sqrt(W * Hh / 2600);
+    for (let tries = 0; tries < 40; tries++) {
+      tiles = []; let x = pad, y = pad, rowH = 0;
+      sorted.forEach(ch => { const s = Math.max(12, Math.sqrt(ch.mem) * scale); if (x + s > st.w - pad) { x = pad; y += rowH + 6; rowH = 0; } tiles.push({ ch, x, y, s, ph: Math.random() * 6.28 }); x += s + 6; rowH = Math.max(rowH, s); });
+      if (y + rowH <= st.h - pad) break; scale *= 0.94;
+    }
+    c.__tiles = tiles;
   }
   layout();
   function draw(t) {
     const { ctx, w, h } = st; ctx.clearRect(0, 0, w, h);
     tiles.forEach(tl => { const f = FAM[tl.ch.fam]; const pulse = reduced ? 0 : Math.sin(t / 900 + tl.ph) * 0.06; ctx.globalAlpha = 0.75 + pulse * 2; ctx.fillStyle = f.hex; ctx.fillRect(tl.x, tl.y, tl.s, tl.s); ctx.globalAlpha = 1;
-      if (tl.s > 40) { ctx.fillStyle = "#fff"; ctx.font = "600 11px 'JetBrains Mono', monospace"; ctx.fillText(tl.ch.short, tl.x + 6, tl.y + 15); }
+      if (tl.s > 40) { ctx.fillStyle = "#fff"; ctx.font = "600 11px 'JetBrains Mono', monospace"; const label = ctx.measureText(tl.ch.short).width <= tl.s - 10 ? tl.ch.short : tl.ch.short.split(" ")[0]; if (ctx.measureText(label).width <= tl.s - 10) ctx.fillText(label, tl.x + 6, tl.y + 15); }
       if (hover === tl) { ctx.strokeStyle = cssVar("--ink"); ctx.lineWidth = 2; ctx.strokeRect(tl.x + 1, tl.y + 1, tl.s - 2, tl.s - 2); } });
     if (!reduced) requestAnimationFrame(draw);
   }
   requestAnimationFrame(draw);
-  c.addEventListener("mousemove", e => { const r = c.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top; hover = tiles.find(tl => mx >= tl.x && mx <= tl.x + tl.s && my >= tl.y && my <= tl.y + tl.s) || null; if (hover) showTip(`<b>${hover.ch.name}</b>${FAM[hover.ch.fam].name}<br>${fmtMem(hover.ch.mem)} ${hover.ch.memType} · ${fmtTF(hover.ch.fp8)} FP8/INT8`, e.clientX, e.clientY); else hideTip(); if (reduced) draw(0); });
+  c.addEventListener("mousemove", e => { const r = c.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top; hover = tiles.find(tl => mx >= tl.x && mx <= tl.x + tl.s && my >= tl.y && my <= tl.y + tl.s) || null; if (hover) showTip(`<b>${hover.ch.name}</b>${FAM[hover.ch.fam].name}<br>${fmtMem(hover.ch.mem)} ${hover.ch.memType} · ≈${fmtTF(hover.ch.fp8)} ${hover.ch.peakBasis}`, e.clientX, e.clientY); else hideTip(); if (reduced) draw(0); });
   c.addEventListener("mouseleave", () => { hover = null; hideTip(); if (reduced) draw(0); });
   addEventListener("resize", () => { layout(); if (reduced) draw(0); });
 })();
@@ -610,12 +627,12 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
     const cards = row.querySelector(".cards");
     CHIPS.filter(c => c.fam === fk).forEach(ch => {
       const b = document.createElement("button"); b.className = "chip"; b.style.setProperty("--c", f.color); b.setAttribute("aria-pressed", "false"); b.dataset.id = ch.id;
-      const pill = ch.tag === "new" ? `<span class="pill new">2025–26</span>` : ch.tag === "sunset" ? `<span class="pill sunset">EOS Sep 2026</span>` : "";
+      const pill = ch.tag === "new" ? `<span class="pill new">2025–26</span>` : ch.tag === "sunset" ? `<span class="pill sunset">EOS Sep 2026</span>` : ch.tag === "legacy" ? `<span class="pill sunset">legacy</span>` : "";
       b.innerHTML = `${pill}<div class="name">${ch.name}</div><div class="series">${ch.series.split(" · ")[0]}</div>
         <div class="stat"><span>Memory</span><b class="num">${fmtMem(ch.mem)} ${ch.memType}</b></div>
         <div class="membar"><i style="width:${(ch.mem / maxMem) * 100}%"></i></div>
-        <div class="stat"><span>Dense FP8 / INT8</span><b class="num">${fmtTF(ch.fp8)}</b></div>
-        <div class="stat"><span>On demand</span><b class="num">${ch.price == null ? "reservation" : fmt$(ch.price) + "/hr"}</b></div>`;
+        <div class="stat"><span>Dense ${ch.peakBasis} peak</span><b class="num">≈ ${fmtTF(ch.fp8)}</b></div>
+        <div class="stat"><span>${ch.price == null ? "Price" : ch.onDemand ? "On demand" : "Indicative"}</span><b class="num">${ch.price == null ? "reservation only" : fmt$(ch.price) + "/hr"}</b></div>`;
       b.addEventListener("click", () => select(ch, b)); cards.appendChild(b);
     });
     if (fk === "tpu") ANNOUNCED.forEach(a => { const d = document.createElement("div"); d.className = "chip ghost"; d.innerHTML = `<span class="pill soon">announced</span><div class="name">${a.name}</div><div class="series">not yet rentable</div><div class="small" style="margin-top:4px">${a.note}</div>`; cards.appendChild(d); });
@@ -628,9 +645,10 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
     selected = ch.id; btn.setAttribute("aria-pressed", "true"); const f = FAM[ch.fam];
     det.hidden = false; det.innerHTML = `
       <div><div class="eyebrow" style="color:${f.color}">${f.name}</div><h3>${ch.name}</h3><p class="good-for">${ch.notes}</p>
-        <dl class="kv"><dt>Machine series</dt><dd class="mono">${ch.series}</dd><dt>Chips per VM</dt><dd>${ch.perVM}</dd><dt>Fast domain</dt><dd>${ch.domain.toLocaleString()} chips · ${ch.domainName}</dd><dt>Host (largest shape)</dt><dd>${ch.vcpu} vCPU · ${fmtMem(ch.ram)} RAM · ${ch.net >= 1000 ? (ch.net/1000) + " Tbps" : ch.net + " Gbps"} network</dd><dt>First on GCP</dt><dd>${ch.year}</dd></dl></div>
+        <dl class="kv"><dt>Machine series</dt><dd class="mono">${ch.series}</dd><dt>Chips per VM</dt><dd>${ch.perVM}</dd><dt>Fast domain</dt><dd>${ch.domain.toLocaleString()} chips · ${ch.domainName}</dd><dt>Host (largest shape)</dt><dd>${ch.vcpu} vCPU · ${fmtMem(ch.ram)} RAM · ${ch.net >= 1000 ? (ch.net/1000) + " Tbps" : ch.net + " Gbps"} network</dd><dt>Pricing</dt><dd>${ch.price == null ? "no public price; " : fmt$(ch.price) + " per chip-hour, "}${ch.priceBasis}</dd><dt>First on GCP</dt><dd>${ch.year}</dd></dl>
+        <p class="small" style="margin-top:8px">Throughput and bandwidth are vendor peaks, approximate; dense, no sparsity.</p></div>
       <div><svg id="detail-bars" width="100%" height="200" viewBox="0 0 380 200" role="img" aria-label="Bars comparing this chip's memory, bandwidth and throughput to the lineup maximum"></svg><div class="small">Filled bar = this chip; hairline = highest in the lineup.</div></div>`;
-    const svg = d3.select("#detail-bars"); const rows = [["Memory / chip", ch.mem, d3.max(CHIPS, d => d.mem), fmtMem], ["Memory bandwidth", ch.bw, d3.max(CHIPS, d => d.bw), fmtBW], ["Dense FP8 / INT8", ch.fp8, d3.max(CHIPS, d => d.fp8), fmtTF], ["Dense BF16", ch.bf16, d3.max(CHIPS, d => d.bf16), fmtTF], ["$ / chip-hour", ch.price || 0, d3.max(CHIPS, d => d.price), v => ch.price == null ? "not public" : fmt$(v)]];
+    const svg = d3.select("#detail-bars"); const rows = [["Memory / chip", ch.mem, d3.max(CHIPS, d => d.mem), fmtMem], ["Memory bandwidth", ch.bw, d3.max(CHIPS, d => d.bw), fmtBW], ["Dense " + ch.peakBasis + " peak", ch.fp8, d3.max(CHIPS, d => d.fp8), fmtTF], ["Dense BF16", ch.bf16, d3.max(CHIPS, d => d.bf16), fmtTF], ["$ / chip-hour", ch.price || 0, d3.max(CHIPS, d => d.price), v => ch.price == null ? "not public" : fmt$(v)]];
     const x = d3.scaleLinear().domain([0, 1]).range([130, 370]);
     const g = svg.selectAll("g").data(rows).join("g").attr("transform", (d, i) => `translate(0,${18 + i * 38})`);
     g.append("text").attr("x", 0).attr("y", 12).text(d => d[0]);
@@ -655,16 +673,16 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
   const yl = svg.append("text").attr("transform", `translate(16,${(m.t + H - m.b) / 2}) rotate(-90)`).attr("text-anchor", "middle");
   const r = d => sizeBy === "price" ? (d.price == null ? 6 : 4 + Math.sqrt(d.price) * 3.2) : 7;
   // label offsets to avoid collisions
-  const off = { gb300: [8, -8], gb200: [-42, -8], b200: [8, 14], h200: [8, 2], h100m: [-74, 2], h100: [8, -8], h100e: [8, 14], a100_80: [8, -8], a100_40: [8, 2], rtx6000: [8, 2], l4: [8, 2], t4: [8, -4], v100: [8, 2], p100: [8, 2], p4: [8, 2], v5e: [-36, -8], v5p: [8, 12], v6e: [8, -6], tpu7x: [8, 2] };
+  const off = { gb300: [8, -8], gb200: [-42, -8], b200: [8, 14], h200: [8, 2], h100m: [-74, 2], h100: [8, -8], h100e: [8, 14], a100_80: [8, -8], a100_40: [8, 2], rtx6000: [8, 2], l4: [8, 2], t4: [8, -7], v100: [-42, 5], p100: [8, 2], p4: [8, 2], v5e: [-36, -8], v5p: [8, 12], v6e: [8, -6], tpu7x: [8, 2], v4: [8, 10], v3: [8, 4], v2: [8, 10] };
   function render() {
     const key = prec; y.domain([4, 8000]);
     gGrid.selectAll("line").data(y.ticks(6)).join("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
     gX.attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([8, 16, 32, 64, 128, 256]).tickFormat(d => d));
     gY.attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([10, 100, 1000, 5000]).tickFormat(d => d >= 1000 ? d / 1000 + " PF" : d + " TF"));
-    yl.text(prec === "fp8" ? "Peak dense FP8 / INT8 throughput (log)" : "Peak dense BF16 / FP16 throughput (log)");
+    yl.text(prec === "fp8" ? "Peak dense low-precision throughput, FP8 / INT8 / FP16 as marked (log, approx.)" : "Peak dense BF16 / FP16 throughput (log, approx.)");
     const pts = gPts.selectAll("circle").data(CHIPS, d => d.id).join(enter => enter.append("circle").attr("cx", d => x(d.mem)).attr("cy", d => y(d[key])).attr("r", 0));
     pts.attr("fill", d => FAM[d.fam].hex).attr("stroke", cssVar("--bg-2")).attr("stroke-width", 2).style("cursor", "pointer")
-      .on("mousemove", (e, d) => showTip(`<b>${d.name}</b>${FAM[d.fam].name} · ${d.series.split(" · ")[0]}<br>${fmtMem(d.mem)} ${d.memType} · ${fmtBW(d.bw)}<br>${fmtTF(d.fp8)} FP8/INT8 · ${fmtTF(d.bf16)} BF16<br>${d.price == null ? "reservation only" : fmt$(d.price) + " / chip-hr"}`, e.clientX, e.clientY)).on("mouseleave", hideTip)
+      .on("mousemove", (e, d) => showTip(`<b>${d.name}</b>${FAM[d.fam].name} · ${d.series.split(" · ")[0]}<br>${fmtMem(d.mem)} ${d.memType} · ${fmtBW(d.bw)}<br>≈${fmtTF(d.fp8)} ${d.peakBasis} · ≈${fmtTF(d.bf16)} BF16<br>${d.price == null ? "reservation only" : fmt$(d.price) + " / chip-hr, " + d.priceBasis}`, e.clientX, e.clientY)).on("mouseleave", hideTip)
       .transition().duration(reduced ? 0 : 500).attr("cx", d => x(d.mem)).attr("cy", d => y(d[key])).attr("r", r);
     gLab.selectAll("text").data(CHIPS, d => d.id).join("text").attr("font-size", 11).attr("fill", cssVar("--ink-2")).text(d => d.short)
       .transition().duration(reduced ? 0 : 500).attr("x", d => x(d.mem) + off[d.id][0]).attr("y", d => y(d[key]) + off[d.id][1] + 4);
@@ -706,7 +724,7 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
     dropL.attr("x1", x(I)).attr("x2", x(I)).attr("y1", y(Math.max(1, att))).attr("y2", H - m.b).attr("stroke", cssVar("--ink-3"));
     dotT.attr("x", x(I) + 12).attr("y", y(Math.max(1, att)) + 4).attr("fill", cssVar("--ink")).text(`${fmtTF(Math.round(att))} attainable`);
     const pct = Math.round(att / peak * 100); const bound = I < rp ? "memory" : "compute";
-    verdict.innerHTML = `<b>${c.name}</b>: ${fmtTF(peak)} dense FP8/INT8 over ${fmtBW(c.bw)} gives a ridge at about <b>${Math.round(rp)} FLOP/byte</b>. At ${aiOut.textContent} FLOP/byte your workload is <b>${bound}-bound</b> and can use at most <b>${pct}%</b> of the chip's peak${bound === "memory" ? ". Bigger batches, quantised weights or a chip with more bandwidth per FLOP would help." : ". You are paying for the math, not the memory; this is where FLOPS per dollar matters."}`;
+    verdict.innerHTML = `<b>${c.name}</b>: about ${fmtTF(peak)} dense ${c.peakBasis} over ${fmtBW(c.bw)} gives a ridge at about <b>${Math.round(rp)} FLOP/byte</b>. At ${aiOut.textContent} FLOP/byte your workload is <b>${bound}-bound</b> and can use at most <b>${pct}%</b> of the chip's peak${bound === "memory" ? ". Bigger batches, quantised weights or a chip with more bandwidth per FLOP would help." : ". You are paying for the math, not the memory; this is where FLOPS per dollar matters."}`;
     preset.textContent = I < 8 ? "Single-stream decoding: every weight read once per token, about 2 FLOPs each." : I < 300 ? `Batched decoding at roughly batch ${Math.round(I / 2)}. Intensity grows with batch size.` : "Prefill, training or large-batch serving: the systolic array or Tensor Cores are finally the limit.";
   }
   sel.addEventListener("change", render); ai.addEventListener("input", render); render();
@@ -751,11 +769,11 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
     const bytes = mode.value === "train" ? 16 : +prec.value; const need = params * bytes * (1 + kv.value / 100); // GB (1e9 params × bytes)
     $("#fit-need").textContent = need >= 1000 ? (need / 1000).toFixed(2) + " TB" : Math.round(need) + " GB";
     const rows = CHIPS.map(c => { const n = Math.ceil(need / (c.mem * 0.9)); const fits = n <= c.domain; const cost = c.price == null ? null : n * c.price; return { c, n, fits, cost }; });
-    const priced = rows.filter(r => r.cost != null && r.fits).sort((a, b) => a.cost - b.cost); const cheap = priced[0]; const fewest = rows.filter(r => r.fits).sort((a, b) => a.n - b.n)[0];
+    const priced = rows.filter(r => r.cost != null && r.fits).sort((a, b) => a.cost - b.cost); const cheap = priced.find(r => r.c.onDemand); const fewest = rows.filter(r => r.fits).sort((a, b) => a.n - b.n)[0];
     $("#fit-cheap").innerHTML = cheap ? `${cheap.c.name} <span class="small">· ${cheap.n} chip${cheap.n > 1 ? "s" : ""} · ${fmt$(cheap.cost)}/hr</span>` : "nothing in one fast domain";
     $("#fit-fewest").innerHTML = fewest ? `${fewest.n} × ${fewest.c.name}` : "–";
     const maxCost = d3.max(priced, r => r.cost) || 1;
-    tb.innerHTML = rows.sort((a, b) => (a.cost ?? 1e9) - (b.cost ?? 1e9)).map(r => `<tr class="${r.fits ? "" : "dim"}"><td><span class="sw" style="background:${FAM[r.c.fam].hex}"></span>${r.c.name}</td><td class="n">${fmtMem(r.c.mem)}</td><td class="n">${r.n.toLocaleString()}</td><td>${r.fits ? (r.n === 1 ? "yes, one chip" : "yes, " + r.c.domainName) : "no: needs " + r.n.toLocaleString() + " > " + r.c.domain.toLocaleString() + " in " + r.c.domainName}</td><td class="n">${r.cost == null ? "n/a" : "$" + r.cost.toFixed(0)}</td><td>${r.cost == null || !r.fits ? "" : `<span class="fitbar" style="--c:${FAM[r.c.fam].hex};width:${Math.max(3, r.cost / maxCost * 160)}px"></span>`}</td></tr>`).join("");
+    tb.innerHTML = rows.sort((a, b) => (a.cost ?? 1e9) - (b.cost ?? 1e9)).map(r => `<tr class="${r.fits ? "" : "dim"}"><td><span class="sw" style="background:${FAM[r.c.fam].hex}"></span>${r.c.name}</td><td class="n">${fmtMem(r.c.mem)}</td><td class="n">${r.n.toLocaleString()}</td><td>${r.fits ? (r.n === 1 ? "yes, one chip" : "yes, " + r.c.domainName) : "no: needs " + r.n.toLocaleString() + " > " + r.c.domain.toLocaleString() + " in " + r.c.domainName}</td><td class="n">${r.cost == null ? "n/a" : fmt$(r.cost) + (r.c.onDemand ? "" : " *")}</td><td>${r.cost == null || !r.fits ? "" : `<span class="fitbar" style="--c:${FAM[r.c.fam].hex};width:${Math.max(3, r.cost / maxCost * 160)}px"></span>`}</td></tr>`).join("");
   }
   [P, prec, kv, mode].forEach(el => el.addEventListener("input", render)); render();
 })();

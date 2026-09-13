@@ -38,23 +38,27 @@ All numbers are in one array (`CHIPS`) near the top of the script in
 
 - **Chips covered.** GB300 (A4X Max), GB200 (A4X), B200 (A4), H200 (A3 Ultra),
   H100 (A3 Mega, High, Edge), A100 80/40 GB (A2), RTX PRO 6000 (G4), L4 (G2),
-  T4, V100, P100, P4 (N1), TPU v5e, v5p, v6e Trillium and TPU7x Ironwood.
-  TPU 8t and 8i are shown as announced (Cloud Next, April 2026), not rentable.
-- **Throughput** is the vendor's peak *dense* figure, marked approximate.
-  NVIDIA's sparse peaks are not used. Chips without FP8 (A100, V100, T4,
-  P100, P4) are plotted at INT8 or FP16 peak, which the page says.
-- **Prices** are approximate on-demand list per chip-hour in us-central1,
-  from the Google Cloud pricing pages and a Thunder Compute survey dated
-  11 Sep 2026; VM-level prices are divided by GPU count. B200, H200 and the
-  A4X series are sold via reservations, Spot or DWS, so their figures are
-  indicative. GB300 has no public price and is shown without one.
+  T4, V100, P100, P4 (N1), TPU v2, v3, v4, v5e, v5p, v6e Trillium and TPU7x
+  Ironwood. TPU 8t and 8i are shown as announced (Cloud Next, April 2026),
+  not rentable. v2 and v3 are legacy but still priced and zoned by Google.
+- **Throughput** is the vendor's peak *dense* figure, marked approximate on
+  the page. NVIDIA's sparse peaks are not used. Each record carries a
+  `peakBasis` (FP8, INT8, FP16 or BF16) naming the precision behind its
+  low-precision number; cards, tooltips and the roofline print that basis.
+- **Prices** are list per chip-hour in us-central1 (or the first region
+  Google lists), from the Google Cloud pricing pages and a Thunder Compute
+  survey dated 11 Sep 2026; VM-level prices are divided by GPU count. Each
+  record has `onDemand` and `priceBasis`: A3 Ultra, A3 Mega, A4 and A4X are
+  not sold on demand, so their prices are labelled indicative, marked `*` in
+  the fit table, and never win "cheapest on demand". GB300 and GB200 have no
+  public price.
 - **The fit calculator** is a memory rule of thumb (weights = parameters ×
   bytes; full fine-tune about 16 bytes per parameter, plus a headroom
   percentage), and it treats 90% of each chip's memory as usable. It ignores
   interconnect speed, so a "fits" over PCIe cards is a capacity statement,
   not a performance recommendation.
-- **The roofline** uses dense FP8/INT8 peak over HBM bandwidth. Real kernels
-  reach a fraction of either roof.
+- **The roofline** is labelled simplified on the page: dense low-precision
+  peak over peak HBM bandwidth. Real kernels reach a fraction of either roof.
 - **Zone counts** are approximate, from the GPU regions page on 11 Sep 2026.
 - The anatomy and topology animations are simplified and say so on the page.
 
@@ -63,8 +67,11 @@ All numbers are in one array (`CHIPS`) near the top of the script in
 The page has no runtime dependencies. The tests do: Playwright drives the
 page in headless Chrome (the installed Google Chrome, or Playwright's own
 Chromium in CI) and checks rendering at 1440 px and 390 px with zero errors
-and no horizontal overflow, that the canvases paint at rest, the card spec
-sheet, the scatter toggle, the fit arithmetic and the roofline verdict.
+and no horizontal overflow, that the canvases paint at rest and every hero
+tile fits, the card spec sheet, the scatter toggle, the fit arithmetic
+(including the indicative-price and one-cheap-chip cases), the roofline
+verdict, and a data-invariant check of every record against the machine-type
+tables.
 
 ```bash
 pnpm install
