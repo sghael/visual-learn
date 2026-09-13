@@ -52,13 +52,16 @@ test('quantizer: symmetric grid, clipping at the edge level, and exact zero', as
   const { page, context } = await open();
   const r = await page.evaluate(() => {
     const q = window.QAT.quantizeArray;
-    return { four: q([-1, -0.5, 0, 0.5, 1], 4), two: q([-1, -0.3, 0.3, 1], 2), tiny: q([0.001, -0.002], 8) };
+    return { four: q([-1, -0.5, 0, 0.5, 1], 4), two: q([-1, -0.3, 0.3, 1], 2), tiny: q([0.001, -0.002], 8), neg: q([-1, 0.25], 3) };
   });
   assert.equal(r.four.qmax, 7);
   assert.ok(Math.abs(r.four.s - 1 / 7) < 1e-12);
   assert.equal(r.four.out[2], 0, 'zero is representable exactly');
   assert.equal(r.four.out[4], 1, 'the max value lands on the top level');
+  assert.equal(r.four.out[0], -1, 'the most negative value lands on -qmax, never on the unused -qmax-1 code');
   assert.deepEqual(r.four.mask, [1, 1, 1, 1, 1], 'a symmetric max lands on ±qmax, nothing is clipped');
+  assert.equal(r.neg.out[0], -1, 'negative max defines the scale and is representable');
+  assert.ok(Math.abs(r.neg.s - 1 / 3) < 1e-12);
   // 2-bit: levels {-2s, -s, 0, s} with s = 1; 0.3 rounds to 0, -1 to -1
   assert.deepEqual(r.two.out.map((v) => v + 0), [-1, 0, 0, 1]); // + 0 folds -0 into 0
   assert.equal(r.two.qmax, 1);
@@ -71,7 +74,7 @@ test('number line: the readout matches the formula and clips past alpha', async 
   await page.locator('#nlBits').fill('3');
   await page.locator('#nlAlpha').fill('1');
   const levels = await page.locator('#nlLevels').innerText();
-  assert.equal(levels, '8');
+  assert.equal(levels, '7'); // 2^3 - 1 symmetric levels; the -4 code is unused
   // drag the dot far right: x is clamped to 1.6, q clips to +3, x-hat = 1.0
   const dot = page.locator('#numLine circle');
   const box = await dot.boundingBox();
@@ -81,6 +84,11 @@ test('number line: the readout matches the formula and clips past alpha', async 
   await page.mouse.up();
   assert.equal(await page.locator('#nlQ').innerText(), '3');
   assert.equal(await page.locator('#nlXh').innerText(), '1.000');
+  // keyboard path: the range control drives the same value; the negative edge clips to -qmax, not -qmax-1
+  await page.locator('#nlXin').fill('-1.6');
+  assert.equal(await page.locator('#nlQ').innerText(), '-3');
+  assert.equal(await page.locator('#nlXh').innerText(), '-1.000');
+  assert.equal(await page.locator('#nlErr').innerText(), '−0.600');
   await context.close();
 });
 
@@ -120,15 +128,55 @@ test('drift: reset during playback stops the animation and restores the start', 
   await context.close();
 });
 
-test('training lab: auto-runs to completion, QAT ends below PTQ, and the bits toggle is safe mid-run', async () => {
+test('training lab: auto-runs to completion at the bits it started with, controls lock mid-run, QAT ends below PTQ', async () => {
   const { page, context, errors } = await open({ reduced: false });
   await page.locator('#lab').scrollIntoViewIfNeeded();
   await page.waitForFunction(() => window.QAT.lab.running, null, { timeout: 5000 });
-  await page.locator('#labBits button', { hasText: '4' }).click(); // must not disturb the run in flight
-  await page.waitForFunction(() => !window.QAT.lab.running && window.QAT.lab.state && window.QAT.lab.state.phase >= 1, null, { timeout: 90000 });
-  const { l1, l2 } = await page.evaluate(() => ({ l1: window.QAT.lab.state.l1, l2: parseFloat(document.querySelector('#labL2').innerText) }));
+  const four = page.locator('#labBits button', { hasText: '4' });
+  assert.equal(await four.isDisabled(), true, 'bit-width buttons lock during a run');
+  assert.equal(await page.locator('#labSeed').isDisabled(), true, 'seed locks during a run');
+  await four.click({ force: true }); // a forced click on a disabled control must not change the run
+  await page.waitForFunction(() => window.QAT.lab.state && window.QAT.lab.state.phase >= 1, null, { timeout: 60000 });
+  assert.equal(await page.evaluate(() => window.QAT.lab.state.bits), 3, 'PTQ and QAT are computed at the snapshot precision');
+  await page.waitForFunction(() => !window.QAT.lab.running, null, { timeout: 90000 });
+  const { l1, l2, status } = await page.evaluate(() => ({ l1: window.QAT.lab.state.l1, l2: parseFloat(document.querySelector('#labL2').innerText), status: document.querySelector('#labStatus').innerText }));
   assert.ok(l2 < l1, `QAT loss ${l2} should be below PTQ loss ${l1}`);
+  assert.match(status, /Done at 3 bits/);
   assert.equal(await page.locator('#labRun').isDisabled(), false);
+  // changing bits after completion clears the stale comparison instead of redrawing it on a different grid
+  await four.click();
+  assert.equal(await page.evaluate(() => window.QAT.lab.state), null);
+  assert.equal(await page.locator('#labL2').innerText(), '–');
+  assert.match(await page.locator('#labStatus').innerText(), /Settings changed/);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('training lab: under reduced motion the run completes synchronously with no intermediate frames', async () => {
+  const { page, context, errors } = await open({ reduced: true });
+  // open() resolves as soon as window.QAT.lab exists, which is after the synchronous run
+  const s = await page.evaluate(() => ({ running: window.QAT.lab.running, phase: window.QAT.lab.state && window.QAT.lab.state.phase, l2: document.querySelector('#labL2').innerText }));
+  assert.equal(s.running, false);
+  assert.equal(s.phase, 1);
+  assert.notEqual(s.l2, '–');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('transformer block: tap, tap after a theme redraw, and keyboard focus all show the tooltip without errors', async () => {
+  const { page, context, errors } = await open();
+  const tip = page.locator('#blockTip');
+  const block = () => page.locator('#blockSvg g[role="button"]', { hasText: 'W_down' });
+  await block().click();
+  assert.match(await tip.innerText(), /down projection/);
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); // triggers a full redraw of every figure
+  await page.waitForTimeout(100);
+  await block().click();
+  assert.match(await tip.innerText(), /down projection/);
+  await block().focus();
+  await page.keyboard.press('Enter');
+  assert.match(await tip.innerText(), /down projection/);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#blockTip')).opacity), '1');
   assert.deepEqual(errors, []);
   await context.close();
 });

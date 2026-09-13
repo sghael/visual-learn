@@ -21,12 +21,12 @@ fallbacks. Everything else, including the training lab, is inline.
 | Section | Widget | Interaction |
 |---|---|---|
 | 1 Why shrink a model | Weight-memory bar chart | Pick a model size; bars for bf16, int8, int4 against GPU memory lines |
-| 2 Quantizing one number | Number line | Drag x; sliders for bit-width and clip range; readout of q, x̂, error |
+| 2 Quantizing one number | Number line | Drag x or use its slider; sliders for bit-width and clip range; readout of q, x̂, error |
 | 3 Quantizing a matrix | Three heatmaps | Bit-width slider, per-tensor vs per-row scales, outlier toggle |
 | 4 Rounding in the loop | QAT loop diagram | Six step buttons highlight each stage and explain it |
 | 5 The straight-through trick | Forward/backward plots, drift animation | Toggle true derivative vs STE; play a latent weight crossing a rounding boundary |
 | 6 Training lab | Live training in the browser | Choose 2, 3 or 4 bits and a seed; watch fp32 pretraining, then PTQ vs QAT |
-| 7 Inside a real LLM | Transformer block map | Hover or tap each block for what precision it runs at and why |
+| 7 Inside a real LLM | Transformer block map | Hover, tap, or tab to each block for what precision it runs at and why |
 | 8 Recipes in the wild | Table | LLM-QAT, BitNet b1.58, EfficientQAT, Gemma 3 QAT, ParetoQ |
 | 9 Check yourself | Three reveal questions | |
 
@@ -34,8 +34,10 @@ fallbacks. Everything else, including the training lab, is inline.
 
 - The training lab is a 97-parameter regression network (1 → 32 tanh → 1),
   not a language model. It quantizes weights only, per tensor, with a scale
-  recomputed from the current master weights every step, a clipped
-  straight-through gradient, Adam, and a cosine learning-rate decay. There
+  recomputed from the current master weights every step (so no weight is
+  ever clipped), a straight-through gradient, Adam, and a cosine
+  learning-rate decay. Under `prefers-reduced-motion` the lab computes the
+  whole run at once and paints only the final state. There
   is no activation quantization and no distillation. The page says so next
   to the figure.
 - With these settings QAT beats PTQ on every seed at 3 and 4 bits and on
@@ -45,8 +47,9 @@ fallbacks. Everything else, including the training lab, is inline.
   the KV cache. GPU sizes are nominal.
 - The transformer block shows one common W4A8 layout. Real recipes differ in
   which tensors they quantize and at what granularity.
-- The recipe table summarizes published papers and model cards from memory
-  of their headline claims; check the sources for exact numbers.
+- Every row of the recipe table links its primary source (arXiv paper or
+  the official Gemma 3 QAT announcement); the figures quoted are the ones
+  those sources state.
 
 ## Tests
 
