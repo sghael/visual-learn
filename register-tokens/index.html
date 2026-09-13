@@ -404,7 +404,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
   <div class="grid2">
     <div class="prose">
       <p>The authors retrained three very different models with four registers: DeiT-III (supervised, ViT-B), OpenCLIP (text-supervised, ViT-B) and DINOv2 (self-supervised, ViT-L). In all three the artifacts disappear and the attention maps become clean.</p>
-      <p>Classification barely moves, which makes sense because <span class="kw cls">[CLS]</span> was already getting what it needed. Dense tasks that read the patch tokens improve. The unsupervised object-discovery method LOST, which relies on patch-to-patch similarity, improves dramatically on DeiT-III and DINOv2 but slips slightly on OpenCLIP.</p>
+      <p>Classification barely moves, which makes sense because <span class="kw cls">[CLS]</span> was already getting what it needed. Dense tasks that read the patch tokens mostly improve, with a hair of depth error added on DeiT-III. The unsupervised object-discovery method LOST, which relies on patch-to-patch similarity, improves dramatically on DeiT-III and DINOv2 but slips slightly on OpenCLIP.</p>
       <p>Numbers below are from the paper's Tables 2 and 3 (ImageNet top-1, ADE20k mIoU, NYUd depth RMSE where lower is better, and LOST corloc on VOC 2007).</p>
     </div>
     <figure style="margin:0">
@@ -413,7 +413,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         <thead><tr><th>Model (size)</th><th>Registers</th><th>ImageNet ↑</th><th>ADE20k ↑</th><th>NYUd ↓</th><th>LOST ↑</th></tr></thead>
         <tbody>
           <tr><td>DeiT-III (ViT-B)</td><td>0</td><td>84.7</td><td>38.9</td><td>0.511</td><td>11.7</td></tr>
-          <tr><td></td><td>4</td><td class="same">84.7</td><td class="up">39.1</td><td class="same">0.512</td><td class="up">27.1</td></tr>
+          <tr><td></td><td>4</td><td class="same">84.7</td><td class="up">39.1</td><td class="down">0.512</td><td class="up">27.1</td></tr>
           <tr><td>OpenCLIP (ViT-B)</td><td>0</td><td>78.2</td><td>26.6</td><td>0.702</td><td>38.8</td></tr>
           <tr><td></td><td>4</td><td class="down">78.1</td><td class="up">26.7</td><td class="up">0.661</td><td class="down">37.1</td></tr>
           <tr><td>DINOv2 (ViT-L)</td><td>0</td><td>84.3</td><td>46.6</td><td>0.378</td><td>35.3</td></tr>
@@ -524,11 +524,25 @@ function buildGrid(el, onCell){
   el.style.gridTemplateColumns = `repeat(${N},1fr)`;
   el.innerHTML='';
   const cells=[];
-  for(let i=0;i<N*N;i++){const c=document.createElement('button');c.type='button';c.className='cell';c.dataset.i=i;c.setAttribute('aria-label',`patch column ${i%N}, row ${(i/N)|0}`);el.appendChild(c);cells.push(c);}
-  if(onCell){ el.addEventListener('mouseover',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
+  // Interactive grids are one Tab stop: buttons with a roving tabindex and arrow-key movement.
+  // Passive grids are plain divs so keyboard users never traverse actionless controls.
+  for(let i=0;i<N*N;i++){const c=document.createElement(onCell?'button':'div'); c.className='cell'; c.dataset.i=i;
+    if(onCell){c.type='button';c.tabIndex=i?-1:0;c.setAttribute('aria-label',`patch column ${i%N}, row ${(i/N)|0}`);}
+    el.appendChild(c);cells.push(c);}
+  if(onCell){ el.setAttribute('role','grid'); el.addEventListener('mouseover',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
               el.addEventListener('focusin',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
+              rovingKeys(el, cells, N);
               el.addEventListener('click',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'click');}); }
   return cells;
+}
+// Arrow keys move focus within a widget; Tab leaves it. cols = items per row for Up/Down.
+function rovingKeys(el, items, cols){
+  el.addEventListener('keydown',e=>{
+    const cur=items.indexOf(document.activeElement); if(cur<0) return;
+    const d={ArrowRight:1,ArrowLeft:-1,ArrowDown:cols,ArrowUp:-cols,Home:-cur,End:items.length-1-cur}[e.key]; if(d===undefined) return;
+    const next=Math.max(0,Math.min(items.length-1,cur+d)); if(next===cur) return;
+    e.preventDefault(); items[cur].tabIndex=-1; items[next].tabIndex=0; items[next].focus();
+  });
 }
 function paintScene(cells){ cells.forEach((c,i)=>{ c.style.background=sceneColor(scene[i]); if(scene[i]===2){c.style.background = (i%3===0)?tok('--obj-2'):tok('--obj');} }); }
 function paintHeat(cells, vals, c0, c1, opts={}){
@@ -562,9 +576,10 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
   const cells = buildGrid(document.getElementById('recapImg'), (i)=>select(i)); paintScene(cells);
   const strip = document.getElementById('recapStrip'); const toks=[];
   const s = state('L',6,0);
-  const mk=(cls,h,label)=>{const t=document.createElement('button');t.type='button';t.className='tok '+cls;t.setAttribute('aria-label',label);const b=document.createElement('i');b.style.height=h+'px';t.appendChild(b);strip.appendChild(t);return t;};
-  mk('cls',14,'[CLS] token'); for(let i=0;i<N*N;i++) toks.push(mk('',4+Math.round(s.norms[i]/40*10),`token ${i+1}`));
+  const mk=(cls,h,label)=>{const t=document.createElement('button');t.type='button';t.className='tok '+cls;t.setAttribute('aria-label',label);t.tabIndex=-1;const b=document.createElement('i');b.style.height=h+'px';t.appendChild(b);strip.appendChild(t);return t;};
+  const clsTok=mk('cls',14,'[CLS] token'); clsTok.tabIndex=0; for(let i=0;i<N*N;i++) toks.push(mk('',4+Math.round(s.norms[i]/40*10),`token ${i+1}`));
   toks.forEach((t,i)=>{t.addEventListener('mouseover',()=>select(i));t.addEventListener('focus',()=>select(i));});
+  rovingKeys(strip, [clsTok,...toks], 28);
   const infoEl=document.getElementById('recapInfo');
   function select(i){ cells.forEach((c,k)=>c.classList.toggle('sel',k===i)); toks.forEach((t,k)=>t.classList.toggle('sel',k===i));
     const x=i%N,y=(i/N)|0; const lab=['sky','ground','object'][scene[i]];
@@ -657,7 +672,7 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
       legend.innerHTML=`<span>Token norm</span><span class="ramp" style="background:linear-gradient(90deg,${tok('--heat0')},${tok('--heat1')})"></span><span>0 → 400</span>`; }
     else { paintHeat(grid,s.attn,tok('--attn0'),tok('--attn1'),{max:1,gamma:.8,outliers:s.outliers});
       legend.innerHTML=`<span>[CLS] attention</span><span class="ramp" style="background:linear-gradient(90deg,${tok('--attn0')},${tok('--attn1')})"></span><span>low → high</span>`; }
-    // strip: CLS, patches (downsampled every 2nd for width), registers
+    // strip: CLS, registers, patches (downsampled every 2nd for width)
     strip.innerHTML='';
     const mk=(cls,v,title)=>{const t=document.createElement('div');t.className='tok '+cls;t.title=title;const b=document.createElement('i');b.style.height=Math.max(2,Math.round(v/420*22))+'px';t.appendChild(b);strip.appendChild(t);};
     mk('cls',s.clsNorm,'[CLS] norm '+s.clsNorm.toFixed(0));

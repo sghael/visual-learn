@@ -132,20 +132,35 @@ test('results table matches the paper (ICLR 2024, Tables 2 and 3)', async () => 
     ['', '4', '84.8', '47.9', '0.366', '55.4'],
   ]);
   // regressions are styled as such, not as improvements
-  const openclipReg = await page.$$eval('#results tbody tr:nth-child(4) td', (tds) => tds.map((td) => td.className));
-  assert.deepEqual(openclipReg, ['', '', 'down', 'up', 'up', 'down']);
+  const cls = (n) => page.$$eval(`#results tbody tr:nth-child(${n}) td`, (tds) => tds.map((td) => td.className));
+  assert.deepEqual(await cls(2), ['', '', 'same', 'up', 'down', 'up'], 'DeiT-III: NYUd rmse rose, lower is better');
+  assert.deepEqual(await cls(4), ['', '', 'down', 'up', 'up', 'down']);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('patch cells and tokens are real buttons operable from the keyboard', async () => {
+test('interactive grids are one Tab stop with arrow keys; passive grids hold no controls', async () => {
   const { page, context, errors } = await open();
   assert.equal(await page.$eval('#normGrid .cell', (el) => el.tagName), 'BUTTON');
   assert.equal(await page.$eval('#recapStrip .tok', (el) => el.tagName), 'BUTTON');
+  for (const grid of ['#heroImg', '#heroAttn', '#redGrid', '#fixGrid']) {
+    assert.equal(await page.$$eval(`${grid} button, ${grid} [tabindex]`, (els) => els.length), 0, `${grid} is passive`);
+  }
+  // exactly one tabbable cell per interactive widget
+  for (const w of ['#normGrid', '#recapImg', '#recapStrip']) {
+    assert.equal(await page.$$eval(`${w} [tabindex="0"]`, (els) => els.length), 1, `${w} has one Tab stop`);
+  }
+  // Tab into the norm grid, arrow to the first artifact, Enter probes it
   await setRange(page, '#layer', 20);
-  await page.focus('#normGrid .cell.outlier');
+  await page.focus('#normGrid [tabindex="0"]');
+  const target = await page.$eval('#normGrid .cell.outlier', (el) => +el.dataset.i);
+  for (let i = 0; i < Math.floor(target / 14); i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < target % 14; i++) await page.keyboard.press('ArrowRight');
+  assert.equal(await page.evaluate(() => +document.activeElement.dataset.i), target);
   await page.keyboard.press('Enter');
   assert.equal(await page.locator('#probeKind').innerText(), 'artifact');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.closest('#normGrid')), null, 'Tab leaves the grid');
   // focusing a token in the recap strip selects it, like hovering does
   await page.focus('#recapStrip .tok:nth-child(5)');
   assert.match(await page.locator('#recapInfo h3').innerText(), /token #4/);
