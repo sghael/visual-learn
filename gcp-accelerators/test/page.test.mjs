@@ -131,7 +131,9 @@ test('data invariants: every chip record is complete and the host specs match th
   const chips = await page.evaluate(() => CHIPS.map((c) => ({ ...c })));
   assert.equal(chips.length, 22);
   for (const c of chips) {
-    for (const k of ['mem', 'bw', 'fp8', 'bf16', 'domain', 'vcpu', 'ram', 'net', 'year']) assert.ok(Number.isFinite(c[k]) && c[k] > 0, `${c.id}.${k}`);
+    for (const k of ['mem', 'bw', 'fp8', 'bf16', 'domain', 'year']) assert.ok(Number.isFinite(c[k]) && c[k] > 0, `${c.id}.${k}`);
+    const hostKnown = !['v2', 'v3', 'v4'].includes(c.id); // Google publishes no VM shape for these
+    for (const k of ['vcpu', 'ram', 'net']) assert.equal(Number.isFinite(c[k]) && c[k] > 0, hostKnown, `${c.id}.${k}`);
     assert.ok(['FP8', 'INT8', 'FP16', 'BF16'].includes(c.peakBasis), `${c.id}.peakBasis`);
     assert.equal(typeof c.onDemand, 'boolean', `${c.id}.onDemand`);
     assert.ok(c.priceBasis, `${c.id}.priceBasis`);
@@ -147,7 +149,23 @@ test('data invariants: every chip record is complete and the host specs match th
   assert.deepEqual([by.b200.vcpu, by.b200.ram, by.b200.net], [224, 3968, 3600]);
   assert.deepEqual([by.gb200.vcpu, by.gb200.ram, by.gb200.net], [140, 884, 2000]);
   assert.deepEqual([by.gb300.vcpu, by.gb300.ram, by.gb300.net], [144, 960, 3600]);
+  // TPU hosts from docs.cloud.google.com/tpu/docs/{v5e,v5p,v6e,tpu7x} (read 13 Sep 2026): per-VM NIC, largest VM shape
+  assert.deepEqual([by.v5e.vcpu, by.v5e.ram, by.v5e.net], [224, 384, 200]);
+  assert.deepEqual([by.v5p.vcpu, by.v5p.ram, by.v5p.net], [208, 448, 200]);
+  assert.deepEqual([by.v6e.vcpu, by.v6e.ram, by.v6e.net], [360, 1440, 800]);
+  assert.deepEqual([by.tpu7x.vcpu, by.tpu7x.ram, by.tpu7x.net], [224, 960, 400]);
   for (const id of ['gb300', 'gb200', 'b200', 'h200', 'h100m']) assert.equal(by[id].onDemand, false, `${id} is not sold on demand`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('spec sheet says when Google publishes no host shape for a generation', async () => {
+  const { page, context, errors } = await open();
+  await page.locator('.chip[data-id="v4"]').click();
+  assert.match(await page.locator('#detail').innerText(), /not published for this generation/);
+  await page.locator('.chip[data-id="v4"]').click();
+  await page.locator('.chip[data-id="v5p"]').click();
+  assert.match(await page.locator('#detail').innerText(), /208 vCPU · 448 GB RAM · 200 Gbps host network/);
   assert.deepEqual(errors, []);
   await context.close();
 });

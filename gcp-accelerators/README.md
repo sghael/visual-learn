@@ -59,6 +59,10 @@ All numbers are in one array (`CHIPS`) near the top of the script in
   not a performance recommendation.
 - **The roofline** is labelled simplified on the page: dense low-precision
   peak over peak HBM bandwidth. Real kernels reach a fraction of either roof.
+- **Host shapes** (vCPU, RAM, network) are the largest documented VM per
+  chip; for TPUs the network figure is the per-VM NIC, not the per-chip DCN
+  number. Google publishes no VM shape for v2, v3 and v4, and the spec sheet
+  says so rather than guessing.
 - **Zone counts** are approximate, from the GPU regions page on 11 Sep 2026.
 - The anatomy and topology animations are simplified and say so on the page.
 

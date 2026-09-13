@@ -9,3 +9,6 @@ test-results/
 
 # worktree tooling marker
 .worktree-owner
+
+# ai-review scratch worktrees
+.ai-review-worktrees/
