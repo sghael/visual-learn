@@ -309,7 +309,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
     </div>
     <div class="chip-legend" id="legend"></div>
     <svg id="scatter" width="100%" height="480" viewBox="0 0 900 480" role="img" aria-labelledby="scatter-title"><title id="scatter-title">Scatter plot of accelerator memory per chip against peak throughput</title></svg>
-    <div class="fig-note">Both axes are logarithmic. Throughput is NVIDIA's or Google's published peak <em>dense</em> figure (no 2:1 sparsity), approximate and rarely reached in practice. "Low precision" means FP8 where the chip has it, otherwise INT8 (A100, T4, P4, v5e, v6e, v4) or FP16 (V100, P100); the tooltip names the basis for each dot.</div>
+    <div class="fig-note">Both axes are logarithmic. Throughput is NVIDIA's or Google's published peak <em>dense</em> figure (no 2:1 sparsity), approximate and rarely reached in practice. "Low precision" means FP8 where the chip has it, otherwise INT8 (A100, T4, P4, v5e, v6e, v4), FP16 (V100, P100) or BF16 (v2, v3, which have no faster mode); the tooltip names the basis for each dot.</div>
   </div>
   <p><b>What to see.</b> The v5e and L4 sit in the bottom-left corner: small memory, modest compute, and by far the cheapest per hour. The Blackwell parts and Ironwood share the top-right: around 180 to 280 GB and 4 to 5 PFLOPS of FP8 per chip. The H200 and Ironwood are the two chips with far more memory than their compute alone would suggest, which is exactly what you want for serving long-context models where the KV cache, not the weights, fills the memory.</p>
 </section>
@@ -345,7 +345,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
   <p class="lede">A single chip trains nothing interesting. The real product is the <b>fabric</b>: how many chips share a fast interconnect before you fall back to Ethernet. NVIDIA and Google draw that boundary in very different places.</p>
   <div class="topo-grid" id="topos"></div>
   <p style="margin-top:18px"><b>NVLink islands.</b> On A3 and A4, eight GPUs in one VM share an NVSwitch at 900 GB/s (Hopper) or 1.8 TB/s (Blackwell) per GPU. Anything bigger goes over the VM's network: RoCE RDMA at up to 3.6 Tbps on A3 Ultra and A4, or GPUDirect-TCPXO at 1.8 Tbps on A3 Mega. The A4X series stretches the island to <b>72 GPUs</b> across 18 VMs in one NVL72 rack, so a 70B model's tensor-parallel group never leaves NVLink.</p>
-  <p><b>TPU tori.</b> Each TPU chip has direct ICI links to its neighbours in a 2D (v5e, v6e) or 3D (v5p, Ironwood) torus; the whole pod is one fabric. Google's optical circuit switches can carve a 9,216-chip Ironwood pod into any rectangular slice you ask for, and route around failed racks. There is no "island" boundary at 8 or 72; the cost is that communication patterns must be torus-friendly, which XLA handles for you.</p>
+  <p><b>TPU tori.</b> Each TPU chip has direct ICI links to its neighbours in a 2D (v2, v3, v5e, v6e) or 3D (v5p, Ironwood) torus; the whole pod is one fabric. TPU v4 sits in between: its pod is a 3D mesh, and the optical switches wire a slice as a 3D torus only when the slice shape qualifies. Google's optical circuit switches can carve a 9,216-chip Ironwood pod into any rectangular slice you ask for, and route around failed racks. There is no "island" boundary at 8 or 72; the cost is that communication patterns must be torus-friendly, which XLA handles for you.</p>
 </section>
 
 <!-- =============== 6. FIT =============== -->
@@ -504,8 +504,8 @@ const CHIPS = [
     notes:"The 2017 chip: two TensorCores, 8 GB HBM each. v2-8 means 8 cores, which is 4 chips. Cloud TPU API only, no longer developed; rent it only for the price." },
   { id:"v3", name:"TPU v3", short:"v3", fam:"tpu", series:"v3-8 … v3-2048", mem:32, memType:"HBM2", bw:900, fp8:123, bf16:123, price:2.00, onDemand:true, priceBasis:"on demand (pod rate)", peakBasis:"BF16", domain:1024, domainName:"1,024-chip pod, 2D torus", perVM:"4 (v3-8) or slices", vcpu:96, ram:335, net:100, tag:"legacy", year:2018,
     notes:"Liquid-cooled successor to v2 with twice the HBM. Still rentable in us-central1 and europe-west4 for legacy JAX and TensorFlow jobs." },
-  { id:"v4", name:"TPU v4", short:"v4", fam:"tpu", series:"v4-8 … v4-4096", mem:32, memType:"HBM2", bw:1200, fp8:275, bf16:275, price:3.22, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4096, domainName:"4,096-chip pod, 3D torus", perVM:"4", vcpu:240, ram:407, net:100, tag:"", year:2022,
-    notes:"First 3D torus with optical circuit switches. Two TensorCores with four MXUs each. Only in us-central2; the cheapest way to rent a large 3D-torus slice." },
+  { id:"v4", name:"TPU v4", short:"v4", fam:"tpu", series:"v4-8 … v4-4096", mem:32, memType:"HBM2", bw:1200, fp8:275, bf16:275, price:3.22, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4096, domainName:"4,096-chip pod, 3D mesh (torus per qualifying slice)", perVM:"4", vcpu:240, ram:407, net:100, tag:"", year:2022,
+    notes:"First TPU with optical circuit switches: the pod is a 3D mesh, and slices of qualifying shapes can be wired as a 3D torus (or twisted torus). Two TensorCores with four MXUs each. Only in us-central2." },
   { id:"v5e", name:"TPU v5e", short:"v5e", fam:"tpu", series:"ct5lp-hightpu-1t…8t", mem:16, memType:"HBM2", bw:819, fp8:393, bf16:197, price:1.20, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:224, ram:384, net:100, tag:"", year:2023,
     notes:"The efficiency chip: one TensorCore, 400 GB/s ICI. Best price per token for models that fit in a few chips." },
   { id:"v5p", name:"TPU v5p", short:"v5p", fam:"tpu", series:"ct5p-hightpu-4t", mem:95, memType:"HBM2e", bw:2765, fp8:459, bf16:459, price:4.20, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8960, domainName:"8,960-chip pod, 3D torus", perVM:"4", vcpu:208, ram:448, net:100, tag:"", year:2023,
@@ -679,7 +679,7 @@ function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = deviceP
     gGrid.selectAll("line").data(y.ticks(6)).join("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
     gX.attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([8, 16, 32, 64, 128, 256]).tickFormat(d => d));
     gY.attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([10, 100, 1000, 5000]).tickFormat(d => d >= 1000 ? d / 1000 + " PF" : d + " TF"));
-    yl.text(prec === "fp8" ? "Peak dense low-precision throughput, FP8 / INT8 / FP16 as marked (log, approx.)" : "Peak dense BF16 / FP16 throughput (log, approx.)");
+    yl.text(prec === "fp8" ? "Peak dense low-precision throughput, FP8 / INT8 / FP16 / BF16 as marked (log, approx.)" : "Peak dense BF16 / FP16 throughput (log, approx.)");
     const pts = gPts.selectAll("circle").data(CHIPS, d => d.id).join(enter => enter.append("circle").attr("cx", d => x(d.mem)).attr("cy", d => y(d[key])).attr("r", 0));
     pts.attr("fill", d => FAM[d.fam].hex).attr("stroke", cssVar("--bg-2")).attr("stroke-width", 2).style("cursor", "pointer")
       .on("mousemove", (e, d) => showTip(`<b>${d.name}</b>${FAM[d.fam].name} · ${d.series.split(" · ")[0]}<br>${fmtMem(d.mem)} ${d.memType} · ${fmtBW(d.bw)}<br>≈${fmtTF(d.fp8)} ${d.peakBasis} · ≈${fmtTF(d.bf16)} BF16<br>${d.price == null ? "reservation only" : fmt$(d.price) + " / chip-hr, " + d.priceBasis}`, e.clientX, e.clientY)).on("mouseleave", hideTip)
