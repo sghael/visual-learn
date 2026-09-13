@@ -16,7 +16,9 @@ python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
 No build step. D3 v7 loads from cdnjs (pinned) and fonts from Google Fonts,
-both with graceful fallbacks; the page needs network for D3.
+both with graceful fallbacks; the page needs network for D3. Animations respect
+`prefers-reduced-motion`: the hero shows its resting state, the episode runner
+and the training run render their finished state immediately.
 
 ## What is inside
 
@@ -31,7 +33,7 @@ both with graceful fallbacks; the page needs network for D3.
 | 06 Verifiable rewards | `rlvr` | An animated, illustrative R1-Zero-style run: accuracy and response length over RL steps, with a length-penalty slider |
 | 07 Agentic RL | `trajectory`, `reward-sources` | A coding-agent episode with loss-masked tool output; flip the outcome or add per-turn shaping to see the credit assignment |
 | 08 Reward hacking | `goodhart` | Proxy versus true reward under optimization, with a grader-robustness slider |
-| 09 Frontier labs | `labs`, `timeline` | Filterable cards per lab and a hover timeline from REINFORCE to 2026 |
+| 09 Frontier labs | `labs`, `timeline` | Filterable cards per lab with primary-source links, and a keyboard-reachable timeline from REINFORCE to 2026 |
 | 10 Scaling | `scaling` | Illustrative RL share of training compute by model generation |
 | 11–12 | static | Open problems, glossary, primary sources |
 
@@ -46,8 +48,10 @@ both with graceful fallbacks; the page needs network for D3.
 - The KL widget's "optimization pressure" is a single exponential tilt of the
   reference distribution, softened by β for intuition. It is not a simulation
   of an RL run.
-- The lab cards summarize public statements (system cards, papers, blog posts)
-  through mid-2026. Frontier labs disclose little; treat each card as partial.
+- The lab cards summarize public statements through mid-2026 and link their
+  primary sources at the bottom of each card. Where a claim is an inference
+  from those sources rather than something a lab stated, the card says so.
+  Frontier labs disclose little; treat each card as partial.
 - Dates are given to the month where the source is public; later releases are
   described generically ("and successors").
 

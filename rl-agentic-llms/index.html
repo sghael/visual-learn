@@ -144,7 +144,7 @@ input[type=range] { accent-color: var(--policy); width: 140px; }
 /* pipeline */
 .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin: 1rem 0; }
 @media (max-width: 720px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
-.stage { border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem; background: var(--bg-2); cursor: pointer; transition: transform .15s, border-color .15s; position: relative; }
+.stage { font: inherit; color: inherit; text-align: left; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem; background: var(--bg-2); cursor: pointer; transition: transform .15s, border-color .15s; position: relative; }
 .stage:hover { transform: translateY(-2px); }
 .stage.on { border-color: var(--policy); box-shadow: 0 0 0 2px var(--policy-soft); }
 .stage .n { font-family: "JetBrains Mono"; font-size: .7rem; color: var(--ink-3); }
@@ -217,6 +217,11 @@ input[type=range] { accent-color: var(--policy); width: 140px; }
 
 /* timeline */
 .timeline { position: relative; margin: 1.5rem 0; }
+.pt:focus { outline: none; }
+.pt:focus-visible circle { stroke: var(--ink); stroke-width: 3; }
+.lab .src { font-size: .72rem; color: var(--ink-3); margin-top: .5rem; line-height: 1.8; }
+.lab .src a { margin-right: .55rem; }
+.lab { overflow-wrap: anywhere; }
 .tl-detail { min-height: 5rem; }
 
 /* problems */
@@ -539,7 +544,7 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
     <div class="chips" id="lab-chips"></div>
     <div class="labs" id="labs-grid" data-widget="labs"></div>
     <h3 style="margin-top:2rem">A timeline of the algorithms and milestones</h3>
-    <p class="small muted">Hover or tap a point for details.</p>
+    <p class="small muted">Hover, tap, or Tab to a point for details.</p>
     <div class="timeline"><div class="chart" id="tl-viz" data-widget="timeline"></div><div class="panel tl-detail" id="tl-detail">Hover a point on the timeline.</div></div>
   </div>
 </section>
@@ -640,6 +645,8 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const C = () => ({ policy: css('--policy'), env: css('--env'), reward: css('--reward'), penalty: css('--penalty'), ref: css('--ref'), gold: css('--gold') });
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const dur = (ms) => REDUCED ? 0 : ms;
 const fmt = (x, d = 2) => (Math.round(x * 10 ** d) / 10 ** d).toFixed(d);
 const tip = $('#tip');
 function showTip(html, ev) { tip.innerHTML = html; tip.style.opacity = 1; moveTip(ev); }
@@ -685,8 +692,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
     const kl = d3.sum(p.map((v, i) => v * Math.log(v / ref[i])));
     klText.text(`KL = ${fmt(kl, 3)}`);
   }
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced) { t = 1; draw(); } else d3.timer(() => { t += dir * 0.004; if (t > 1) { t = 1; dir = -1; } if (t < 0) { t = 0; dir = 1; } draw(); });
+  if (REDUCED) { t = 1; draw(); } else d3.timer(() => { t += dir * 0.004; if (t > 1) { t = 1; dir = -1; } if (t < 0) { t = 0; dir = 1; } draw(); });
 })();
 
 /* ============================================================
@@ -701,8 +707,8 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   ];
   const cont = $('#stages'), det = $('#stage-detail');
   stages.forEach((s, i) => {
-    const d = document.createElement('div'); d.className = 'stage' + (i === 3 ? ' on' : ''); d.innerHTML = `<div class="n">${s.n}</div><h4>${s.name}</h4><div class="d">${s.d}</div><div class="bar"><i style="width:${s.share}%"></i></div><div class="small muted mono" style="font-size:.7rem;margin-top:.25rem">≈${s.share}% compute (illustrative)</div>`;
-    d.addEventListener('click', () => { $$('.stage', cont).forEach(x => x.classList.remove('on')); d.classList.add('on'); det.innerHTML = s.body; });
+    const d = document.createElement('button'); d.type = 'button'; d.className = 'stage' + (i === 3 ? ' on' : ''); d.setAttribute('aria-pressed', i === 3 ? 'true' : 'false'); d.innerHTML = `<div class="n">${s.n}</div><h4>${s.name}</h4><div class="d">${s.d}</div><div class="bar"><i style="width:${s.share}%"></i></div><div class="small muted mono" style="font-size:.7rem;margin-top:.25rem">≈${s.share}% compute (illustrative)</div>`;
+    d.addEventListener('click', () => { $$('.stage', cont).forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); }); d.classList.add('on'); d.setAttribute('aria-pressed', 'true'); det.innerHTML = s.body; });
     cont.appendChild(d);
   });
   det.innerHTML = stages[3].body;
@@ -747,24 +753,28 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   seg($('#loop-seg'), v => { mode = v; render(); });
   function travel(path, color, dur, label) {
     return new Promise(res => {
+      if (REDUCED) { res(); return; }
       const node = paths[path]; const L = node.getTotalLength(); const dot = svg.append('circle').attr('r', 6).attr('fill', color);
       const lab = label ? svg.append('text').attr('class', 'lbl').style('fill', color).style('font-family', 'JetBrains Mono').text(label) : null;
       d3.transition().duration(dur).ease(d3.easeLinear).tween('m', () => tt => { const p = node.getPointAtLength(tt * L); dot.attr('cx', p.x).attr('cy', p.y); if (lab) lab.attr('x', p.x + 8).attr('y', p.y - 8); }).on('end', () => { dot.remove(); if (lab) lab.remove(); res(); });
     });
   }
-  let busy = false;
+  let busy = false; const segBtns = $$('#loop-seg button');
   $('#loop-play').addEventListener('click', async () => {
-    if (busy) return; busy = true; const c = C();
-    const steps = mode === 'classic' ? 4 : 5; const acts = mode === 'llm' ? ['think…', 'bash: pytest', 'edit file', 'bash: pytest', 'submit'] : ['↑', '→', '→', '↓'];
-    const obs = mode === 'llm' ? ['', '3 failed', 'ok', '0 failed', ''] : ['s₁', 's₂', 's₃', 's₄'];
-    for (let i = 0; i < steps; i++) {
-      log.text(`turn ${i + 1}/${steps}`);
-      await travel(pAct, c.policy, 700, acts[i]);
-      if (mode === 'llm') { const w = 20 + (i + 1) * 30; svg.select('.ctxfill').transition().duration(300).attr('width', Math.min(w, A.w)); }
-      if (i < steps - 1 || mode === 'classic') { await travel(pObs, c.env, 700, obs[i]); if (mode === 'classic') { await travel(pRew, c.reward, 500, 'r=' + (i === steps - 1 ? '+1' : '0')); } }
-    }
-    if (mode === 'llm') { await travel(pRew, c.reward, 900, 'r = +1 (tests pass)'); }
-    log.text(mode === 'llm' ? 'one number, for the whole trajectory' : 'reward each step'); setTimeout(() => log.text(''), 2500); busy = false;
+    if (busy) return; busy = true; segBtns.forEach(b => b.disabled = true);
+    const runMode = mode; const c = C(); // snapshot: a toggle mid-run must not mix the two episodes
+    try {
+      const steps = runMode === 'classic' ? 4 : 5; const acts = runMode === 'llm' ? ['think…', 'bash: pytest', 'edit file', 'bash: pytest', 'submit'] : ['↑', '→', '→', '↓'];
+      const obs = runMode === 'llm' ? ['', '3 failed', 'ok', '0 failed', ''] : ['s₁', 's₂', 's₃', 's₄'];
+      for (let i = 0; i < steps; i++) {
+        log.text(`turn ${i + 1}/${steps}`);
+        await travel(pAct, c.policy, 700, acts[i]);
+        if (runMode === 'llm') { const w = Math.min(20 + (i + 1) * 30, A.w); const sel = svg.select('.ctxfill'); if (REDUCED) sel.attr('width', w); else sel.transition().duration(300).attr('width', w); }
+        if (i < steps - 1 || runMode === 'classic') { await travel(pObs, c.env, 700, obs[i]); if (runMode === 'classic') { await travel(pRew, c.reward, 500, 'r=' + (i === steps - 1 ? '+1' : '0')); } }
+      }
+      if (runMode === 'llm') { await travel(pRew, c.reward, 900, 'r = +1 (tests pass)'); }
+      log.text(runMode === 'llm' ? 'one number, for the whole trajectory' : 'reward each step'); setTimeout(() => log.text(''), 2500);
+    } finally { busy = false; segBtns.forEach(b => b.disabled = false); }
   });
 })();
 
@@ -783,8 +793,8 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   function draw() {
     const p = softmax(logits);
     svg.selectAll('.lab').data(acts).join('text').attr('class', 'lab').attr('x', m.l - 8).attr('y', d => y(d) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').style('font-size', '12px').style('fill', 'var(--ink-2)').style('font-family', 'JetBrains Mono').text(d => d);
-    svg.selectAll('.bar').data(p).join('rect').attr('class', 'bar').attr('x', x(0)).attr('y', (d, i) => y(acts[i])).attr('height', y.bandwidth()).attr('rx', 3).attr('fill', (d, i) => i === +sel.value ? 'var(--reward)' : 'var(--policy)').transition().duration(300).attr('width', d => x(d) - x(0));
-    svg.selectAll('.val').data(p).join('text').attr('class', 'val').attr('y', (d, i) => y(acts[i]) + y.bandwidth() / 2 + 4).style('font-size', '11px').style('font-family', 'JetBrains Mono').style('fill', 'var(--ink-2)').transition().duration(300).attr('x', d => x(d) + 6).text(d => fmt(d));
+    svg.selectAll('.bar').data(p).join('rect').attr('class', 'bar').attr('x', x(0)).attr('y', (d, i) => y(acts[i])).attr('height', y.bandwidth()).attr('rx', 3).attr('fill', (d, i) => i === +sel.value ? 'var(--reward)' : 'var(--policy)').transition().duration(dur(300)).attr('width', d => x(d) - x(0));
+    svg.selectAll('.val').data(p).join('text').attr('class', 'val').attr('y', (d, i) => y(acts[i]) + y.bandwidth() / 2 + 4).style('font-size', '11px').style('font-family', 'JetBrains Mono').style('fill', 'var(--ink-2)').transition().duration(dur(300)).attr('x', d => x(d) + 6).text(d => fmt(d));
     const adv = +rr.value - baseline; $('#pg-base').textContent = fmt(baseline); $('#pg-adv').textContent = fmt(adv); $('#pg-n').textContent = n;
   }
   sel.addEventListener('change', draw); rr.addEventListener('input', draw);
@@ -832,7 +842,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   const cont = $('#grpo-samples');
   function render() {
     const fmtR = $('#grpo-format').checked; const r = ok.map((o, i) => (o ? 1 : 0) + (fmtR && boxed[i] ? .2 : 0));
-    const mean = d3.mean(r), std = d3.deviation(r) || 0; const adv = r.map(v => std > 1e-9 ? (v - mean) / std : 0);
+    const mean = d3.mean(r), std = Math.sqrt(d3.mean(r.map(v => (v - mean) ** 2))); /* population std, as in the formula above */ const adv = r.map(v => std > 1e-9 ? (v - mean) / std : 0);
     cont.innerHTML = ''; r.forEach((v, i) => {
       const d = document.createElement('div'); d.className = 'sample';
       const w = Math.min(60, Math.abs(adv[i]) * 30); const col = adv[i] >= 0 ? 'var(--reward)' : 'var(--penalty)';
@@ -887,7 +897,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
     const eff = k / (1 + 3 * b); const un = ref.map((p, i) => p * Math.exp(rew[i] * eff)); const s = d3.sum(un); const pol = un.map(v => v / s);
     const kl = d3.sum(pol.map((v, i) => v * Math.log(v / ref[i]))); const er = d3.sum(pol.map((v, i) => v * rew[i]));
     g.selectAll('.rb').data(ref).join('rect').attr('class', 'rb').attr('x', (d, i) => x(i)).attr('width', x.bandwidth()).attr('y', d => y(d)).attr('height', d => y(0) - y(d)).attr('fill', 'var(--ref)').attr('opacity', .35).attr('rx', 2);
-    g.selectAll('.pb').data(pol).join('rect').attr('class', 'pb').attr('x', (d, i) => x(i) + x.bandwidth() * .25).attr('width', x.bandwidth() * .5).attr('rx', 2).attr('fill', (d, i) => rew[i] > 0 ? 'var(--reward)' : rew[i] < 0 ? 'var(--penalty)' : 'var(--policy)').transition().duration(150).attr('y', d => y(d)).attr('height', d => y(0) - y(d));
+    g.selectAll('.pb').data(pol).join('rect').attr('class', 'pb').attr('x', (d, i) => x(i) + x.bandwidth() * .25).attr('width', x.bandwidth() * .5).attr('rx', 2).attr('fill', (d, i) => rew[i] > 0 ? 'var(--reward)' : rew[i] < 0 ? 'var(--penalty)' : 'var(--policy)').transition().duration(dur(150)).attr('y', d => y(d)).attr('height', d => y(0) - y(d));
     $('#kl-val').textContent = fmt(kl, 3); $('#kl-obj').textContent = fmt(er - b * kl);
   }
   push.addEventListener('input', draw); beta.addEventListener('input', draw); draw();
@@ -915,9 +925,10 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   const rnd = d3.randomNormal(0, 1);
   function sim(s, lp) { const t = s / MAX; const acc = .15 + .72 * (1 - Math.exp(-3.2 * t)) - .08 * lp * t + .015 * rnd(); const len = (600 + 9500 * (1 / (1 + Math.exp(-(s - 3000) / 900)))) * (1 - .7 * lp) + 200 * rnd(); return { s, acc: Math.max(0, Math.min(1, acc)), len: Math.max(200, len) }; }
   function draw() { pA.attr('d', d3.line().x(d => x(d.s)).y(d => yA(d.acc)).curve(d3.curveMonotoneX)(data)); pL.attr('d', d3.line().x(d => x(d.s)).y(d => yL(d.len)).curve(d3.curveMonotoneX)(data)); aha.attr('opacity', step > 2600 && +lenpen.value < .5 ? 1 : 0); $('#rlvr-step').textContent = step; }
-  function tick() { if (step >= MAX) { stop(); return; } step += 50; data.push(sim(step, +lenpen.value)); draw(); if (step === 4000) $('#rlvr-msg').textContent = +lenpen.value > .5 ? 'With a strong length penalty, accuracy still rises but the model never learns to reason at length. Kimi k1.5 used a length penalty deliberately to get "short-CoT" models.' : 'Length keeps growing after accuracy plateaus. Labs cap it with token budgets or overlong-response shaping (DAPO), or expose it as a user-facing "thinking budget".'; }
+  function advance() { step += 50; data.push(sim(step, +lenpen.value)); if (step === 4000) $('#rlvr-msg').textContent = +lenpen.value > .5 ? 'With a strong length penalty, accuracy still rises but the model never learns to reason at length. Kimi k1.5 used a length penalty deliberately to get "short-CoT" models.' : 'Length keeps growing after accuracy plateaus. Labs cap it with token budgets or overlong-response shaping (DAPO), or expose it as a user-facing "thinking budget".'; }
+  function tick() { if (step >= MAX) { stop(); return; } advance(); draw(); }
   function stop() { if (timer) { clearInterval(timer); timer = null; } $('#rlvr-play').textContent = '▶ Train'; }
-  $('#rlvr-play').addEventListener('click', () => { if (timer) { stop(); return; } if (step >= MAX) { step = 0; data = []; } timer = setInterval(tick, 40); $('#rlvr-play').textContent = '❚❚ Pause'; });
+  $('#rlvr-play').addEventListener('click', () => { if (timer) { stop(); return; } if (step >= MAX) { step = 0; data = []; } if (REDUCED) { while (step < MAX) advance(); draw(); return; } timer = setInterval(tick, 40); $('#rlvr-play').textContent = '❚❚ Pause'; });
   $('#rlvr-reset').addEventListener('click', () => { stop(); step = 0; data = []; draw(); $('#rlvr-msg').textContent = defaultMsg; });
   draw();
 })();
@@ -1009,7 +1020,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
    ============================================================ */
 (() => {
   const labs = [
-    { name: 'OpenAI', c: '#10a37f', sig: 'Reasoning models · RL on tool use · rubric graders', tags: ['reasoning', 'agents', 'coding', 'safety', 'scaling'], items: [
+    { name: 'OpenAI', src: [['o1', 'https://openai.com/index/learning-to-reason-with-llms/'], ['o3 / o4-mini', 'https://openai.com/index/introducing-o3-and-o4-mini/'], ['Deep Research', 'https://openai.com/index/introducing-deep-research/'], ['Codex', 'https://openai.com/index/introducing-codex/'], ['GPT-5', 'https://openai.com/index/introducing-gpt-5/'], ['CoT monitoring', 'https://openai.com/index/chain-of-thought-monitoring/'], ['HealthBench', 'https://openai.com/index/healthbench/']],  c: '#10a37f', sig: 'Reasoning models · RL on tool use · rubric graders', tags: ['reasoning', 'agents', 'coding', 'safety', 'scaling'], items: [
       'o1 (Sep 2024): "large-scale RL" that teaches the model to use chain-of-thought productively. Showed test-time compute scaling.',
       'o3 / o4-mini (Apr 2025): RL over tool use; the model learns when to search, run code, or look at images mid-reasoning. Reported ~10× the RL compute of o1.',
       'Deep Research (Feb 2025) and Operator: agents trained end-to-end with RL on browsing tasks, not just prompted.',
@@ -1017,47 +1028,47 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
       'GPT-5 (Aug 2025) and GPT-5.x: unified system with a router; reasoning effort exposed to developers; rubric-graded RL (HealthBench) for open-ended domains.',
       'Reinforcement Fine-Tuning API: customers bring graders; OpenAI runs the RL. Chain-of-thought monitoring research warned against optimizing the CoT directly.',
     ] },
-    { name: 'Anthropic', c: '#d97757', sig: 'Constitutional AI · agentic coding · reward-hacking research', tags: ['agents', 'coding', 'safety', 'reasoning'], items: [
+    { name: 'Anthropic', src: [['Constitutional AI', 'https://arxiv.org/abs/2212.08073'], ['Claude 3.7 Sonnet', 'https://www.anthropic.com/news/claude-3-7-sonnet'], ['Claude 4', 'https://www.anthropic.com/news/claude-4'], ['Claude Sonnet 4.5', 'https://www.anthropic.com/news/claude-sonnet-4-5'], ['reward hacking → misalignment', 'https://www.anthropic.com/research/emergent-misalignment-reward-hacking']],  c: '#d97757', sig: 'Constitutional AI · agentic coding · reward-hacking research', tags: ['agents', 'coding', 'safety', 'reasoning'], items: [
       'Constitutional AI / RLAIF (2022): AI-generated preference labels against written principles; the ancestor of today\'s LLM-judge rewards.',
       'Claude 3.7 Sonnet (Feb 2025): extended thinking with a user-set budget; first Claude Code release, an agentic terminal coding tool.',
-      'Claude 4 family (May 2025 onward: Opus/Sonnet 4, 4.1, 4.5 and successors): system cards describe heavy RL on agentic coding and long-running tool use, with SWE-bench-style environments and multi-hour autonomous tasks as the headline metric.',
-      'Explicit reward-hacking work: system cards report measured rates of test special-casing; 2025 research showed hacking can generalize to broader misalignment and introduced "inoculation prompting" as a training-time mitigation.',
+      'Claude 4 family (May 2025 onward: Opus/Sonnet 4, 4.1, 4.5): release notes and system cards describe RL on agentic coding and long-running tool use, with SWE-bench-style results and multi-hour autonomous tasks as the headline metrics.',
+      'Explicit reward-hacking work: the Claude 4 system card reports measured rates of test special-casing; 2025 research showed hacking can generalize to broader misalignment and introduced "inoculation prompting" as a training-time mitigation.',
       'Interleaved thinking between tool calls, and training for legible, faithful reasoning as a monitoring aid.',
     ] },
-    { name: 'Google DeepMind', c: '#4285f4', sig: 'Thinking models · formal self-play · evolutionary search', tags: ['reasoning', 'agents', 'scaling', 'coding'], items: [
+    { name: 'Google DeepMind', src: [['Gemini 2.5', 'https://blog.google/technology/google-deepmind/gemini-model-thinking-updates-march-2025/'], ['Deep Think at IMO', 'https://deepmind.google/discover/blog/advanced-version-of-gemini-with-deep-think-officially-achieves-gold-medal-standard-at-the-international-mathematical-olympiad/'], ['AlphaProof', 'https://deepmind.google/discover/blog/ai-solves-imo-problems-at-silver-medal-level/'], ['AlphaEvolve', 'https://deepmind.google/discover/blog/alphaevolve-a-gemini-powered-coding-agent-for-designing-advanced-algorithms/'], ['Gemini 3', 'https://blog.google/products/gemini/gemini-3/']],  c: '#4285f4', sig: 'Thinking models · formal self-play · evolutionary search', tags: ['reasoning', 'agents', 'scaling', 'coding'], items: [
       'Gemini 2.5 (Mar 2025) "thinking" models with a controllable thinking budget, then Gemini 3 (late 2025) and 3.x: RL-trained reasoning across text, code, image, audio and video.',
       'Gemini Deep Think: parallel, multi-hypothesis reasoning trained with "novel RL techniques"; reached gold-medal level at IMO 2025 in natural language.',
       'AlphaProof and AlphaGeometry: RL self-play in Lean with a verifier, the purest form of RLVR, producing millions of proved/disproved problems.',
       'AlphaEvolve (May 2025): Gemini-driven evolutionary search with automated evaluators that found new algorithms and datacenter optimizations.',
-      'Agent products (Jules, Gemini CLI, Project Mariner / Agent Mode) trained on coding and browsing environments.',
+      'Agent products (Jules, Gemini CLI, Project Mariner / Agent Mode); that they are RL-trained on coding and browsing environments is inferred from the model blog posts, not separately documented.',
     ] },
-    { name: 'DeepSeek', c: '#4d6bfe', sig: 'GRPO · pure-RL reasoning · open weights', tags: ['reasoning', 'open', 'scaling', 'coding'], items: [
+    { name: 'DeepSeek', src: [['DeepSeekMath (GRPO)', 'https://arxiv.org/abs/2402.03300'], ['DeepSeek-R1', 'https://arxiv.org/abs/2501.12948'], ['R1 in Nature', 'https://www.nature.com/articles/s41586-025-09422-z']],  c: '#4d6bfe', sig: 'GRPO · pure-RL reasoning · open weights', tags: ['reasoning', 'open', 'scaling', 'coding'], items: [
       'DeepSeekMath (Feb 2024) introduced GRPO: critic-free group-normalized advantages, later the default algorithm for open RLVR.',
       'R1-Zero (Jan 2025): RL directly on the base model with rule-based rewards (answer correctness + format). Reasoning behaviors emerged with no SFT; the "aha moment".',
       'R1: cold-start SFT, then reasoning RL, rejection sampling, then RLHF-style RL for general tasks. Distilled to small Qwen/Llama models, catalyzing the open reasoning wave.',
-      'V3.1 / V3.2 (late 2025) and later: hybrid thinking modes and agentic post-training for tool use and code, with emphasis on efficiency (sparse attention, cheaper long contexts).',
+      'Later releases (V3.1 onward): hybrid thinking modes and agentic post-training for tool use and code, with an emphasis on inference efficiency. Details beyond the release notes are not published.',
     ] },
-    { name: 'Alibaba Qwen', c: '#615ced', sig: 'GSPO · massive parallel environments · hybrid thinking', tags: ['reasoning', 'coding', 'agents', 'open'], items: [
+    { name: 'Alibaba Qwen', src: [['Qwen3', 'https://qwenlm.github.io/blog/qwen3/'], ['Qwen3-Coder', 'https://qwenlm.github.io/blog/qwen3-coder/'], ['GSPO', 'https://arxiv.org/abs/2507.18071']],  c: '#615ced', sig: 'GSPO · massive parallel environments · hybrid thinking', tags: ['reasoning', 'coding', 'agents', 'open'], items: [
       'Qwen3 (Apr 2025): unified thinking / non-thinking modes; four-stage post-training with long-CoT cold start, reasoning RL, mode fusion, and general RL.',
       'Qwen3-Coder (Jul 2025): "agentic RL" on real software tasks, running 20,000 independent environments in parallel on Alibaba Cloud.',
       'GSPO (Jul 2025): sequence-level importance ratios and clipping; reported necessary for stable RL on large MoE models.',
       'Later Qwen3 releases continue with long-horizon agent training and open weights, making them the base for much academic RL research.',
     ] },
-    { name: 'Moonshot AI (Kimi)', c: '#e11d48', sig: 'Agentic data synthesis · self-critique rubric reward', tags: ['agents', 'reasoning', 'open'], items: [
+    { name: 'Moonshot AI (Kimi)', src: [['Kimi k1.5', 'https://arxiv.org/abs/2501.12599'], ['Kimi K2', 'https://arxiv.org/abs/2507.20534']],  c: '#e11d48', sig: 'Agentic data synthesis · self-critique rubric reward', tags: ['agents', 'reasoning', 'open'], items: [
       'Kimi k1.5 (Jan 2025): RL with long-context scaling and a length penalty for "short-CoT" models; described online policy mirror descent rather than PPO.',
       'Kimi K2 (Jul 2025, 1T MoE): large-scale synthetic agentic tool-use data, then a joint RL stage mixing verifiable rewards with a self-critique rubric reward for non-verifiable tasks.',
-      'K2 Thinking (Nov 2025) and successors: interleaved thinking with hundreds of sequential tool calls, trained end-to-end.',
+      'K2 Thinking (Nov 2025): interleaved thinking with hundreds of sequential tool calls, trained end-to-end (per the release notes).',
     ] },
-    { name: 'xAI', c: '#555555', sig: 'RL compute scaled to pretraining scale', tags: ['reasoning', 'scaling', 'agents'], items: [
+    { name: 'xAI', src: [['Grok 4', 'https://x.ai/news/grok-4']],  c: '#555555', sig: 'RL compute scaled to pretraining scale', tags: ['reasoning', 'scaling', 'agents'], items: [
       'Grok 3 (Feb 2025): reasoning mode; Grok 4 (Jul 2025): claimed to spend as much compute on RL as on pretraining, with native tool use trained in, and Grok 4 Heavy using multi-agent parallel test-time compute.',
-      'Grok Code and later Grok releases emphasize agentic coding trained with RL on Colossus-scale clusters.',
+      'Later Grok releases emphasize agentic coding; beyond the Grok 4 announcement, xAI has published few training details.',
     ] },
-    { name: 'Meta', c: '#0668e1', sig: 'Online RL with curriculum · open weights', tags: ['open', 'agents', 'scaling'], items: [
+    { name: 'Meta', src: [['Llama 3 paper', 'https://arxiv.org/abs/2407.21783'], ['Llama 4', 'https://ai.meta.com/blog/llama-4-multimodal-intelligence/']],  c: '#0668e1', sig: 'Online RL with curriculum · open weights', tags: ['open', 'agents', 'scaling'], items: [
       'Llama 3 (2024): iterative rounds of rejection sampling, SFT and DPO, deliberately avoiding PPO for stability and scale.',
       'Llama 4 (Apr 2025): "continuous online RL" with a curriculum that filters to medium-and-hard prompts, alternating training and prompt filtering.',
-      'Meta Superintelligence Labs (mid-2025 onward): large reorganization around frontier reasoning and agents; details of RL methods remain largely unpublished.',
+      'Meta Superintelligence Labs (mid-2025 onward): reorganization around frontier reasoning and agents; RL methods for later models are unpublished.',
     ] },
-    { name: 'Mistral, ByteDance & others', c: '#f59e0b', sig: 'Open RL systems and algorithm papers', tags: ['open', 'reasoning', 'coding'], items: [
+    { name: 'Mistral, ByteDance & others', src: [['Magistral', 'https://mistral.ai/news/magistral'], ['DAPO', 'https://arxiv.org/abs/2503.14476'], ['verl', 'https://github.com/volcengine/verl'], ['MiniMax-M1 (CISPO)', 'https://arxiv.org/abs/2506.13585'], ['AReaL', 'https://arxiv.org/abs/2505.24298']],  c: '#f59e0b', sig: 'Open RL systems and algorithm papers', tags: ['open', 'reasoning', 'coding'], items: [
       'Mistral Magistral (Jun 2025): reasoning via "pure RL" from Mistral Medium with a modified GRPO (no KL, clip-higher, minibatch normalization).',
       'ByteDance Seed: DAPO (Mar 2025) and VAPO; verl, the most widely used open RL training framework, came out of ByteDance.',
       'MiniMax M1 (Jun 2025): CISPO, clipping importance weights instead of token updates, and the diagnosis of train/inference numerical mismatch.',
@@ -1069,7 +1080,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   tags.forEach(t => { const b = document.createElement('button'); b.className = 'chip' + (t === 'all' ? ' on' : ''); b.textContent = t; b.addEventListener('click', () => { cur = t; $$('.chip', chips).forEach(x => x.classList.toggle('on', x === b)); render(); }); chips.appendChild(b); });
   function render() {
     grid.innerHTML = '';
-    labs.filter(l => cur === 'all' || l.tags.includes(cur)).forEach(l => { const d = document.createElement('div'); d.className = 'lab'; d.style.setProperty('--c', l.c); d.innerHTML = `<h4>${l.name}</h4><div class="sig">${l.sig}</div><ul>${l.items.map(i => `<li>${i}</li>`).join('')}</ul><div class="tags">${l.tags.map(t => `<span>${t}</span>`).join('')}</div>`; grid.appendChild(d); });
+    labs.filter(l => cur === 'all' || l.tags.includes(cur)).forEach(l => { const d = document.createElement('div'); d.className = 'lab'; d.style.setProperty('--c', l.c); d.innerHTML = `<h4>${l.name}</h4><div class="sig">${l.sig}</div><ul>${l.items.map(i => `<li>${i}</li>`).join('')}</ul><div class="src">Sources: ${l.src.map(([t, u]) => `<a href="${u}" rel="noopener">${t}</a>`).join('')}</div><div class="tags">${l.tags.map(t => `<span>${t}</span>`).join('')}</div>`; grid.appendChild(d); });
   }
   render();
 
@@ -1091,7 +1102,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
     { y: 2025.5, k: 'algo', t: 'GSPO / CISPO', d: 'Sequence-level ratios; importance-weight clipping; off-policy corrections.' },
     { y: 2025.6, k: 'milestone', t: 'Grok 4 · Kimi K2', d: 'RL compute ≈ pretraining; agentic data synthesis; 20k parallel envs.' },
     { y: 2025.85, k: 'milestone', t: 'Hacking → misalignment', d: 'Anthropic shows reward hacking generalizes; inoculation prompting.' },
-    { y: 2026.3, k: 'milestone', t: 'Long-horizon agents', d: 'Multi-hour autonomous coding and research agents; environment marketplaces; async RL stacks standard.' },
+    { y: 2026.3, k: 'milestone', t: 'Long-horizon agents (trend)', d: 'A summary of the 2026 direction rather than a single release: multi-hour autonomous coding and research agents, environment marketplaces, async RL stacks as the default.' },
   ];
   const el = $('#tl-viz'); const W = 1000, H = 280, m = { l: 30, r: 30, t: 40, b: 30 }; const mid = 150;
   const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
@@ -1100,11 +1111,11 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(px).tickValues([1992, 2017, 2020, 2022, 2023, 2024, 2025, 2026]).tickFormat(d3.format('d')));
   const det = $('#tl-detail');
   const off = i => [-28, 28, -66, 66][i % 4];
-  const pts = svg.selectAll('g.pt').data(ev).join('g').attr('class', 'pt').style('cursor', 'pointer');
+  const pts = svg.selectAll('g.pt').data(ev).join('g').attr('class', 'pt').style('cursor', 'pointer').attr('tabindex', 0).attr('role', 'button').attr('aria-label', d => `${d.t}, ${Math.floor(d.y)}`);
   pts.append('line').attr('x1', d => px(d.y)).attr('x2', d => px(d.y)).attr('y1', mid).attr('y2', (d, i) => mid + off(i)).attr('stroke', 'var(--line-2)');
   pts.append('circle').attr('cx', d => px(d.y)).attr('cy', (d, i) => mid + off(i)).attr('r', 7).attr('fill', d => d.k === 'algo' ? 'var(--policy)' : 'var(--gold)').attr('stroke', 'var(--bg-2)').attr('stroke-width', 2);
   pts.append('text').attr('x', d => px(d.y)).attr('y', (d, i) => mid + off(i) + (off(i) > 0 ? 20 : -13)).attr('text-anchor', 'middle').style('font-size', '10px').style('fill', 'var(--ink-2)').text(d => d.t);
-  pts.on('mouseenter', (e, d) => show(d)).on('click', (e, d) => show(d));
+  pts.on('mouseenter', (e, d) => show(d)).on('click', (e, d) => show(d)).on('focus', (e, d) => show(d)).on('keydown', (e, d) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(d); } });
   function show(d) { det.innerHTML = `<b>${d.t}</b> <span class="muted small">(${Math.floor(d.y)}) · ${d.k === 'algo' ? 'algorithm' : 'milestone'}</span><br>${d.d}`; }
   svg.append('text').attr('x', m.l).attr('y', 14).style('font-size', '11px').style('fill', 'var(--policy)').text('● algorithm');
   svg.append('text').attr('x', m.l + 90).attr('y', 14).style('font-size', '11px').style('fill', 'var(--gold)').text('● milestone');

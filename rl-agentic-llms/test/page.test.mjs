@@ -115,3 +115,71 @@ test('reward model: preferring A twice moves P(A ≻ B) above 0.5 and reset retu
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test('GRPO: three correct of six with no format bonus gives advantages of exactly ±1 (population std)', async () => {
+  const { page, context, errors } = await open();
+  await page.uncheck('#grpo-format');
+  const togs = page.locator('#grpo-samples .tog');
+  for (let i = 0; i < 6; i++) { // want rollouts 0..2 correct, 3..5 wrong
+    const isOk = (await togs.nth(i).getAttribute('class')).includes('ok');
+    if (isOk !== i < 3) await togs.nth(i).click();
+  }
+  const advs = await page.$$eval('#grpo-samples .adv', (els) => els.map((e) => e.innerText.trim()));
+  assert.deepEqual(advs, ['+1.00', '+1.00', '+1.00', '-1.00', '-1.00', '-1.00']);
+  assert.equal(await page.locator('#grpo-std').innerText(), '0.50');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('episode runner: the mode toggle is locked during a run, so the episode cannot mix classic and LLM steps', async () => {
+  const { page, context, errors } = await open({ reduced: false });
+  await page.locator('#loop-seg button', { hasText: 'LLM agent' }).click();
+  await page.click('#loop-play');
+  await page.waitForTimeout(300);
+  const classic = page.locator('#loop-seg button', { hasText: 'Classic RL' });
+  assert.ok(await classic.isDisabled(), 'mode buttons are disabled mid-run');
+  await classic.click({ force: true }); // a forced click on a disabled button is a no-op
+  assert.equal(await page.locator('#loop-seg button.on').innerText(), 'LLM agent');
+  await page.waitForFunction(() => !document.querySelector('#loop-seg button').disabled, null, { timeout: 15000 });
+  assert.equal(await page.locator('#loop-seg button.on').innerText(), 'LLM agent');
+  assert.equal(await page.locator('#loop-viz .ctxfill').getAttribute('width'), '170', 'the LLM episode ran to completion');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('keyboard: pipeline stages and timeline points can be focused and activated without a mouse', async () => {
+  const { page, context, errors } = await open();
+  await page.locator('#stages .stage').first().focus();
+  await page.keyboard.press('Enter');
+  assert.match(await page.locator('#stage-detail').innerText(), /^Pretraining/);
+  assert.equal(await page.locator('#stages .stage').first().getAttribute('aria-pressed'), 'true');
+  await page.locator('#tl-viz .pt').first().focus();
+  await page.keyboard.press('Enter');
+  assert.match(await page.locator('#tl-detail').innerText(), /^REINFORCE/);
+  await page.keyboard.press('Tab');
+  assert.match(await page.locator('#tl-detail').innerText(), /^TRPO/, 'focus alone shows the next point');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('reduced motion: the training run and the episode runner render their finished state immediately', async () => {
+  const { page, context, errors } = await open({ reduced: true });
+  await page.click('#rlvr-play');
+  assert.equal(await page.locator('#rlvr-step').innerText(), '8000');
+  assert.notEqual(await page.locator('#rlvr-msg').innerText(), '', 'caption updated');
+  await page.locator('#loop-seg button', { hasText: 'LLM agent' }).click();
+  await page.click('#loop-play');
+  await page.waitForFunction(() => !document.querySelector('#loop-seg button').disabled, null, { timeout: 2000 });
+  assert.equal(await page.locator('#loop-viz .ctxfill').getAttribute('width'), '170');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('every lab card lists at least one primary source', async () => {
+  const { page, context, errors } = await open();
+  const counts = await page.$$eval('#labs-grid .lab', (els) => els.map((el) => el.querySelectorAll('.src a[href^="https://"]').length));
+  assert.equal(counts.length, 9);
+  assert.ok(counts.every((n) => n >= 1), `source counts ${counts}`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
