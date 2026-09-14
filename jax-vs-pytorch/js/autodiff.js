@@ -120,7 +120,7 @@
   }
 
   JT.widget('autodiff', (container) => {
-    const S = JT.stage(container, { title: 'One loss, two gradient machines', hint: 'L(w) = (sin(w·x) − y)²  with x = 1.5, y = 0.5' });
+    const S = JT.stage(container, { title: 'Compute a gradient', hint: 'L(w) = (sin(w·x) − y)²  with x = 1.5, y = 0.5' });
     let w = 0.8, v = values(w);
 
     // slider in the stage head

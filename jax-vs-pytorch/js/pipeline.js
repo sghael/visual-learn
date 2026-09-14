@@ -46,7 +46,7 @@
   `);
 
   JT.widget('pipeline', (container) => {
-    const S = JT.stage(container, { title: 'Follow one function call to the silicon', hint: 'Same three operations, two routes' });
+    const S = JT.stage(container, { title: 'Execute a function', hint: 'Compare the first call with a cached call' });
 
     const src = `@jax.jit
 def step(w, x):
@@ -56,7 +56,7 @@ def step(w, x):
 step(w, x)   # first call
 step(w, x)   # second call`;
     const code = JT.el('div', { class: 'pipe-code' }, [
-      JT.el('div', { class: 'pane-head', text: 'The function under the microscope' }),
+      JT.el('div', { class: 'pane-head', text: 'Example function' }),
       JT.code(src),
     ]);
 
