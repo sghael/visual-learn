@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a3aa7'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <title>Visual Learn</title>
-  <meta name="description" content="Interactive, single-page explainers on machine-learning systems, in the spirit of the Polo Club explainers.">
+  <meta name="description" content="Interactive explanations of machine-learning systems, with diagrams and experiments you can run in your browser.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -48,54 +48,53 @@
 <body>
 <main>
   <h1>Visual <em>Learn</em></h1>
-  <p class="lede">Interactive, single-page explainers on how machine-learning systems work, in the spirit of the <a href="https://poloclub.github.io/" rel="noopener">Polo Club</a> explainers. Plain HTML, no build step, nothing to install.</p>
+  <p class="lede">Learn how machine-learning systems work through diagrams, worked examples, and experiments you can run in your browser.</p>
 
   <h2>Explainers</h2>
   <ul class="list">
     <li>
       <a class="item" href="jax-vs-pytorch/">
-        <p class="name">JAX <em>Explainer</em></p>
-        <p class="desc">How JAX, XLA and TPUs run your code, side by side with PyTorch and CUDA: tracing, fusion, autodiff as a transformation, vmap, purity, systolic arrays and sharding, each with an interactive widget.</p>
+        <p class="name">JAX and <em>PyTorch</em></p>
+        <p class="desc">Trace a computation from Python to accelerator hardware, and compare compilation, differentiation, batching, and sharding in JAX and PyTorch.</p>
         <p class="meta"><span>9 interactive sections</span><span>about 25 minutes</span><span><code>jax-vs-pytorch/</code></span></p>
       </a>
     </li>
     <li>
       <a class="item" href="rl-agentic-llms/">
-        <p class="name">Agentic RL <em>Explainer</em></p>
-        <p class="desc">How reinforcement learning turns a language model into an agent: policy gradients, PPO and GRPO, RLHF, verifiable rewards, multi-turn tool-use training, reward hacking, and what the frontier labs have said about their RL work.</p>
+        <p class="name">Reinforcement Learning for <em>LLM Agents</em></p>
+        <p class="desc">See how rewards change a language model’s behavior, from policy gradients and preference learning to training with tools.</p>
         <p class="meta"><span>10 interactive sections</span><span>about 30 minutes</span><span><code>rl-agentic-llms/</code></span></p>
       </a>
     </li>
     <li>
       <a class="item" href="qat-explainer/">
         <p class="name">Quantization-Aware <em>Training</em></p>
-        <p class="desc">How an LLM learns to live on a 4-bit grid: quantizing numbers and matrices, the fake-quantize training loop, the straight-through estimator, and a training lab that runs PTQ against QAT in your browser.</p>
+        <p class="desc">Round numbers to a low-precision grid, inspect the training gradients, and compare post-training quantization with quantization-aware training.</p>
         <p class="meta"><span>9 sections, 7 interactive</span><span>about 15 minutes</span><span><code>qat-explainer/</code></span></p>
       </a>
     </li>
     <li>
       <a class="item" href="k2-horizon/">
-        <p class="name">K2 Horizon <em>Explainer</em></p>
-        <p class="desc">IFM's six fully open models from 0.9B to 375B: total versus active parameters, dense and MoE layers, Mixture-of-Value Attention, Uno diffusion decoding, the staged training recipe, and per-size benchmarks.</p>
+        <p class="name">K2 <em>Horizon</em></p>
+        <p class="desc">Explore the K2 model family’s dense and mixture-of-experts layers, attention, diffusion decoding, and reported benchmarks.</p>
         <p class="meta"><span>8 chapters, 6 interactive</span><span>about 20 minutes</span><span><code>k2-horizon/</code></span></p>
       </a>
     </li>
     <li>
       <a class="item" href="gcp-accelerators/">
-        <p class="name">Accelerator <em>Atlas</em></p>
-        <p class="desc">Every GPU and TPU on Google Cloud in 2026, from the silicon up: chip anatomy, the full lineup with spec sheets, memory against compute, a roofline explorer, interconnect topologies, and a calculator for whether your model fits.</p>
+        <p class="name">Google Cloud <em>Accelerators</em></p>
+        <p class="desc">Compare GPU and TPU hardware, estimate memory requirements, and see how compute, memory bandwidth, and interconnects limit performance.</p>
         <p class="meta"><span>8 chapters, 6 interactive</span><span>about 20 minutes</span><span><code>gcp-accelerators/</code></span></p>
       </a>
     </li>
     <li>
       <a class="item" href="register-tokens/">
         <p class="name">Register <em>Tokens</em></p>
-        <p class="desc">Why large Vision Transformers overwrite boring background patches with high-norm artifact tokens, what those tokens hold, and how a few learned register tokens give the model scratch space instead.</p>
+        <p class="desc">Examine high-norm tokens in vision transformers and see how extra learned tokens can improve patch representations.</p>
         <p class="meta"><span>6 sections, 5 interactive</span><span>about 12 minutes</span><span><code>register-tokens/</code></span></p>
       </a>
     </li>
   </ul>
-  <p class="soon">More explainers are in progress and will appear here as they are finished.</p>
 
   <footer>
     <p>Source on <a href="https://github.com/sghael/visual-learn" rel="noopener">GitHub</a>. Each explainer is a self-contained folder you can open from disk.</p>
