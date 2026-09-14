@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Register Tokens Explainer</title>
-<meta name="description" content="An interactive walkthrough of why large Vision Transformers grow high-norm artifact tokens in boring background patches, and how a handful of register tokens fixes it.">
+<meta name="description" content="An interactive explanation of high-norm artifact tokens in Vision Transformers and the learned register tokens proposed to remove them.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
@@ -80,9 +80,7 @@ header.top nav a:hover{color:var(--ink)}
 
 /* sections */
 section{padding:56px 0;border-top:1px solid var(--line)}
-section .head{display:grid;grid-template-columns:140px 1fr;gap:24px;margin-bottom:28px;align-items:baseline}
-section .head .eyebrow{padding-top:.5em}
-@media (max-width:820px){section .head{grid-template-columns:1fr;gap:8px}}
+section .head{margin-bottom:28px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
 
@@ -156,7 +154,7 @@ input[type=range]{accent-color:var(--reg);width:150px}
 .kv .k{color:var(--ink-2)}
 .kv .v{font-family:"JetBrains Mono",monospace;font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
 .meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
-.meter i{display:block;height:100%;background:var(--ink-3);border-radius:4px;transition:width .35s}
+.meter i{display:block;height:100%;background:var(--ink-3);border-radius:4px}
 .meter i.reg{background:var(--reg)} .meter i.art{background:var(--art)}
 .probe .note{margin-top:12px;font-size:.88rem;color:var(--ink-2);line-height:1.45}
 
@@ -176,7 +174,7 @@ td.down{color:var(--art-ink);font-weight:600}
 .tablewrap{overflow-x:auto}
 
 /* callouts */
-.callout{border-left:3px solid var(--reg);background:var(--surface);padding:14px 18px;border-radius:0 8px 8px 0;margin-top:24px;font-size:1rem}
+.callout{border:1px solid var(--line);background:var(--surface);padding:14px 18px;border-radius:8px;margin-top:24px;font-size:1rem}
 .callout.art{border-color:var(--art)}
 .callout b{font-family:"Bricolage Grotesque",sans-serif}
 .faq{display:grid;gap:14px}
@@ -216,9 +214,8 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <div class="wrap">
   <div class="hero">
     <div>
-      <div class="eyebrow">Interactive explainer</div>
-      <h1 style="margin-top:10px">Vision Transformers need registers</h1>
-      <p class="lead">Big ViTs quietly hijack a few boring background patches as scratch memory. That produces spiky, high-norm <span class="kw art">artifact</span> tokens and noisy attention maps. Giving the model a few blank <span class="kw reg">register</span> tokens instead cleans it up. Scroll to see how.</p>
+      <h1 style="margin-top:10px">Register tokens in Vision Transformers</h1>
+      <p class="lead">Large Vision Transformers can repurpose a few low-information patch tokens for internal computation. Those <span class="kw art">artifact</span> tokens have unusually large norms and distort feature and attention maps. Adding learned <span class="kw reg">register</span> tokens gives the network dedicated slots for that computation.</p>
       <div class="meta">
         <span>Based on Darcet, Oquab, Mairal &amp; Bojanowski (ICLR 2024)</span>
         <span>Figures use a simulated model</span>
@@ -247,13 +244,13 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <!-- 1. RECAP -->
 <section id="recap">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">01 · Recap</div><h2>An image becomes a sequence of tokens</h2></div>
+  <div class="head"><h2>From image patches to tokens</h2></div>
   <div class="grid2">
     <div class="prose">
       <p>A Vision Transformer (ViT) cuts the image into a grid of fixed-size patches, usually 14 or 16 pixels on a side. Each patch is flattened and linearly projected into a vector, then a positional embedding is added. Those vectors are the <b>patch tokens</b>.</p>
       <p>One extra learned token, <span class="kw cls">[CLS]</span>, is prepended. It has no pixels of its own. Its job is to gather a summary of the whole image through attention, and its final state is what gets used for classification.</p>
-      <p>The sequence then runs through a stack of identical transformer blocks. At every layer, every token attends to every other token. Nothing in the architecture says a patch token has to keep describing its patch. It is just a slot in the sequence.</p>
-      <p>Hover a patch on the right to see which token it becomes.</p>
+      <p>The sequence runs through a stack of transformer blocks. Self-attention lets each token read every other token. The architecture does not force a patch token to keep representing its original patch, so later layers can use that sequence position for another purpose.</p>
+      <p>Hover over a patch or token to follow the mapping.</p>
     </div>
     <figure style="margin:0">
       <div class="body">
@@ -283,10 +280,10 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <!-- 2. ARTIFACTS -->
 <section id="artifacts">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">02 · The problem</div><h2>Some tokens go rogue in the middle of the network</h2></div>
+  <div class="head"><h2>High-norm artifact tokens</h2></div>
   <div class="prose">
-    <p>If you look at the attention map of a modern self-supervised ViT like DINOv2, you expect it to light up the object. Instead the map is peppered with a few bright spots in flat, featureless regions: sky, wall, road. These spots come from <span class="kw art">artifact</span> tokens whose embedding norm is roughly ten times larger than their neighbours'.</p>
-    <p>Drag the layer slider. In the simulated DINOv2 ViT-L below, artifacts do not exist early in the network. They appear in the middle layers, in patches that look like their surroundings, and stay until the end. Click any patch to run a probe on its token.</p>
+    <p>Darcet and colleagues found a small number of patch tokens with norms much larger than the rest. They often occur in flat background regions such as sky, walls, or roads. Because these tokens can attract disproportionate attention, they produce bright spots that do not correspond to image content.</p>
+    <p>Drag the layer slider in this simplified DINOv2 ViT-L simulation. Artifact tokens appear after the early layers and remain through the final layer. Click a patch to compare the information carried by an artifact token and a typical patch token.</p>
   </div>
   <figure>
     <div class="bar">
@@ -313,7 +310,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
             <div class="kv" id="probeKv"></div>
             <div class="note" id="probeNote">Probes are small linear classifiers trained on frozen token embeddings. They tell us what information a token still carries.</div>
           </div>
-          <div class="callout art" style="margin-top:16px"><b>What the paper measured.</b> Artifact tokens are bad at <i>local</i> tasks (predicting their own position, reconstructing their own pixels) and unusually good at a <i>global</i> task (classifying the whole image from that one token alone).</div>
+          <div class="callout art" style="margin-top:16px"><b>What the paper measured.</b> Linear probes on artifact tokens perform worse on <i>local</i> tasks (predicting position and reconstructing source pixels) and better on a <i>global</i> task (classifying the whole image from one token) than probes on typical patch tokens.</div>
         </div>
       </div>
     </div>
@@ -325,15 +322,14 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <!-- 3. WHY -->
 <section id="why">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">03 · Hypothesis</div><h2>The model is recycling redundant tokens as scratch space</h2></div>
+  <div class="head"><h2>What the artifact tokens contain</h2></div>
   <div class="grid2">
     <div class="prose">
-      <p>Put the clues together:</p>
-      <p><b>They appear in redundant patches.</b> An artifact token almost always sits in a patch whose embedding was nearly identical to its neighbours' just before the switch. A sky patch surrounded by sky carries no information the network could not recover from next door.</p>
-      <p><b>They drop their local content and pick up global content.</b> The token stops encoding where it is or what it looked like, and starts encoding what the image is.</p>
-      <p><b>They only show up in big models trained long enough.</b> In the DINOv2 size study they start at ViT-L and grow during training. Supervised DeiT-III and text-supervised OpenCLIP show them already at ViT-B, so the threshold depends on the recipe, not on a fixed parameter count.</p>
-      <p>The interpretation: the transformer needs somewhere to store and mix global information while it processes the image, and the only slots it has are tokens. So it overwrites the least useful ones. The high norm is a side effect: an easy way to make a token dominate softmax attention so other tokens can read from it.</p>
-      <p>That is fine for classification. It is bad for anything that reads patch tokens directly: segmentation, depth, object discovery, and any attention-map visualization.</p>
+      <p><b>They appear in redundant patches.</b> Before an artifact forms, its token is usually similar to neighboring tokens. Replacing one of several nearly identical background representations loses little local information.</p>
+      <p><b>They lose local information and gain global information.</b> Linear probes recover less about the token's position and source pixels, but more about the image class.</p>
+      <p><b>The threshold depends on model and training recipe.</b> In the paper's DINOv2 size study, artifacts appear in ViT-L and larger models after sufficient training. The authors also found artifacts in ViT-B models trained with DeiT-III and OpenCLIP.</p>
+      <p>The authors hypothesize that the network repurposes redundant patch tokens for global computation. The register experiment supports that explanation: when dedicated learned tokens are available, the large norms move to them and patch-level representations become smoother. This is evidence for the hypothesis, rather than a proof of the exact mechanism.</p>
+      <p>Classification can tolerate the artifacts because it uses a global representation. Dense tasks such as segmentation, depth estimation, and object discovery read patch tokens directly and are more sensitive to corrupted local features.</p>
     </div>
     <figure style="margin:0">
       <div class="bar"><span style="color:var(--ink-3)">Cosine similarity of each patch to its neighbours, layer before artifacts appear</span></div>
@@ -341,7 +337,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         <div class="gridwrap no-gap" id="redGrid" style="margin:0 auto"></div>
         <div class="legend" style="justify-content:center"><span>Distinct</span><span class="ramp" id="simRamp"></span><span>Redundant</span><span><span class="sw" style="border:2px solid var(--art);border-radius:50%;background:none"></span>becomes artifact</span></div>
       </div>
-      <figcaption>Every future artifact sits in a high-redundancy patch. The model never sacrifices a patch on the object boundary.</figcaption>
+      <figcaption>Simplified simulation. Candidate artifacts are placed in high-redundancy background patches to reproduce the paper's qualitative observation.</figcaption>
     </figure>
   </div>
 </div>
@@ -350,10 +346,10 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <!-- 4. FIX -->
 <section id="fix">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">04 · The fix</div><h2>Give it scratch space on purpose: register tokens</h2></div>
+  <div class="head"><h2>Add register tokens</h2></div>
   <div class="prose">
-    <p>If the model wants extra slots, hand them over. A <span class="kw reg">register</span> is just another learned token, exactly like <span class="kw cls">[CLS]</span>, added to the sequence after the patch-embedding layer. The paper calls this appending; the DINOv2 implementation places them right after <span class="kw cls">[CLS]</span>, before the patch tokens. Registers have no pixels, no position in the image, and no loss attached to them. They participate in every attention layer, and at the output they are simply thrown away.</p>
-    <p>With even one register available, the model stops overwriting patches. The high norms move into the registers, where nobody is reading them, and the patch tokens keep describing their patches. Slide the register count below and watch the norm map and the attention map.</p>
+    <p>A <span class="kw reg">register</span> is a learned input token with no corresponding image patch. The DINOv2 implementation places register tokens after <span class="kw cls">[CLS]</span> and before the patch tokens. They participate in every transformer block, receive no positional embedding, and are discarded when patch and class features are returned.</p>
+    <p>Models trained with registers put the high-norm global information into those tokens. The patch tokens retain more local information, and the feature and attention maps become smoother. The widget uses a simplified rule in which one register removes all simulated artifacts; the paper uses four registers for its main results.</p>
   </div>
   <figure>
     <div class="bar">
@@ -379,7 +375,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
           <div class="strip" id="fixStrip" style="margin-top:8px"></div>
           <div class="toklabel"><span>■ <span class="kw cls">[CLS]</span></span><span>■ <span class="kw reg">[REG]</span></span><span>■ patch (every 2nd shown)</span><span>■ <span class="kw art">artifact</span></span></div>
           <div class="probe" style="margin-top:16px">
-            <h3>Norm budget <span class="pill reg" id="budgetPill">0 registers</span></h3>
+            <h3>Token norms <span class="pill reg" id="budgetPill">0 registers</span></h3>
             <div class="kv" id="budgetKv"></div>
             <div class="note" id="budgetNote"></div>
           </div>
@@ -391,20 +387,20 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         <div class="stage drop"><b>Registers discarded</b>use [CLS] and patch tokens as before</div>
       </div>
     </div>
-    <figcaption>Registers cost almost nothing: four extra tokens on a 197-token sequence, and no change to the blocks themselves. The model does need to be trained (or at least fine-tuned) with them in place; you cannot bolt them onto frozen weights.</figcaption>
+    <figcaption>Four registers increase this sequence from 197 to 201 tokens and leave the transformer blocks unchanged. The ICLR 2024 method trains the model with registers from the start.</figcaption>
   </figure>
-  <div class="callout"><b>Why it works.</b> The artifacts were never a bug in attention. They were a workaround for a missing feature: a place to think that is not an image patch. Registers are that place. Once they exist, the cheapest solution for the optimizer is to use them.</div>
+  <div class="callout"><b>Interpretation.</b> Registers provide dedicated sequence positions for the global information that otherwise appears in a few background patch tokens. The experiment isolates that role without changing the transformer blocks.</div>
 </div>
 </section>
 
 <!-- 5. RESULTS -->
 <section id="results">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">05 · Evidence</div><h2>What changes when you add four registers</h2></div>
+  <div class="head"><h2>Results with four registers</h2></div>
   <div class="grid2">
     <div class="prose">
-      <p>The authors retrained three very different models with four registers: DeiT-III (supervised, ViT-B), OpenCLIP (text-supervised, ViT-B) and DINOv2 (self-supervised, ViT-L). In all three the artifacts disappear and the attention maps become clean.</p>
-      <p>Classification barely moves, which makes sense because <span class="kw cls">[CLS]</span> was already getting what it needed. Dense tasks that read the patch tokens mostly improve, with a hair of depth error added on DeiT-III. The unsupervised object-discovery method LOST, which relies on patch-to-patch similarity, improves dramatically on DeiT-III and DINOv2 but slips slightly on OpenCLIP.</p>
+      <p>The authors trained three model families with four registers: supervised DeiT-III, text-supervised OpenCLIP, and self-supervised DINOv2. The high-norm patch artifacts disappear in all three families.</p>
+      <p>ImageNet classification changes by at most 0.5 percentage points in this table. ADE20k segmentation and NYUd depth improve in most cases, with small regressions for DeiT-III depth and OpenCLIP classification. LOST object discovery improves substantially for DeiT-III and DINOv2, then declines by 1.7 points for OpenCLIP. The results support a patch-quality benefit, but they do not show a uniform improvement on every task.</p>
       <p>Numbers below are from the paper's Tables 2 and 3 (ImageNet top-1, ADE20k mIoU, NYUd depth RMSE where lower is better, and LOST corloc on VOC 2007).</p>
     </div>
     <figure style="margin:0">
@@ -421,7 +417,7 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
         </tbody>
       </table>
       </div>
-      <figcaption>Green values improved with registers, orange ones got worse. Small deltas on classification, large ones wherever patch tokens are read directly. Values transcribed from Tables 2 and 3 of the paper.</figcaption>
+      <figcaption>Green values improved; orange values regressed. Values are transcribed from Tables 2 and 3 of the paper.</figcaption>
     </figure>
   </div>
 </div>
@@ -430,27 +426,28 @@ footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px sol
 <!-- 6. FAQ -->
 <section id="faq">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">06 · Details</div><h2>Questions people ask next</h2></div>
+  <div class="head"><h2>Details</h2></div>
   <div class="faq">
-    <details open><summary>How many registers do I need?</summary><div class="a">One is enough to remove the artifacts. The paper uses four by default because dense-task performance keeps creeping up to about four and then flattens. Beyond that you pay sequence length for nothing.</div></details>
-    <details><summary>Where do they go in the sequence?</summary><div class="a">Right after [CLS] and before the patch tokens, in the official DINOv2 code: the sequence is [CLS], [REG1..n], then patches. Attention itself is order-agnostic, so any fixed slot would work; keeping them next to [CLS] means downstream code can drop the first 1+n tokens and treat the rest as the patch grid. They get no positional embedding.</div></details>
-    <details><summary>Are registers the same as [CLS]?</summary><div class="a">Mechanically yes: a learned vector, prepended or appended, updated by every layer. The difference is intent. [CLS] is read at the output and has a loss attached; registers are never read and have no loss. Interestingly, registers end up specializing: different registers attend to different parts of the object.</div></details>
-    <details><summary>Is this the same as attention sinks in language models?</summary><div class="a">Closely related. LLMs also grow a few massive-activation tokens, usually the first token, that soak up attention mass. StreamingLLM's "attention sink" tokens and the "massive activations" line of work describe the same pressure: softmax needs somewhere to dump probability, and the model needs somewhere to keep global state. Registers are the vision-side answer.</div></details>
-    <details><summary>Can I add registers to a model I already have?</summary><div class="a">Not for free. The artifacts are learned behaviour; a frozen model will keep producing them and ignore new tokens. You need to fine-tune with the registers present. Training from scratch is what the paper did. Later work explores test-time and training-free variants, but the clean result needs training.</div></details>
-    <details><summary>Why did small models not have artifacts?</summary><div class="a">In the paper's DINOv2 size study, artifacts appear at ViT-L and above and only after enough training; ViT-S and ViT-B stay clean. DeiT-III and OpenCLIP at ViT-B do show them. A plausible reading is capacity relative to the training signal: a model cannot afford to sacrifice patch information until it is big enough that the global-scratch trick pays off.</div></details>
+    <details open><summary>How many registers do I need?</summary><div class="a">The paper uses four by default. Its ablations show that the best count depends on the model and downstream task, while results generally level off after a small number. This page makes one register sufficient in its simplified simulation so the transfer of high norms is easy to inspect.</div></details>
+    <details><summary>Where do they go in the sequence?</summary><div class="a">The official DINOv2 implementation places them after [CLS] and before the patch tokens: [CLS], [REG1..n], then patches. Downstream code can drop the first 1+n outputs and reshape the rest into the patch grid. The registers receive no positional embedding.</div></details>
+    <details><summary>Are registers the same as [CLS]?</summary><div class="a">Both start as learned vectors and are updated by every transformer block. Their outputs serve different roles. The class token is used as a global image representation; the register outputs are discarded. Registers can also develop different attention patterns during training.</div></details>
+    <details><summary>Is this the same as attention sinks in language models?</summary><div class="a">They are related observations, but the papers do not establish one shared mechanism. StreamingLLM calls early tokens that receive large attention scores “attention sinks.” Other work finds massive activations concentrated in a few LLM token positions. ViT registers address high-norm patch artifacts by adding learned token positions. All three involve unusual behavior at a small number of sequence positions.</div></details>
+    <details><summary>Can I add registers to a model I already have?</summary><div class="a">The 2024 paper trains models with learned registers. Later work, <i>Vision Transformers Don't Need Trained Registers</i> (2025), reports a training-free method that shifts high-norm activations into an added token for existing models. That method changes internal activations and is different from inserting a blank token into an unchanged frozen model.</div></details>
+    <details><summary>Why did small models not have artifacts?</summary><div class="a">The paper does not establish a general size threshold. In its DINOv2 study, artifacts appear in ViT-L and larger models after enough training, while the tested ViT-S and ViT-B checkpoints remain clean. DeiT-III and OpenCLIP produce artifacts at ViT-B, which shows that architecture size alone does not determine the result.</div></details>
   </div>
 </div>
 </section>
 
 <section id="refs">
 <div class="wrap">
-  <div class="head"><div class="eyebrow">References</div><h2>Read the sources</h2></div>
+  <div class="head"><h2>Primary sources</h2></div>
   <ol class="refs">
     <li>Darcet, T., Oquab, M., Mairal, J., Bojanowski, P. <i>Vision Transformers Need Registers.</i> ICLR 2024. <a href="https://arxiv.org/abs/2309.16588">arXiv:2309.16588</a></li>
     <li>Oquab, M. et al. <i>DINOv2: Learning Robust Visual Features without Supervision.</i> 2023. <a href="https://arxiv.org/abs/2304.07193">arXiv:2304.07193</a></li>
     <li>Dosovitskiy, A. et al. <i>An Image is Worth 16×16 Words.</i> ICLR 2021. <a href="https://arxiv.org/abs/2010.11929">arXiv:2010.11929</a></li>
     <li>Xiao, G. et al. <i>Efficient Streaming Language Models with Attention Sinks.</i> 2023. <a href="https://arxiv.org/abs/2309.17453">arXiv:2309.17453</a></li>
     <li>Sun, M. et al. <i>Massive Activations in Large Language Models.</i> 2024. <a href="https://arxiv.org/abs/2402.17762">arXiv:2402.17762</a></li>
+    <li>Jiang, N. et al. <i>Vision Transformers Don't Need Trained Registers.</i> 2025. <a href="https://arxiv.org/abs/2506.08010">arXiv:2506.08010</a></li>
     <li>Siméoni, O. et al. <i>Localizing Objects with Self-Supervised Transformers and no Labels (LOST).</i> BMVC 2021.</li>
   </ol>
 </div>
@@ -586,7 +583,7 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
     infoEl.innerHTML=`<h3>Patch (${x}, ${y}) <span class="pill norm">token #${i+1}</span></h3>
       <div class="kv"><span class="k">Content</span><span class="meter"><i style="width:${Math.round(20+80*info[i])}%"></i></span><span class="v">${lab}</span>
       <span class="k">Edge density</span><span class="meter"><i style="width:${Math.round(info[i]*100)}%"></i></span><span class="v">${info[i].toFixed(2)}</span></div>
-      <div class="note">Row ${y}, column ${x} of the grid becomes token ${i+1} of 197. ${info[i]<.2?'This patch looks like its neighbours; the network could drop it and lose almost nothing.':'This patch sits on an edge; its token carries information no neighbour has.'}</div>`;
+      <div class="note">Row ${y}, column ${x} of the grid becomes token ${i+1} of 197. ${info[i]<.2?'This simulated patch resembles its neighbors and contains little unique local information.':'This simulated patch crosses an edge and contains more unique local information.'}</div>`;
   }
   select(6*N+7);
 }
@@ -633,8 +630,8 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
       + row('Reconstruction L2 (local, ↓)', isArt?25.2*2.6:18.4*2.6, (isArt?25.23:18.38).toFixed(2), c)
       + row('ImageNet from this token (global)', isArt?69.0:65.8, (isArt?69.0:65.8).toFixed(1)+'%', c);
     note.innerHTML = isArt
-      ? `Patch (${x}, ${y}) is <b>${['sky','ground','object'][scene[sel]]}</b> and looks like its neighbours. By layer ${layer} the model has overwritten it: position and pixels are mostly gone, but you can classify the whole image from this single token better than from any normal patch.`
-      : `Patch (${x}, ${y}) still describes itself. ${s.outliers.size? 'Compare it with one of the circled tokens.' : (MODEL[model].max? `Move the layer slider past ${MODEL[model].start} to see artifacts appear.` : `DINOv2 ${model==='S'?'ViT-S':'ViT-B'} never develops artifacts in the paper's size study; only ViT-L and larger do.`)}`;
+      ? `Patch (${x}, ${y}) is <b>${['sky','ground','object'][scene[sel]]}</b> and resembles its neighbors. In this simplified model, its local position and pixel information have fallen while its global class information has increased.`
+      : `Patch (${x}, ${y}) still describes itself. ${s.outliers.size? 'Compare it with one of the circled tokens.' : (MODEL[model].max? `Move the layer slider past ${MODEL[model].start} to see artifacts appear.` : `The paper reports no artifacts for this DINOv2 ${model==='S'?'ViT-S':'ViT-B'} checkpoint in its size study.`)}`;
   }
   render();
 }
@@ -687,8 +684,8 @@ function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear
       + row('Patches overwritten', s.outliers.size/8*100, s.outliers.size, s.outliers.size?'art':'')
       + row('Sequence length', (197+n)/205*100, 197+n, '');
     bnote.textContent = n
-      ? `The heavy lifting moved into the ${n} register${n===1?'':'s'}. Patch tokens are back to describing their patches, and [CLS] attention lands on the bird instead of the sky. Beyond about four registers nothing more changes.`
-      : 'With no registers the model steals the flattest sky and ground patches. Their norms jump to several hundred while every honest patch token sits below 60.';
+      ? `The simulated high norms now appear in the ${n} register${n===1?'':'s'}. Patch-token norms remain low, and [CLS] attention follows the object. The paper's results generally level off after a small number of registers.`
+      : 'With no registers, a few low-information sky and ground tokens have norms of several hundred while the other simulated patch tokens stay below 60.';
   }
   render();
 }

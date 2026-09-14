@@ -1,10 +1,9 @@
 # Register Tokens Explainer
 
-An interactive walkthrough of *Vision Transformers Need Registers* (Darcet,
-Oquab, Mairal and Bojanowski, ICLR 2024): why large ViTs grow a handful of
-high-norm "artifact" tokens in featureless background patches, what those
-tokens actually contain, and how appending a few learned register tokens to
-the input sequence removes them.
+An interactive explanation of *Vision Transformers Need Registers* (Darcet,
+Oquab, Mairal and Bojanowski, ICLR 2024): where high-norm patch artifacts
+appear, what information they contain, and how learned register tokens change
+the resulting feature and attention maps.
 
 Live: https://sghael.github.io/visual-learn/register-tokens/
 
@@ -25,7 +24,7 @@ with system fallbacks.
 | Hero | Input image beside the last-layer `[CLS]` attention map | 0 / 4 registers toggle (auto-flips three times on load unless reduced motion is requested; a click cancels it) |
 | 01 Tokens | 14×14 patch grid and the 197-token sequence it becomes | Hover a patch or a token to see its position, content and edge density |
 | 02 Artifacts | Token-norm heatmap plus a norm histogram and a probe panel | Layer slider, DINOv2 ViT-S/B/L selector, image overlay; click or focus-and-Enter a patch to probe it |
-| 03 Hypothesis | Neighbour-similarity map with future artifacts circled | Static |
+| 03 Interpretation | Neighbour-similarity map with candidate artifacts circled | Static |
 | 04 Registers | Input-sequence diagram, norm or attention map, token-norm strip, norm budget | 0 to 8 register slider, norm/attention view toggle |
 | 05 Results | Table of the paper's results (DeiT-III ViT-B, OpenCLIP ViT-B, DINOv2 ViT-L) with and without 4 registers | Static |
 | 06 FAQ | Register count, placement, relation to LLM attention sinks, retraining | Expandable |
@@ -33,9 +32,11 @@ with system fallbacks.
 ## Accuracy caveats
 
 - **Every heatmap is a simulation.** A small deterministic model, seeded so
-  the page is identical on every load, reproduces the paper's qualitative
-  findings for DINOv2: artifacts appear mid-network, only at ViT-L and
-  larger, only in redundant patches, and vanish once any register exists.
+  the page is identical on every load, reproduces selected qualitative
+  findings for DINOv2: artifacts appear after the early layers, only at ViT-L
+  and larger in the size selector, and in low-information patches. The widget
+  makes one register remove all artifacts for teaching purposes; this is not a
+  measured one-register result.
   The size threshold is recipe-dependent; the paper finds artifacts in
   DeiT-III and OpenCLIP at ViT-B, which the S/B/L selector does not model. No real network
   runs in the page, and the page says so in each caption and the footer.
@@ -47,8 +48,11 @@ with system fallbacks.
 - **Register order** follows the official DINOv2 implementation: `[CLS]`,
   registers, then patch tokens. The paper's text says "appended"; the
   page notes both.
-- The "DINOv2 ViT-S and ViT-B never develop artifacts" statement follows the
-  paper's size study, not a theorem.
+- The clean DINOv2 ViT-S and ViT-B states reproduce the paper's reported size
+  study. They are not a general claim about all ViT-S and ViT-B training runs.
+- The 2024 method trains the model with learned registers. The FAQ separately
+  describes a 2025 paper that modifies activations to obtain a training-free
+  register-like effect in existing models.
 
 ## Tests
 
