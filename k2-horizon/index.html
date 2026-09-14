@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K2 Horizon Explainer</title>
-<meta name="description" content="An interactive, visual walkthrough of IFM's K2 Horizon model fleet: the six models, Mixture-of-Value Attention, Uno diffusion decoding, the training pipeline, and what 'fully open' means.">
+<meta name="description" content="An interactive technical guide to IFM's six K2 Horizon models, MoVA attention, Uno decoding, training, reported benchmarks, and release status.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -38,7 +38,7 @@ p{margin:.7rem 0}
 a{color:var(--glacier)}
 code,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em}
 code{background:var(--code);padding:.1em .35em;border-radius:3px}
-.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.context-line{font-size:.82rem;color:var(--ink-3);margin-bottom:.45rem}
 .layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:0;max-width:1240px;margin:0 auto}
 nav.rail{position:sticky;top:0;align-self:start;height:100vh;padding:2rem 1rem 2rem 1.5rem;border-right:1px solid var(--line-2);display:flex;flex-direction:column;gap:.15rem;font-size:.82rem}
 nav.rail .brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:1.2rem;color:var(--ink)}
@@ -99,41 +99,40 @@ main{min-width:0}
 <div class="layout">
 <nav class="rail" aria-label="Sections">
   <div class="brand">K2 Horizon</div>
-  <a href="#fleet">1 · The fleet</a>
-  <a href="#anatomy">2 · Inside a layer</a>
-  <a href="#mova">3 · MoVA attention</a>
-  <a href="#uno">4 · Uno decoding</a>
-  <a href="#training">5 · Training pipeline</a>
-  <a href="#data">6 · The data</a>
-  <a href="#bench">7 · Benchmarks</a>
-  <a href="#open">8 · Fully open</a>
+  <a href="#fleet">Models</a>
+  <a href="#anatomy">Transformer layers</a>
+  <a href="#mova">MoVA</a>
+  <a href="#uno">Uno decoding</a>
+  <a href="#training">Training stages</a>
+  <a href="#data">Training data</a>
+  <a href="#bench">Benchmarks</a>
+  <a href="#open">Release artifacts</a>
   <a href="#sources">Sources</a>
   <button class="theme" id="themeBtn" type="button">Theme: system</button>
 </nav>
 <main>
 
 <header class="hero prose">
-  <div class="eyebrow">Institute of Foundation Models · released 3 Sep 2026</div>
-  <h1>K2 Horizon, explained visually</h1>
-  <p class="sub">Six open language models, from 0.9 billion parameters that fit on a watch to a 375-billion-parameter flagship. This page walks through what was released, how the two new architectural ideas work, and how the models were trained. Six of the eight chapters have diagrams you can drive.</p>
+  <div class="context-line">Institute of Foundation Models · released 3 September 2026</div>
+  <h1>K2 Horizon</h1>
+  <p class="sub">A technical guide to six language models from 0.9 billion to 375 billion parameters. The diagrams explain the model sizes, sparse layers, MoVA attention, Uno decoding, training stages, data, benchmarks, and release artifacts.</p>
   <div class="meta">
     <div><b>6 models</b>0.9B → 375B</div>
-    <div><b>Apache 2.0</b>weights, code, data</div>
-    <div><b>~20T tokens</b>per model, ~10T synthetic</div>
-    <div><b>512K</b>native context (7B and up)</div>
+    <div><b>Apache 2.0</b>model weights</div>
+    <div><b>~20T tokens</b>training corpus, ~10T synthetic</div>
+    <div><b>512K</b>context (3.7B and up)</div>
   </div>
 </header>
 
 <!-- ============ 1. FLEET ============ -->
 <section class="chapter" id="fleet">
   <div class="prose">
-    <div class="eyebrow">Chapter 1</div>
-    <h2>One family, six sizes</h2>
-    <p>K2 Horizon is not one model but a fleet built on a single core architecture. All six share a tokenizer, a training recipe, and the same deployment tooling. What changes across the fleet is scale, and, for the two largest, how parameters are spent.</p>
+    <h2>Models and model sizes</h2>
+    <p>K2 Horizon contains six decoder-only transformers. They share the same general architecture, training method, interfaces, and deployment tooling. The 0.9B model uses a smaller tokenizer. The 36B and 375B models also replace dense feed-forward layers with sparse Mixture-of-Experts layers.</p>
     <p>The chart below places each model on a logarithmic scale. Bars show <em>total</em> stored parameters. The darker inner bar shows the parameters that actually run for each token. For dense models the two are equal. For the sparse models, most parameters sit idle on any given token.</p>
   </div>
   <div class="stage">
-    <div class="controls"><span class="eyebrow">Hover a bar · click to select</span></div>
+    <div class="controls"><span class="note">Hover a bar for details. Click to select.</span></div>
     <div id="fleetChart" style="position:relative"></div>
     <div class="legend"><span style="--sw:var(--glacier-soft)">Total parameters</span><span style="--sw:var(--glacier)">Active per token</span><span style="--sw:var(--amber)">Sparse (MoE)</span></div>
   </div>
@@ -145,17 +144,16 @@ main{min-width:0}
     <p class="cap">Values read from each model's published <code>config.json</code> on Hugging Face. Parameter counts are the official names; file sizes on Hugging Face run a little higher because the vocabulary embeddings are counted separately.</p>
   </div>
   <div class="prose">
-    <h3>Where each size is meant to run</h3>
-    <p>IFM pitches the fleet by deployment target rather than by benchmark alone. The 0.9B model is sized for wearables such as watches and glasses. The 3.7B and 7B models target phones and other on-device use. The dense 32B and sparse 36B-A4B models are the local-hosting and on-premise tier. The 375B-A23B flagship is for enterprise reasoning workloads behind an API.</p>
-    <p>Two details in the spec sheet are worth noticing. The 0.9B model uses a much smaller vocabulary (64K instead of 251K) because in a model that small the embedding table would otherwise dominate the parameter budget. And its context is 128K rather than 512K, reached through YaRN scaling of rotary position embeddings rather than the native long-context midtraining the larger models get.</p>
+    <h3>Intended deployment</h3>
+    <p>IFM describes the 0.9B model as a wearable model, the 3.7B and 7B models as on-device models, the 32B and 36B-A4B models as local-server models, and the 375B-A23B model as a datacenter model. These are vendor positioning statements. Real deployment requirements depend on weight precision, KV-cache size, serving software, memory bandwidth, and latency targets.</p>
+    <p>The 0.9B model has a 64,256-token vocabulary; the other models use 250,624 tokens. A smaller embedding table leaves more of a small model's parameter budget for transformer layers. The 0.9B model advertises a 131,072-token context using YaRN scaling. The other five configurations advertise 524,288 tokens after long-context midtraining.</p>
   </div>
 </section>
 
 <!-- ============ 2. ANATOMY ============ -->
 <section class="chapter" id="anatomy">
   <div class="prose">
-    <div class="eyebrow">Chapter 2</div>
-    <h2>Inside one layer</h2>
+    <h2>Transformer layers</h2>
     <p>Every K2 Horizon model is a decoder-only transformer. A token's hidden vector passes through a stack of identical layers, and each layer has two halves: an attention block that mixes information across positions, and a feed-forward block that transforms each position on its own.</p>
     <p>The fleet uses three variants of this layer. Switch between them below and press <strong>Route a token</strong> to watch where a single token's computation goes.</p>
   </div>
@@ -173,18 +171,17 @@ main{min-width:0}
     <p class="cap" id="layerCap"></p>
   </div>
   <div class="prose">
-    <h3>Why sparsity</h3>
-    <p>A dense model spends every parameter on every token. A Mixture-of-Experts (MoE) model replaces the single feed-forward network with a pool of smaller "experts" and a tiny router that picks a few of them per token. The 375B flagship has 192 routed experts plus one shared expert in each layer and activates 8 routed ones per token. That is how 375 billion stored parameters become only 23 billion of compute per token.</p>
-    <p>The catch is memory. Every expert must be loaded even though most sit idle, so an MoE model needs the memory of its total size but runs at the speed of its active size. That trade is what makes the 36B-A4B model interesting for local hosting: it needs roughly the RAM of a 36B model but generates tokens about as fast as a 4B one.</p>
+    <h3>How MoE reduces per-token compute</h3>
+    <p>A dense transformer executes each layer's attention and feed-forward weights for every token. A Mixture-of-Experts (MoE) layer replaces one feed-forward network with a pool of smaller experts and a router that selects a subset per token. The 375B model has 192 routed experts plus one shared expert in each layer and selects 8 routed experts per token. IFM summarizes the result as 375B total parameters and about 23B active parameters per token. Active parameters are a model-size convention, not a direct measure of FLOPs or latency.</p>
+    <p>All experts still occupy memory, even though each token uses only a subset. The 36B-A4B model therefore needs storage and accelerator memory closer to a 36B model while executing about 4B parameters per token. It will not necessarily match the latency of a dense 4B model: expert routing, memory traffic, batching, and the serving implementation also matter.</p>
   </div>
 </section>
 
 <!-- ============ 3. MOVA ============ -->
 <section class="chapter" id="mova">
   <div class="prose">
-    <div class="eyebrow">Chapter 3</div>
-    <h2>Mixture-of-Value Attention</h2>
-    <p>MoE sparsity has traditionally lived only in the feed-forward half of the layer. K2 Horizon's <strong>MoVA</strong> brings the same idea into attention itself. Attention computes three projections of each token: a <em>query</em>, a <em>key</em>, and a <em>value</em>. Queries and keys decide <em>where</em> to look. Values are <em>what gets carried back</em>.</p>
+    <h2>MoVA routes value projections</h2>
+    <p><strong>Mixture-of-Value Attention (MoVA)</strong> adds sparse routing to the attention block. Attention computes query, key, and value projections. Query-key scores determine how much weight each earlier position receives. Value projections supply the vectors combined by those weights.</p>
     <p>In MoVA, the single value projection is replaced with a pool of value experts. A router picks a small subset for each token, and only those value projections are computed. In the 36B-A4B model each layer holds 64 value experts and activates 4 per token, alongside its 100 feed-forward experts of which 8 are active.</p>
   </div>
   <div class="stage">
@@ -196,21 +193,20 @@ main{min-width:0}
       <button class="btn" type="button" id="mvStep">Next token</button>
     </div>
     <div id="movaDiagram"></div>
-    <p class="cap">Left: the standard query/key path is unchanged, so MoVA stays compatible with FlashAttention, grouped-query attention, and sparse attention. Right: the value path routes through a pool. Capacity grows with the pool size; per-token compute grows only with the number of active experts.</p>
+    <p class="cap">Simplified diagram. The left side shows query-key attention scores. The right side replaces one value projection with a routed pool. Increasing the pool adds stored parameters; increasing the active count adds per-token computation.</p>
   </div>
   <div class="prose">
     <div class="stat" id="movaStat"></div>
-    <p>Why put sparsity here? Attention is the mechanism that assembles information from across the context. Adding capacity to the values gives the model more ways to express <em>what</em> to retrieve from each attended position, without changing the cost of deciding <em>where</em> to attend. IFM's public materials describe MoVA at this level and promise the training code; the exact routing function is not yet documented, so the diagram shows the structure rather than a specific routing rule.</p>
-    <div class="callout">The 375B-A23B flagship ships with <code>mova_num_experts: 0</code> in its config. MoVA is currently used only in the 36B-A4B model, which is why that model carries "MoVA" in its name.</div>
+    <p>Routing value projections increases the number of learned value transformations without computing all of them for every token. IFM has published the configuration but has not yet documented the routing function in enough detail to reproduce it. The diagram therefore shows the configured pool and active-expert counts. Its token routing is random and illustrative.</p>
+    <div class="callout">The 375B-A23B config sets <code>mova_num_experts: 0</code>. Among the six released models, only the 36B-A4B configuration uses MoVA.</div>
   </div>
 </section>
 
 <!-- ============ 4. UNO ============ -->
 <section class="chapter" id="uno">
   <div class="prose">
-    <div class="eyebrow">Chapter 4</div>
-    <h2>Uno: drafting many tokens at once</h2>
-    <p>A standard language model generates one token per forward pass. The 7B and 0.9B models ship with an optional <strong>Uno</strong> adapter, from IFM's paper <em>Unlocking Lossless Speedups in LLMs via Discrete Diffusion</em>, that lets them emit several tokens per pass without changing what they would have said.</p>
+    <h2>Uno decodes multiple tokens per pass</h2>
+    <p>Autoregressive decoding commits one token at a time. The 7B and 0.9B models have optional <strong>Uno</strong> adapters based on IFM's paper <em>Unlocking Lossless Speedups in LLMs via Discrete Diffusion</em>. Uno proposes several tokens together, then verifies them against the base model's distribution.</p>
     <p>Uno adds a second set of lightweight weights (LoRA adapters, rank 128) trained with a discrete-diffusion objective. Those weights can fill in a whole block of masked positions in parallel. A sampler the paper calls <strong>Ψ-Spec</strong> then checks the drafted block against the original autoregressive model and keeps the longest prefix the base model agrees with. Because acceptance is decided by the base model's own distribution, the output is provably the same distribution as ordinary decoding.</p>
   </div>
   <div class="stage">
@@ -224,7 +220,7 @@ main{min-width:0}
     </div>
     <div id="unoDiagram"></div>
     <div class="legend"><span style="--sw:var(--glacier)">Committed token</span><span style="--sw:var(--teal)">Diffusion draft, accepted</span><span style="--sw:var(--rose)">Draft rejected, resampled</span><span style="--sw:var(--line)">Masked slot</span></div>
-    <p class="cap">A toy simulation. The acceptance slider stands in for how often the diffusion draft matches what the base model would have produced; the real rate depends on the text. The counter compares forward passes, which is what dominates decoding time.</p>
+    <p class="cap">Simplified simulation. The acceptance slider is an invented probability, not a measured Uno parameter. Real acceptance depends on the prompt, generated text, sampler, and model. The counter omits adapter overhead, batching effects, and hardware utilization.</p>
   </div>
   <div class="prose">
     <h3>Reported numbers</h3>
@@ -233,7 +229,7 @@ main{min-width:0}
       <div><b>5,255 tok/s</b><span>system throughput vs 2,794 next best</span></div>
       <div><b>up to 3×</b><span>speedup over the base model, incl. max batch</span></div>
     </div>
-    <p>Compared with speculative decoding, there is no separate draft model to load, and the adapter adds the fewest parameters and the lowest inference memory of the methods the paper compares against. Compared with diffusion language models, quality is unchanged because the base model still has the final say. The 7B-Uno release keeps the base model's scores: 70.1% on SWE-bench Verified, 77.1% on GPQA Diamond, 98.9% on MATH500.</p>
+    <p>Uno uses lightweight diffusion weights instead of a separate draft model. In IFM's experiments, it used fewer added parameters and less inference memory than the compared speculative-decoding methods. Ψ-Spec samples from the base autoregressive distribution, so the acceleration does not change that target distribution. The published 7B-Uno results report 70.1% on SWE-bench Verified, 77.1% on GPQA Diamond, and 98.9% on MATH500.</p>
     <div class="callout teal">Two samplers ship in the Uno repository: a <em>linear</em> sampler that maximises system throughput at large batch sizes and a <em>tree</em> sampler that minimises per-request latency.</div>
   </div>
 </section>
@@ -241,9 +237,8 @@ main{min-width:0}
 <!-- ============ 5. TRAINING ============ -->
 <section class="chapter" id="training">
   <div class="prose">
-    <div class="eyebrow">Chapter 5</div>
-    <h2>How the flagship was trained</h2>
-    <p>IFM publishes the stage-by-stage recipe, and will release intermediate checkpoints so capability changes can be studied across training rather than only at the end. The track below follows the 375B-A23B model. Pick a stage for details. The line above the track shows how the context window grows from 8K tokens to 512K during midtraining.</p>
+    <h2>375B training stages</h2>
+    <p>IFM documents the 375B-A23B training stages and has published many intermediate checkpoints. Select a stage for details. The line above the track shows the configured context growing from 8K to 512K tokens during midtraining.</p>
   </div>
   <div class="stage">
     <div id="trainDiagram"></div>
@@ -251,23 +246,22 @@ main{min-width:0}
     <div id="trainDetail" class="note" style="margin-top:.8rem;min-height:3.2em"></div>
   </div>
   <div class="prose">
-    <h3>Reinforcement learning by specialists, then merging</h3>
-    <p>Rather than one RL run over everything, IFM trained five separate expert models with reinforcement learning, one each for knowledge work, instruction following, search, tool use, and reasoning, then merged them into a single model. Supervised fine-tuning ran in three phases totalling roughly 330 billion tokens, with the first phase for domain coverage and later phases for quality.</p>
-    <div class="callout blue">A distinctive choice: post-training-style data (reasoning traces, tool calls, agent trajectories) was mixed into <em>midtraining</em> rather than held back for the end. The 512K context is native from the midtraining stages onward.</div>
+    <h3>Specialized RL models and merging</h3>
+    <p>IFM trained five RL variants for knowledge work, instruction following, search, tool use, and reasoning, then merged them into the released model. Supervised fine-tuning ran in three phases totaling roughly 330 billion tokens.</p>
+    <div class="callout blue">Reasoning traces, tool calls, and agent trajectories enter during midtraining. The model card describes the 512K context as native from those stages onward.</div>
   </div>
 </section>
 
 <!-- ============ 6. DATA ============ -->
 <section class="chapter" id="data">
   <div class="prose">
-    <div class="eyebrow">Chapter 6</div>
-    <h2>What ~20 trillion tokens are made of</h2>
-    <p>Each model was trained on roughly 20 trillion tokens. About half of that is synthetic, generated for the purpose, and nearly 17% of the total consists of problem-solving trajectories with explicit reasoning steps. The pretraining corpus itself is part of the release.</p>
+    <h2>Training data</h2>
+    <p>IFM describes a roughly 20-trillion-token corpus, about half synthetic. Nearly 17% consists of problem-solving trajectories with explicit reasoning steps. The public Hugging Face organization links pretraining and midtraining datasets; availability and documentation are still changing during the rollout.</p>
   </div>
   <div class="stage">
     <div id="dataDiagram"></div>
     <div class="stat" style="margin-top:1rem">
-      <div><b>~20T</b><span>tokens per model</span></div>
+      <div><b>~20T</b><span>tokens in the reported corpus</span></div>
       <div><b>~10T</b><span>synthetic tokens</span></div>
       <div><b>~17%</b><span>reasoning trajectories</span></div>
       <div><b>100M+</b><span>unique synthesised tasks</span></div>
@@ -275,16 +269,15 @@ main{min-width:0}
     <p class="cap">Proportions are as stated in IFM's release materials; the exact split between synthetic reasoning data and other synthetic data is not broken out, so the inner ring shows it as one region.</p>
   </div>
   <div class="prose">
-    <p>One agent-oriented detail: tool definitions appear in the training data in three formats, JSON, XML and Markdown, so the deployed models accept any of them. The 375B model card recommends <code>reasoning_effort="high"</code> with temperature 1.0 and top-p 0.95 for its intended workloads.</p>
+    <p>The published data includes tool definitions in JSON, XML, and Markdown. This teaches the models several common tool schemas; it does not guarantee that every deployed model will follow every schema reliably. The 375B model card recommends <code>reasoning_effort="high"</code>, temperature 1.0, and top-p 0.95.</p>
   </div>
 </section>
 
 <!-- ============ 7. BENCHMARKS ============ -->
 <section class="chapter" id="bench">
   <div class="prose">
-    <div class="eyebrow">Chapter 7</div>
-    <h2>How each size compares at its scale</h2>
-    <p>IFM's claim is "best open model at every size", not "best model". The chart lets you check that claim size by size against the competitors IFM chose in each model card. Pick a model, then hover the bars.</p>
+    <h2>Reported benchmark results</h2>
+    <p>The chart reproduces comparisons selected and run by IFM for each model card. Use it to inspect the reported scores, not as an independent ranking. Different model cards use different competitors and sometimes different evaluation harnesses.</p>
   </div>
   <div class="stage">
     <div class="controls">
@@ -296,17 +289,16 @@ main{min-width:0}
     <p class="cap">Scores are percentages except GDPVal-AA, which is an Elo rating. Numbers are transcribed from the Hugging Face model cards as of September 2026 and are self-reported by IFM.</p>
   </div>
   <div class="prose">
-    <p>The pattern that emerges: the three small models lead their brackets outright, especially on mathematics and software engineering, where a 3.7B model reaching 68.6% on SWE-bench Verified is unusual. The sparse 36B-A4B is strongest on agentic tasks (terminal use, tool calling) and trails on graduate-level science questions. The dense 32B numbers are provisional: the model card evaluates a Stage 1 checkpoint and says the final checkpoint and Stage 2 results are still to come. That checkpoint trails Qwen3.8-27B on every benchmark listed, sometimes by a wide margin. The 375B flagship sits close behind the best closed model in most categories while matching or beating open-weight models up to 2.6 times its size.</p>
-    <div class="callout">After an internal audit found reward hacking in one evaluation, IFM corrected the 375B model's Terminal-Bench 2.1 score from 70.2% to 66.9%. The chart shows the corrected figure. Corrections like this are one argument for the "fully open" approach in the next chapter.</div>
+    <p>In IFM's chosen comparisons, the 0.9B, 3.7B, and 7B models lead several math and software-engineering results. The 36B-A4B model scores well on the listed terminal and tool-use tasks but trails its comparison model on GPQA Diamond. The 32B results are provisional because they use a Stage 1 checkpoint. For the 375B model, the chart shows IFM's comparisons with open-weight and closed models; these are self-reported results rather than a controlled third-party evaluation.</p>
+    <div class="callout">IFM reports 70.2% raw accuracy on Terminal-Bench 2.1. Its later reward-hacking audit removed flagged trials and produced an adjusted score of 66.9%. The chart uses 66.9% and labels it as the audited correction.</div>
   </div>
 </section>
 
 <!-- ============ 8. OPEN ============ -->
 <section class="chapter" id="open">
   <div class="prose">
-    <div class="eyebrow">Chapter 8</div>
-    <h2>Open weights versus fully open</h2>
-    <p>Most "open" models release weights and a license. K2 Horizon's founder, Eric Xing, frames the release differently: science works when others can see the data, follow the method, reproduce the result, and improve on it. The table shows what that means concretely, and what each item lets you do.</p>
+    <h2>Release artifacts</h2>
+    <p>IFM calls K2 Horizon fully open because it plans to publish weights, code, training data, checkpoints, and evaluation methods. The rollout was incomplete on 10 September 2026. This table separates available artifacts from announced ones.</p>
   </div>
   <div class="stage">
     <table id="openTable">
@@ -314,29 +306,29 @@ main{min-width:0}
       <tbody>
         <tr><td>Final weights</td><td class="ok">yes</td><td class="ok">yes</td><td>Run and fine-tune the model</td></tr>
         <tr><td>Permissive license</td><td class="part">varies</td><td class="ok">Apache 2.0</td><td>Ship it commercially without a custom agreement</td></tr>
-        <tr><td>Intermediate checkpoints</td><td class="no">rare</td><td class="ok">yes (rolling out)</td><td>Study when a capability appears during training</td></tr>
-        <tr><td>Training code and configs</td><td class="no">rare</td><td class="ok">yes</td><td>Reproduce the run or adapt the recipe</td></tr>
-        <tr><td>Pretraining corpus</td><td class="no">almost never</td><td class="ok">yes</td><td>Audit contamination, bias, and provenance</td></tr>
-        <tr><td>Post-training code and data</td><td class="no">rare</td><td class="ok">yes</td><td>Rebuild the SFT and RL stages</td></tr>
-        <tr><td>Evaluation protocols</td><td class="part">sometimes</td><td class="ok">yes</td><td>Check the numbers in chapter 7 yourself</td></tr>
+        <tr><td>Intermediate checkpoints</td><td class="no">rare</td><td class="part">partial rollout</td><td>Study when a capability appears during training</td></tr>
+        <tr><td>Training code and configs</td><td class="no">rare</td><td class="part">code in progress</td><td>Reproduce the run or adapt the recipe</td></tr>
+        <tr><td>Pretraining and midtraining data</td><td class="no">almost never</td><td class="part">datasets published; rollout continues</td><td>Audit contamination, bias, and provenance</td></tr>
+        <tr><td>Post-training code and data</td><td class="no">rare</td><td class="part">rollout in progress</td><td>Rebuild the SFT and RL stages</td></tr>
+        <tr><td>Evaluation protocols</td><td class="part">sometimes</td><td class="part">partial</td><td>Check published scores under the same harness</td></tr>
         <tr><td>Quantised builds (FP8, GGUF)</td><td class="part">sometimes</td><td class="ok">yes</td><td>Run on consumer hardware via Ollama or llama.cpp</td></tr>
       </tbody>
     </table>
   </div>
   <div class="prose">
     <h3>Getting the models</h3>
-    <p>All six are on Hugging Face under the <code>IFM</code> organisation, with day-one support in vLLM and SGLang and hosted API access through Compass, Cerebras, AWS and Nebius. The Uno adapters live in a separate repository at <code>github.com/ifm-ai/uno</code>.</p>
+    <p>All six model repositories are under the <code>IFM</code> organization on Hugging Face. The model cards provide vLLM and SGLang serving recipes. IFM lists Compass, Cerebras, AWS, and Nebius as hosted API partners. Uno adapters and code are in <code>github.com/ifm-ai/uno</code>.</p>
   </div>
 </section>
 
 <footer id="sources">
-  <div class="eyebrow">Sources</div>
+  <h2>Sources</h2>
   <ol>
     <li><a href="https://ifm.ai/k2/">ifm.ai/k2</a> and the <a href="https://ifm.ai/k2/press-release/">K2 Horizon press release</a>, Institute of Foundation Models, 3 Sep 2026.</li>
     <li>Hugging Face model cards and <code>config.json</code> files: <a href="https://huggingface.co/IFM">huggingface.co/IFM</a>.</li>
     <li>Sahoo et al., <a href="https://arxiv.org/abs/2609.04010">Unlocking Lossless Speedups in LLMs via Discrete Diffusion</a>, arXiv:2609.04010; code at <a href="https://github.com/ifm-ai/uno">ifm-ai/uno</a>.</li>
-    <li>MarkTechPost, <a href="https://www.marktechpost.com/2026/09/06/ifm-releases-k2-horizon-six-apache-2-0-models-from-0-9b-to-375b/">IFM releases K2 Horizon</a>, 6 Sep 2026 (training-data composition and the Terminal-Bench correction).</li>
-    <li>PR Newswire, <a href="https://www.prnewswire.com/news-releases/institute-of-foundation-models-launches-the-industrys-largest-fully-open-source-fleet-of-ai-models-complete-with-weights-code-training-data-and-methodologies-302868628.html">launch announcement</a>, 3 Sep 2026.</li>
+    <li>IFM, <a href="https://ifm.ai/blog/k2/">K2 Horizon technical blog</a> (training details and Terminal-Bench audit).</li>
+    <li><a href="https://huggingface.co/IFM/K2-Horizon-375B-A23B#release-artifacts">375B release-artifact inventory</a>, updated 10 Sep 2026.</li>
   </ol>
   <p>Format inspired by the Polo Club of Data Science explainers (Transformer Explainer, CNN Explainer). Built with D3. Diagrams are schematic; where IFM has not published a mechanism in detail, the page says so.</p>
 </footer>
@@ -356,9 +348,9 @@ const MODELS = [
   {id:'32B', name:'K2-Horizon-32B', total:32, active:32, sparse:false, layers:64, hidden:5120, ffn:26624, heads:64, kv:8, headDim:128, vocab:250624, ctx:524288, experts:null, mova:null,
    blurb:'Dense. The straightforward option for a single local server or workstation.', target:'Local hosting'},
   {id:'36B-A4B', name:'K2-Horizon-MoVA-36B-A4B', total:36, active:4, sparse:true, layers:48, hidden:2560, ffn:768, heads:32, kv:8, headDim:128, vocab:250624, ctx:524288, experts:{n:100,k:8,shared:1}, mova:{n:64,k:4},
-   blurb:'Sparse. 100 feed-forward experts (8 active) plus 64 MoVA value experts (4 active). Memory of a 36B model, speed of a 4B one.', target:'Local hosting, on-prem'},
+   blurb:'Sparse. 100 feed-forward experts (8 active) plus 64 MoVA value experts (4 active). About 4B parameters execute per token; memory and latency still depend on the serving system.', target:'Local hosting, on-prem'},
   {id:'375B-A23B', name:'K2-Horizon-375B-A23B', total:375, active:23, sparse:true, layers:61, hidden:6144, ffn:1792, heads:48, kv:8, headDim:64, vocab:250624, ctx:524288, experts:{n:192,k:8,shared:1}, mova:null,
-   blurb:'Sparse flagship. 192 routed experts plus one shared expert per layer, 8 routed per token. Sigmoid router. Served with tensor parallelism 8 and expert parallelism.', target:'Enterprise, API'},
+   blurb:'Sparse. 192 routed experts plus one shared expert per layer, with 8 routed experts active per token. The published serving recipe uses tensor parallelism 8 and expert parallelism.', target:'Datacenter, API'},
 ];
 
 const BENCH = {
@@ -372,7 +364,7 @@ const BENCH = {
     ['Terminal-Bench 2.1',36.6,79.8,51.7,26.6],['tau3-Banking',22.5,48.0,23.5,14.4],['SciCode',30.2,44.7,43.6,36.6],['GPQA Diamond',82.3,90.5,83.5,64.4],["Humanity's Last Exam",22.8,33.9,22.0,11.2],['AA-LCR long context',65.3,77.3,80.0,46.7]]},
   '36B-A4B':{note:'vs. Nemotron 3 Ultra (550B total)', comps:['K2-Horizon-36B-A4B','Nemotron 3 Ultra'], rows:[
     ['Terminal-Bench 2.1',58.6,53.9],['tau3-Banking',26.8,14.2],['GPQA Diamond',80.8,86.7],["Humanity's Last Exam",25.2,28.4]]},
-  '375B-A23B':{note:'vs. open MoE peers and a closed frontier model', comps:['K2-Horizon-375B','Nemotron 3 Ultra','MiniMax-M3','Claude Sonnet 5'], rows:[
+  '375B-A23B':{note:'selected open-weight and closed comparison models', comps:['K2-Horizon-375B','Nemotron 3 Ultra','MiniMax-M3','Claude Sonnet 5'], rows:[
     ['GDPVal-AA (Elo)',1441,1162,1380,1584],['tau3 tool use',34.0,14.2,15.3,37.3],['Terminal-Bench 2.1',66.9,53.9,65.2,80.5],['SWE-bench Pro',42.6,38.7,43.8,48.8],['GPQA Diamond',87.3,86.7,92.9,91.1],['AA-LCR long context',76.0,71.0,80.3,77.0]]},
 };
 
@@ -471,7 +463,7 @@ function drawLayer(animate){
   arrow(780,cy,820,cy);
   box(820,cy-22,80,44,'xₜ₊₁',css('--glacier-soft'),gl);
   svg.append('text').attr('x',W/2).attr('y',H-8).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10.5px').text(variant==='dense'?'repeated ×28 to ×64 layers depending on model':variant==='moe'?'× 61 layers':'× 48 layers');
-  const cap={dense:'Dense layer: one attention block with grouped-query attention (8 KV heads shared by all query heads), then one feed-forward block. Everything runs for every token.',moe:'MoE layer of the 375B flagship: attention unchanged, but the feed-forward block is 192 small experts of width 1,792 plus one shared expert. A sigmoid router picks the top 8 per token.',mova:'The 36B-A4B layer adds routing inside attention too. Values come from 4 of 64 value experts; the feed-forward block routes to 8 of 100 experts plus a shared one.'};
+  const cap={dense:'Dense layer: grouped-query attention uses 8 key-value heads shared across the query heads. One feed-forward block runs for every token.',moe:'375B MoE layer: the feed-forward block contains 192 routed experts of width 1,792 plus one shared expert. A sigmoid router selects 8 routed experts per token.',mova:'36B-A4B layer: the value path selects 4 of 64 value experts. The feed-forward block selects 8 of 100 routed experts and always runs one shared expert.'};
   document.getElementById('layerCap').textContent=cap[variant];
   if(animate) routeToken();
 }
@@ -508,7 +500,7 @@ function drawMova(){
   svg.append('text').attr('x',330).attr('y',160).attr('text-anchor','middle').attr('fill',ink3).style('font-size','20px').text('×');
   // right: value pool
   svg.append('rect').attr('x',370).attr('y',20).attr('width',530).attr('height',H-40).attr('rx',6).attr('fill','none').attr('stroke',line);
-  lbl(635,45,'What to carry back: value experts (MoVA)',ink,12,600);
+  lbl(635,45,'Value projections: routed experts (MoVA)',ink,12,600);
   const rnd=d3.randomLcg(mvSeed+0.1);
   const cols=16,cw=Math.min(24,Math.floor(380/cols)),gap=4,rows=Math.ceil(mvN/cols);
   const gx=390,gy=95+(Math.max(0,4-rows))*14;
@@ -531,7 +523,7 @@ document.getElementById('mvStep').addEventListener('click',()=>{mvSeed++;drawMov
 drawMova();
 
 /* ---------- 4. Uno simulation ---------- */
-const UNO_TEXT='Diffusion drafts a block of tokens in parallel and the base model keeps the longest prefix it agrees with so output quality is unchanged while decoding runs faster'.split(' ');
+const UNO_TEXT='Diffusion proposes a block of tokens and the base model verifies the longest accepted prefix before decoding continues'.split(' ');
 let uno={block:4,acc:0.7,timer:null,arPos:0,arPasses:0,unoPos:0,unoPasses:0,unoCells:[],flash:[]};
 function unoReset(){ clearInterval(uno.timer); uno.timer=null; uno.arPos=0;uno.arPasses=0;uno.unoPos=0;uno.unoPasses=0;uno.unoCells=[];uno.flash=[]; document.getElementById('unoPlay').textContent='▶ Play'; drawUno(); }
 function unoStep(){
