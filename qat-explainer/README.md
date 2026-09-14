@@ -1,7 +1,7 @@
 # Quantization-Aware Training
 
-An interactive explainer on how quantization-aware training (QAT) lets large
-language models run at 4 bits and below without losing what they learned.
+An interactive explainer on how quantization-aware training (QAT) simulates a
+target quantizer during training and reduces the resulting task error.
 Live at https://sghael.github.io/visual-learn/qat-explainer/.
 
 ## Open it
@@ -20,15 +20,15 @@ fallbacks. Everything else, including the training lab, is inline.
 
 | Section | Widget | Interaction |
 |---|---|---|
-| 1 Why shrink a model | Weight-memory bar chart | Pick a model size; bars for bf16, int8, int4 against GPU memory lines |
+| 1 Weight memory | Weight-memory bar chart | Pick a model size; bars for bf16, int8, int4 against GPU memory lines |
 | 2 Quantizing one number | Number line | Drag x or use its slider; sliders for bit-width and clip range; readout of q, x̂, error |
 | 3 Quantizing a matrix | Three heatmaps | Bit-width slider, per-tensor vs per-row scales, outlier toggle |
 | 4 Rounding in the loop | QAT loop diagram | Six step buttons highlight each stage and explain it |
-| 5 The straight-through trick | Forward/backward plots, drift animation | Toggle true derivative vs STE; play a latent weight crossing a rounding boundary |
-| 6 Training lab | Live training in the browser | Choose 2, 3 or 4 bits and a seed; watch fp32 pretraining, then PTQ vs QAT |
-| 7 Inside a real LLM | Transformer block map | Hover, tap, or tab to each block for what precision it runs at and why |
-| 8 Recipes in the wild | Table | LLM-QAT, BitNet b1.58, EfficientQAT, Gemma 3 QAT, ParetoQ |
-| 9 Check yourself | Three reveal questions | |
+| 5 Surrogate gradients | Forward/backward plots, drift animation | Toggle true derivative vs STE; play a master weight crossing a rounding boundary |
+| 6 Training lab | Live training in the browser | Choose 2, 3 or 4 bits and a seed; compare fp32 pretraining, PTQ, and QAT |
+| 7 Transformer tensors | Transformer block map | Hover, tap, or tab to inspect the precision assigned to each tensor in the example |
+| 8 Published recipes | Table | LLM-QAT, BitNet b1.58, EfficientQAT, Gemma 3 QAT, ParetoQ |
+| 9 Review questions | Three reveal questions | Open each answer |
 
 ## Simplifications and caveats
 
@@ -45,7 +45,7 @@ fallbacks. Everything else, including the training lab, is inline.
   part of the lesson.
 - Memory figures are weight-only and ignore group scales, activations and
   the KV cache. GPU sizes are nominal.
-- The transformer block shows one common W4A8 layout. Real recipes differ in
+- The transformer block shows one illustrative W4A8 layout. Real recipes differ in
   which tensors they quantize and at what granularity.
 - Every row of the recipe table links its primary source (arXiv paper or
   the official Gemma 3 QAT announcement); the figures quoted are the ones
