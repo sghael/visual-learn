@@ -311,7 +311,7 @@
 
     const main = JT.el('div', { class: 'sh-main' }, [JT.el('div', { class: 'sh-left' }, [meshRow, arrays, readout, coll]), pane]);
     S.body.append(ctl, presets, main);
-    S.foot.textContent = 'Simplified: the real partitioner also considers cost models, reduce-scatter, and reshards inside the program. The idea holds: you annotate the data, the compiler writes the communication.';
+    S.foot.textContent = 'Simplified: the real partitioner propagates shardings through the full program and uses cost models to choose placements, collectives, and resharding.';
 
     const shardWord = (s) => (s[0] || s[1] ? 'sharded ' + specStr(s) : 'replicated ' + specStr(s));
     const fracStr = (den) => '1/' + den;

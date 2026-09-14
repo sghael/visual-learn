@@ -25,7 +25,7 @@ when online and fall back to system faces offline.
 | Fusion | `js/fusion.js` | Kernel launches and HBM traffic for a chain of ops, eager versus compiled |
 | Autodiff | `js/autodiff.js` | PyTorch's tape versus JAX's `grad` as a transformation, with a shared slider |
 | Transformations | `js/transforms.js` | `vmap` as rewriting rather than looping, and a composer for `jit`, `grad`, `vmap` |
-| State | `js/purity.js` | The same training step in both frameworks with concept highlighting; splittable keys versus a global RNG |
+| State | `js/purity.js` | The same training step in both frameworks with concept highlighting; explicit keys versus default per-device generator state |
 | Silicon | `js/silicon.js` | A 4 × 4 systolic array next to GPU thread blocks scheduled onto SMs |
 | Sharding | `js/sharding.js` | A 2 × 4 device mesh, PartitionSpecs, and the collectives the partitioner inserts |
 | Choosing | static | Comparison table and a short decision guide |
@@ -61,7 +61,7 @@ call-button arity per example, and every composer preset.
 
 ## Accuracy
 
-Framework behavior reflects JAX 0.6 and PyTorch 2.7. Hardware figures are
+Framework behavior was checked against JAX 0.11 and PyTorch 2.13 documentation. Hardware figures are
 rounded vendor peaks and marked approximate. The fusion and sharding rule
 engines are deliberate simplifications of what XLA and the SPMD partitioner do;
 the page says so where it applies.

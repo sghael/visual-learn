@@ -79,13 +79,13 @@ def train_step(x, y):
       t: '<b>A side effect.</b> <code>backward()</code> writes into each parameter\'s <code>.grad</code>; <code>zero_grad()</code> is needed because they accumulate.' },
     { id: 'update', label: 'the update', jax: [10, 11, 12], torch: [17],
       j: '<b>New values, old ones untouched.</b> <code>apply_updates</code> returns fresh params; the optimizer state is threaded through explicitly.',
-      t: '<b>In place.</b> <code>opt.step()</code> mutates the parameters under the hood, using the <code>.grad</code> it finds on them.' },
+      t: '<b>In place.</b> <code>opt.step()</code> updates the parameters using the gradients stored in their <code>.grad</code> attributes.' },
     { id: 'rng', label: 'randomness', jax: [6, 7, 8, 12], torch: [10, 13],
-      j: '<b>An explicit key.</b> Split it, use one half, return the other. The same key always gives the same noise, on any device, under any transformation.',
-      t: '<b>A global generator.</b> Seeded once; every <code>randn</code> advances hidden state, so results depend on call order and on which device is used.' },
+      j: '<b>An explicit key.</b> Split it, use a derived key for each sample, and return or derive the keys needed later. A sample is a deterministic function of its key and PRNG implementation.',
+      t: '<b>Default generators.</b> PyTorch maintains RNG state for each device. Each draw advances the relevant generator, so reproducibility depends on the call sequence as well as the device and algorithm.' },
     { id: 'compile', label: 'compilation', jax: [5], torch: [],
       j: '<b>One decorator.</b> Because the function is pure, <code>jit</code> can trace it once and compile the whole step, gradients and optimizer included.',
-      t: '<b>Optional.</b> Eager runs op by op. <code>torch.compile(train_step)</code> would capture this graph, but in-place updates and the global RNG are things the compiler must work around.' },
+      t: '<b>Optional.</b> Eager mode dispatches operations directly. <code>torch.compile(train_step)</code> can capture compatible regions, including supported mutations and random operations.' },
     { id: 'io', label: 'what goes in and out', jax: [6, 12, 14, 15], torch: [12, 18],
       j: '<b>Everything is visible in the signature.</b> Five inputs, four outputs. What the step depends on and what it changes is the type of the function.',
       t: '<b>Two inputs, one output.</b> The model, optimizer and RNG are closed over. Concise, but the step\'s real dependencies are not in its signature.' },
@@ -132,7 +132,7 @@ def train_step(x, y):
     clear();
 
     // ---- PRNG demo ---------------------------------------------------
-    S.body.append(JT.el('div', { class: 'divider' }), JT.el('h4', { class: 'sub', text: 'Randomness you can split' }), JT.el('p', { class: 'subp', text: 'Values below are illustrative, not JAX\'s real threefry output. The structure is what matters: in JAX a key determines its numbers; in PyTorch the call order does.' }));
+    S.body.append(JT.el('div', { class: 'divider' }), JT.el('h4', { class: 'sub', text: 'Explicit keys and stateful generators' }), JT.el('p', { class: 'subp', text: 'The values below are illustrative. JAX derives a sample from an explicit key. Common PyTorch APIs draw from mutable per-device generator state, so inserting a draw changes later results.' }));
 
     const tree = JT.el('div', { class: 'tree' });
     function keyNode(path, depth) {
@@ -158,7 +158,7 @@ def train_step(x, y):
     }
     const jaxRng = JT.el('div', { class: 'pane jax' }, [
       JT.el('div', { class: 'pane-head', html: 'JAX <span class="sub">explicit keys</span>' }),
-      JT.el('div', { class: 'pane-body' }, [tree, JT.el('div', { class: 'hint', style: { padding: '0 0.9rem 0.75rem' }, text: 'Draw from the same key twice: same numbers. Split it and each child is an independent stream. vmap over a batch of keys and every example gets its own noise, reproducibly.' })]),
+      JT.el('div', { class: 'pane-body' }, [tree, JT.el('div', { class: 'hint', style: { padding: '0 0.9rem 0.75rem' }, text: 'The same key and PRNG implementation produce the same sample. Split a key to derive distinct keys. With the default Threefry implementation, vmap over those keys reproduces the corresponding individual draws.' })]),
     ]);
     tree.appendChild(keyNode([], 0));
 
@@ -185,7 +185,7 @@ def train_step(x, y):
     btnInsert.addEventListener('click', () => { if (inserted) return; const prev = [...seq]; seq = ['randn(3)  # new debug draw', ...seq]; inserted = true; renderSeq(prev); btnInsert.disabled = true; });
     btnReseed.addEventListener('click', () => { seq = ['randn(3)  # dropout mask', 'randn(3)  # noise', 'randn(3)  # init']; inserted = false; renderSeq(); btnInsert.disabled = false; });
     const torchRng = JT.el('div', { class: 'pane torch' }, [
-      JT.el('div', { class: 'pane-head', html: 'PyTorch <span class="sub">global generator</span>' }),
+      JT.el('div', { class: 'pane-head', html: 'PyTorch <span class="sub">default generator state</span>' }),
       JT.el('div', { class: 'pane-body' }, [JT.el('div', { class: 'torchseq' }, [JT.el('div', { class: 'row' }, [btnReseed, btnInsert]), seqList, JT.el('div', { class: 'hint', text: 'Every draw advances one hidden state. Add a call anywhere and every later result shifts, which is why reproducing a run means reproducing the exact call sequence.' })])]),
     ]);
     renderSeq();

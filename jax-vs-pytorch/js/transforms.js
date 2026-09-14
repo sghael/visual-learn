@@ -135,7 +135,7 @@ y = jnp.stack([predict(w${wAxis === 0 ? '[i]' : ''}, X[${xAxis === 0 ? 'i' : ':,
     c:f32[] = dot_general[contracting=([0],[0])] a b
   in (c,) }
 # then a stack`, { lang: 'jaxpr' }));
-      read.innerHTML = `<span class="readout">calls: <b>${mode === 'vmap' ? 1 : B}</b></span><span class="readout">kernel launches: <b>${mode === 'vmap' ? 1 : B}</b></span><span class="readout">output: <b>f32[${B}]</b></span>`;
+      read.innerHTML = `<span class="readout">function applications: <b>${mode === 'vmap' ? 1 : B}</b></span><span class="readout">dot operations in this example: <b>${mode === 'vmap' ? 1 : B}</b></span><span class="readout">output: <b>f32[${B}]</b></span>`;
     }
 
     function hotExample(e, on) {
@@ -268,7 +268,7 @@ y = jnp.stack([predict(w${wAxis === 0 ? '[i]' : ''}, X[${xAxis === 0 ? 'i' : ':,
   }
 
   JT.widget('transforms', (container) => {
-    const S = JT.stage(container, { title: 'vmap: batch by rewriting, not by looping', hint: 'then stack the transformations' });
+    const S = JT.stage(container, { title: 'Batch a function with vmap', hint: 'then compose transformations' });
     const v = vmapPanel(S);
     const comp = composerPanel();
     S.body.append(v.el, JT.el('div', { class: 'divider' }), JT.el('h4', { style: { margin: '0 0 0.75rem', fontSize: '0.95rem' }, text: 'Compose jit, grad and vmap' }), comp.el);
