@@ -1,7 +1,8 @@
-# Accelerator Atlas
+# Google Cloud Accelerators
 
-An interactive, visual tour of every GPU and TPU you can rent on Google Cloud,
-as of September 2026. Built in the spirit of the
+An interactive technical guide to GPUs and TPUs listed by Google Cloud as of
+11 September 2026. It covers compute architecture, memory, interconnects,
+capacity estimates, approximate prices, and purchasing options. Built in the spirit of the
 [Polo Club](https://poloclub.github.io/) explainers.
 
 Live: https://sghael.github.io/visual-learn/gcp-accelerators/
@@ -21,14 +22,14 @@ system fallbacks. Nothing is tracked and no data leaves the browser.
 
 | Chapter | Widget | What it shows |
 |---|---|---|
-| Hero | canvas | One tile per accelerator model, sized by memory per chip |
-| Two ways to multiply | two canvases | GPU streaming multiprocessors taking warps versus a systolic-array wavefront |
-| The lineup | cards + spec sheet | Every rentable chip grouped by family; click for machine series, fast-domain size, host shape and bars against the lineup maximum |
-| Memory vs. compute | D3 scatter | Log-log map of memory per chip against dense FP8/INT8 or BF16 peak, optional sizing by price |
-| Where the bottleneck is | D3 roofline | Pick a chip, drag arithmetic intensity, read whether you are memory- or compute-bound |
-| How chips talk | four canvases | 8-GPU NVSwitch island, NVL72 rack, 2D torus pod, rotating 3D torus pod |
-| Will my model fit? | calculator + table | Parameters × precision × headroom to chips needed, fast-domain fit and rough $/hr per chip type |
-| How you buy it | cards + table | On-demand, Spot, Dynamic Workload Scheduler, reservations; approximate zone footprint per chip |
+| Hero | canvas | One tile per accelerator model, with area scaled by memory per chip |
+| GPU and TPU compute | two canvases | Simplified GPU warp scheduling and an MXU wavefront |
+| Available accelerators | cards + spec sheet | Machine series, fast-domain size, host shape, memory, bandwidth, throughput, and price basis |
+| Memory and peak compute | D3 scatter | Log-log map of memory per chip against dense FP8/INT8 or BF16 peak, with optional price sizing |
+| Roofline model | D3 roofline | How arithmetic intensity determines the simplified memory or compute bound |
+| Interconnects | four canvases | 8-GPU NVSwitch, NVL72, 2D torus, and 3D torus examples |
+| Memory estimate | calculator + table | Parameters × precision × headroom, chip count, fast-domain fit, and rough hourly cost |
+| Purchasing options | cards + table | On-demand, Spot, Dynamic Workload Scheduler, reservations, and approximate zone footprints |
 | Glossary | static | HBM, NVLink, ICI, MXU, SparseCore, slices, dense vs. sparse FLOPS |
 
 ## Data and caveats
@@ -52,13 +53,14 @@ All numbers are in one array (`CHIPS`) near the top of the script in
   not sold on demand, so their prices are labelled indicative, marked `*` in
   the fit table, and never win "cheapest on demand". GB300 and GB200 have no
   public price.
-- **The fit calculator** is a memory rule of thumb (weights = parameters ×
-  bytes; full fine-tune about 16 bytes per parameter, plus a headroom
-  percentage), and it treats 90% of each chip's memory as usable. It ignores
-  interconnect speed, so a "fits" over PCIe cards is a capacity statement,
-  not a performance recommendation.
-- **The roofline** is labelled simplified on the page: dense low-precision
-  peak over peak HBM bandwidth. Real kernels reach a fraction of either roof.
+- **The fit calculator** is a capacity estimate. It uses parameters × bytes
+  plus a user-selected allowance, or about 16 bytes per parameter for an Adam
+  full fine-tune, then treats 90% of each chip's memory as usable. The allowance
+  is not a calculated KV cache or activation model. A "fits" result is not a
+  performance recommendation.
+- **The roofline** uses dense low-precision vendor peak throughput and peak
+  memory bandwidth. Real kernels reach a fraction of either value, and actual
+  arithmetic intensity depends on precision, batching, reuse, and fusion.
 - **Host shapes** (vCPU, RAM, network) are the largest documented VM per
   chip; for TPUs the network figure is the per-VM NIC, not the per-chip DCN
   number. Google publishes no VM shape for v2, v3 and v4, and the spec sheet
