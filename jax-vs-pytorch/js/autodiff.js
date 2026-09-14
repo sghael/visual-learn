@@ -197,7 +197,7 @@ w.grad`);
         JT.$$('li', tapeList).forEach((li) => li.classList.add('popped'));
         [['sq-L', '1'], ['sub-sq', f3(vv.dc)], ['sin-sub', f3(vv.db)], ['mul-sin', f3(vv.da)], ['w-mul', f3(vv.dw)]].forEach(([id, t]) => gT.tok(id, t));
         gradBox.innerHTML = `w.grad = <b>tensor(${f3(vv.dw)})</b>`;
-        noteT.innerHTML = 'Done. The gradient lives in <code>w.grad</code>, a mutable attribute. The tape has been freed; the next forward pass builds a fresh one. Call <code>backward()</code> twice without zeroing and the gradients add up.';
+        noteT.innerHTML = 'Done. The gradient lives in <code>w.grad</code>, a mutable attribute. The graph has been freed; the next forward pass builds a fresh one. Gradients from later forward/backward passes accumulate unless <code>w.grad</code> is cleared.';
       }
     }
     function torchReset() { gT.reset(); gT.setValues(values(w)); tapeList.replaceChildren(JT.el('li', { class: 'empty', text: 'empty until forward runs' })); gradBox.innerHTML = 'w.grad = None'; JT.clearLines(codeT, 'now'); noteT.innerHTML = 'Step forward: four eager ops build the tape, then <code>backward()</code> unwinds it.'; }
@@ -286,7 +286,7 @@ dL(${f3(w)})`);
     stepBarJ.appendChild(stJ.el);
 
     S.body.appendChild(JT.el('div', { class: 'two-col' }, [paneT, paneJ]));
-    S.foot.innerHTML = '<span>Same chain rule, same numbers. PyTorch records it while running; JAX derives it from the program and hands you the result as code.</span>';
+    S.foot.innerHTML = '<span>Both differentiation APIs apply the same chain rule. PyTorch records the executed operations; JAX transforms the function and returns the gradient as a value.</span>';
 
     function setLine(pre, index, src) {
       const ln = JT.$$('.ln', pre)[index];

@@ -68,7 +68,7 @@ def f(x, y):
         { line: null, note: 'Trace complete. The jaxpr is lowered to StableHLO and compiled by XLA into one executable, cached under the signature <code>(f32[3], f32[3])</code>. Python is finished with this function until a new signature shows up.', jaxpr: [], done: true },
       ],
       call: (shape, cached) => ({ effects: [], error: null }),
-      torch: 'Eager PyTorch runs the three ops as three kernel launches, every call. There is no trace, no cache, and nothing that could go stale.',
+      torch: 'Eager PyTorch dispatches the three tensor operations on every call. In this example they queue three pieces of accelerator work. Eager execution has no compiled graph cache for this function.',
     },
     {
       id: 'effect', label: 'Side effect',
@@ -84,7 +84,7 @@ def f(x):
         { line: null, note: 'Trace complete and compiled. The executable contains an <code>add</code> and nothing else. The print will not happen again for this signature. For output that survives compilation, use <code>jax.debug.print</code>.', jaxpr: [], done: true },
       ],
       call: (shape, cached) => ({ effects: cached ? [] : [`tracing: Traced<ShapedArray(float32[${shape}])>`], error: null }),
-      torch: 'Eager PyTorch prints on every call, and prints real numbers: <code>tracing: tensor([1., 1., 1.])</code>. The Python is the program, so the side effect is part of it.',
+      torch: 'Eager PyTorch executes the <code>print</code> on every call and prints concrete tensor values: <code>tracing: tensor([1., 1., 1.])</code>.',
     },
     {
       id: 'cond', label: 'Python if',
@@ -112,7 +112,7 @@ def f(x):
         { line: null, note: 'Trace complete. For elementwise selection, <code>jnp.where(pred, x, -x)</code> is simpler and evaluates both sides; <code>lax.cond</code> runs only one branch. Shapes must match across branches either way.', jaxpr: [], done: true },
       ],
       call: (shape, cached, fixed) => (fixed ? { effects: [], error: null } : { effects: [], error: 'TracerBoolConversionError during tracing' }),
-      torch: 'Eager PyTorch evaluates <code>x.sum() &gt; 0</code> to a real boolean (after syncing with the GPU) and the <code>if</code> just works. <code>torch.compile</code> would either specialize with a guard on the value or insert a graph break here.',
+      torch: 'Eager PyTorch evaluates <code>x.sum() &gt; 0</code> to a Python boolean, synchronizing if <code>x</code> is on a GPU, and then runs the selected branch. With <code>torch.compile</code>, this data-dependent branch commonly causes a graph break unless it is expressed with supported structured control flow.',
     },
   ];
 

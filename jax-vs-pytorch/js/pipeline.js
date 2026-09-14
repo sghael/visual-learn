@@ -87,7 +87,7 @@ step(w, x)   # second call`;
 
     // lane labels
     const JY = 96, TY = 262;
-    svg.appendChild(JT.svg('text', { class: 'lane-label jax', x: 16, y: 24, text: 'JAX  ·  trace once, compile once, then reuse' }));
+    svg.appendChild(JT.svg('text', { class: 'lane-label jax', x: 16, y: 24, text: 'JAX  ·  trace and compile on a cache miss' }));
     svg.appendChild(JT.svg('text', { class: 'lane-label torch', x: 16, y: TY - 64, text: 'PyTorch (eager)  ·  dispatch every op, every call' }));
 
     // JAX lane boxes
@@ -97,7 +97,7 @@ step(w, x)   # second call`;
     box('j-lower', jx[2], JY, 146, 'lower → StableHLO', 'jax', '<b>Lowering</b><br>The jaxpr is translated into StableHLO, the MLIR dialect XLA consumes.');
     box('j-xla', jx[3], JY, 144, 'XLA compile', 'jax', '<b>XLA</b><br>Whole-program optimization: fusion, layout assignment, buffer planning, scheduling. Emits a backend-specific executable.');
     box('j-exe', jx[4], JY, 140, 'cached\nexecutable', 'jax', '<b>Executable</b><br>Kept in a cache keyed by the call signature. Later calls with the same shapes skip straight here.');
-    box('j-hw', jx[5], JY, 124, 'TPU · GPU · CPU', 'jax hw', '<b>Run</b><br>PJRT hands the executable to the device. The whole function is a handful of fused kernels.');
+    box('j-hw', jx[5], JY, 124, 'TPU · GPU · CPU', 'jax hw', '<b>Run</b><br>PJRT dispatches the executable to the device. It may contain one or more kernels, depending on the operations and compiler decisions.');
     for (let i = 0; i < jx.length - 1; i++) arrow(jx[i] + boxes[Object.keys(boxes)[i]].w, JY + 22, jx[i + 1] - 2, JY + 22);
     // cache bypass arc from Python call to executable
     const cacheArc = JT.svg('path', { class: 'arrow cache', d: `M${boxes['j-py'].cx},${JY - 2} C ${boxes['j-py'].cx},${JY - 40} ${boxes['j-exe'].cx},${JY - 40} ${boxes['j-exe'].cx},${JY - 2}`, 'marker-end': 'url(#pipe-arrow)' });
@@ -110,7 +110,7 @@ step(w, x)   # second call`;
     const tx = [16, 300, 520, 820];
     box('t-py', tx[0], TY, 128, 'Python call', 'torch', '<b>Python call</b><br>step(w, x) runs as ordinary Python. Each tensor operation is a separate call into the C++ core.');
     box('t-disp', tx[1], TY, 150, 'dispatcher', 'torch', '<b>Dispatcher</b><br>Picks the kernel for this op from its dispatch keys: device (CUDA), dtype, autograd, and so on.');
-    box('t-kern', tx[2], TY, 190, 'ATen op → CUDA kernel', 'torch', '<b>Kernel launch</b><br>A pre-compiled kernel (cuBLAS for matmul, a pointwise kernel for tanh, a reduction for sum) is queued on a CUDA stream.');
+    box('t-kern', tx[2], TY, 190, 'ATen op → CUDA work', 'torch', '<b>Accelerator work</b><br>The selected implementation queues work on a CUDA stream: a library call for matmul, a pointwise kernel for tanh, and a reduction for sum in this example.');
     box('t-hw', tx[3], TY, 124, 'GPU', 'torch hw', '<b>Run</b><br>The GPU executes the kernel asynchronously while Python is already dispatching the next op.');
     arrow(tx[0] + 128, TY + 22, tx[1] - 2, TY + 22);
     arrow(tx[1] + 150, TY + 22, tx[2] - 2, TY + 22);
@@ -219,13 +219,13 @@ step(w, x)   # second call`;
         cacheArc.classList.add('on');
         await moveAlong(jTok, cacheArc, step * 2.4, rid);
         if (stale(rid)) return;
-        setBox('j-py', 'done'); setBox('j-exe', 'on'); jStatus.textContent = 'reusing the compiled executable; nothing in Python runs';
+        setBox('j-py', 'done'); setBox('j-exe', 'on'); jStatus.textContent = 'reusing the compiled executable; the function body is not traced again';
         if (!(await pause(step, rid))) return;
         setBox('j-exe', 'done');
       }
       await moveTo(jTok, boxes['j-hw'].cx, boxes['j-hw'].cy, step * 1.6, rid);
       if (stale(rid)) return;
-      setBox('j-hw', 'on'); counts.jaxRuns++; renderCounts(); jStatus.textContent = 'device runs the whole function as fused kernels; result returned asynchronously';
+      setBox('j-hw', 'on'); counts.jaxRuns++; renderCounts(); jStatus.textContent = 'device runs the compiled function; result returned asynchronously';
       if (!(await pause(step * 1.4, rid))) return;
       setBox('j-hw', 'done'); cacheArc.classList.remove('on');
       jTok.setAttribute('opacity', 0);

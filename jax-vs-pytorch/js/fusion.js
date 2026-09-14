@@ -331,8 +331,8 @@
       { value: 'compiled', label: 'Compiled (jax.jit / torch.compile)' },
     ], (v) => { mode = v; rebuild(); }, 'eager', 'torch');
     const segMeta = {
-      eager: { short: 'Eager', tip: '<b>Eager</b>: PyTorch\'s default. Each op dispatches its own kernel the moment it is called, so every result lands in HBM.' },
-      compiled: { short: 'Compiled', tip: '<b>Compiled</b>: jax.jit or torch.compile. The whole chain is traced and handed to XLA or Inductor, which fuses neighbouring ops into one kernel.' },
+      eager: { short: 'Eager', tip: '<b>Eager model</b>: one accelerator kernel per displayed operation, with intermediate tensors materialized in HBM.' },
+      compiled: { short: 'Compiled', tip: '<b>Compiled model</b>: XLA or Inductor fuses every compatible operation shown here. Real fusion decisions depend on the program, shapes, and backend.' },
     };
     JT.$$('button', seg).forEach((b) => {
       const m = segMeta[b.dataset.value];
@@ -356,7 +356,7 @@
       { key: 'launches', label: 'kernel launches', unit: '', fmt: (v) => String(Math.round(v)), cmp: (v) => `${v} launch${v === 1 ? '' : 'es'}`,
         tip: 'One GPU or TPU kernel per box in the compute lane. Each launch also costs a few microseconds of host and driver overhead, not counted here.' },
       { key: 'intermediates', label: 'intermediates in HBM', unit: '', fmt: (v) => String(Math.round(v)), cmp: (v) => `${v} tensor${v === 1 ? '' : 's'}`,
-        tip: 'Tensors written to HBM only to be read straight back by the next kernel. Inside a fused kernel they stay in registers and cost nothing.' },
+        tip: 'Tensors written to HBM for use by a later kernel. This model assumes fused intermediates stay in on-chip storage and do not cross HBM.' },
       { key: 'mb', label: 'HBM traffic', unit: 'MB', fmt: (v) => String(Math.round(v)), cmp: (v) => `${v} MB`,
         tip: 'Bytes crossing HBM. Illustrative model: each kernel reads every 64 MB input once and writes its output once; vectors count as 0; softmax\'s two internal passes are ignored.' },
       { key: 'ms', label: 'est. memory time', unit: 'ms', fmt: (v) => v.toFixed(2), cmp: (v) => `${v.toFixed(2)} ms`,
@@ -389,7 +389,7 @@
         JT.el('span', null, [JT.el('span', { class: 'sw fused' }), 'fused kernel']),
         JT.el('span', null, [JT.el('span', { class: 'sw hbm' }), 'HBM tensor']),
       ]),
-      JT.el('span', { class: 'f-sentence', text: 'Fusion is the single biggest reason compiled programs beat eager ones on memory-bound code; matmul itself is usually already at the hardware\'s limit.' }),
+      JT.el('span', { class: 'f-sentence', text: 'Fusion can remove intermediate HBM traffic and launch overhead from compatible memory-bound operations.' }),
     );
 
     /* ---- rendering ---- */
@@ -405,8 +405,8 @@
     }
     function renderNote() {
       note.innerHTML = p.hasMatmul
-        ? `<b>Illustrative:</b> the matmul alone is 2·4096³ ≈ 137 GFLOP, about <b>${p.matmulMs.toFixed(2)} ms</b> at 495 TFLOP/s (H100-class TF32 tensor cores) and compute-bound. The pointwise ops are memory-bound, so fusing them into its epilogue is nearly free.`
-        : '<b>Illustrative:</b> with no matmul in the chain every op is memory-bound, so the whole program runs at HBM speed and fusion is the only lever.';
+        ? `<b>Simplified estimate:</b> the matmul is 2·4096³ ≈ 137 GFLOP, or <b>${p.matmulMs.toFixed(2)} ms</b> at an assumed 495 TFLOP/s. The model treats the pointwise operations as memory-bound and assumes they fuse into the matmul epilogue.`
+        : '<b>Simplified estimate:</b> the model treats every selected pointwise operation as memory-bound and assumes compilation fuses them into one kernel.';
     }
     function tweenStats(from, to, ms) {
       cancelAnimationFrame(tweenRaf);

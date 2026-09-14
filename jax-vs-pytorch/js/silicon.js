@@ -222,7 +222,7 @@
       let sofar = 0; for (let u = 0; u <= t; u++) sofar += macsAt(u);
       read.innerHTML = `cycle <b>${cyc}</b> / ${CYCLES} · MACs this cycle <b>${macs}</b> · so far <b>${sofar}</b> / ${TOTAL_MACS}`;
       if (t < 0) {
-        cap.innerHTML = 'B’s 16 weights are already sitting in the cells. A waits at the left edge, skewed one cycle per row so each value meets its partial sum on time. Nothing is scheduled at run time.';
+        cap.innerHTML = 'In this simplified weight-stationary array, B’s 16 weights are loaded into the cells. Rows of A enter on a staggered schedule so operands and partial sums meet in the correct cycle.';
       } else {
         const enter = [], out = [];
         for (let k = 0; k < N; k++) { const m = t - k; if (m >= 0 && m < N) enter.push(`a[${m}][${k}]`); }
@@ -375,7 +375,7 @@
   /* Widget                                                             */
   /* ---------------------------------------------------------------- */
   JT.widget('silicon', (container) => {
-    const stage = JT.stage(container, { title: 'One matmul, two machines', hint: 'Step each machine through a 4×4 matrix multiply' });
+    const stage = JT.stage(container, { title: 'Two simplified matmul schedules', hint: 'Step through each 4×4 example' });
     if (JT.reducedMotion) container.classList.add('no-motion');
 
     const tpu = buildTPU();
@@ -389,7 +389,7 @@
       ]),
     ]);
     const left = pane('jax', 'TPU · MXU systolic array', '4×4 of 128×128',
-      'The MXU is a grid of multiply-accumulate cells. Weights are preloaded, activations shift right each cycle, partial sums shift down. No instruction fetch, no caches, no scheduler.', tpu);
+      'This simplified MXU diagram uses a weight-stationary systolic schedule. Weights are preloaded, activations shift right, and partial sums shift down. Real TPU programs also use vector and scalar units and a memory hierarchy.', tpu);
     const right = pane('torch', 'GPU · streaming multiprocessors', '8 of 132',
       'A GPU splits the matmul into thread blocks. A hardware scheduler assigns blocks to streaming multiprocessors at run time; each SM runs its warps in lockstep on tensor cores. An H100 has 132 SMs; 8 are drawn here.', gpu);
     stage.body.appendChild(JT.el('div', { class: 'two-col' }, [left, right]));
@@ -402,7 +402,7 @@
         JT.el('span', {}, [sw({ background: 'var(--torch)' }), 'GPU data']),
       ]),
       JT.el('span', { class: 'spacer' }),
-      JT.el('span', { class: 'sil-take', text: 'The systolic array has no scheduler: the compiler decided every data movement ahead of time. The GPU’s hardware scheduler assigns blocks to SMs as they free up.' }),
+      JT.el('span', { class: 'sil-take', text: 'The compiler lays out the TPU systolic schedule. The GPU assigns queued thread blocks to available SMs at run time.' }),
     );
     JT.bindTips(container);
   });
