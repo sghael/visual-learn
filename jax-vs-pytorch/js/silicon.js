@@ -259,7 +259,7 @@
       '<b>Load:</b> the second wave’s tiles of A and B stream from HBM into shared memory.',
       '<b>Compute:</b> tensor cores finish the second wave.',
       '<b>Write:</b> the last 8 tiles of C land in HBM.',
-      '<b>Done:</b> 16 blocks, 2 waves, 8 SMs. The order the blocks ran in was chosen by hardware while the kernel ran, not by the compiler.',
+      '<b>Done:</b> 16 blocks, 2 waves, 8 SMs. Hardware assigned blocks to available SMs while the kernel ran.',
     ];
     const svg = S('svg', { class: 'sil', viewBox: '0 0 340 340', role: 'img', 'aria-label': 'A GPU running the same 4 by 4 matrix multiply as 16 thread blocks scheduled onto 8 streaming multiprocessors in two waves.' });
 

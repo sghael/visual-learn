@@ -88,7 +88,7 @@ def train_step(x, y):
       t: '<b>Optional.</b> Eager mode dispatches operations directly. <code>torch.compile(train_step)</code> can capture compatible regions, including supported mutations and random operations.' },
     { id: 'io', label: 'what goes in and out', jax: [6, 12, 14, 15], torch: [12, 18],
       j: '<b>Everything is visible in the signature.</b> Five inputs, four outputs. What the step depends on and what it changes is the type of the function.',
-      t: '<b>Two inputs, one output.</b> The model, optimizer and RNG are closed over. Concise, but the step\'s real dependencies are not in its signature.' },
+      t: '<b>State outside the signature.</b> The signature lists <code>x</code> and <code>y</code>. The function also reads or updates the model, optimizer, and default random generator.' },
   ];
 
   // deterministic pseudo-random values from a key path (illustrative only)
