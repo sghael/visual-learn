@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agentic RL Explainer</title>
-<meta name="description" content="An interactive, visual tutorial on how reinforcement learning turns language models into agents: policy gradients, RLHF, GRPO, verifiable rewards, multi-turn tool-use training, reward hacking, and what the frontier labs are doing in 2026.">
+<meta name="description" content="An interactive explanation of policy gradients, PPO, GRPO, RLHF, verifiable rewards, and reinforcement learning for tool-using language models.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b4bdb'/%3E%3Cpath d='M16 18h9l7 18 7-18h9L36 48h-8z' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
@@ -117,7 +118,7 @@ section.chapter:nth-of-type(even) { background: var(--bg-2); }
 section.chapter:nth-of-type(even) .panel { background: var(--bg); }
 .panel h3 { margin-bottom: .25rem; }
 .panel .hint { font-size: .85rem; color: var(--ink-3); margin-bottom: 1rem; }
-.callout { border-left: 3px solid var(--policy); padding: .6rem 1rem; background: var(--policy-soft); border-radius: 0 var(--radius) var(--radius) 0; margin: 1rem 0; font-size: .95rem; }
+.callout { border: 1px solid color-mix(in srgb, var(--policy) 35%, var(--line)); padding: .6rem 1rem; background: var(--policy-soft); border-radius: var(--radius); margin: 1rem 0; font-size: .95rem; }
 .callout.warn { border-color: var(--env); background: var(--env-soft); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: .25rem 1rem; font-size: .9rem; }
 .kv dt { color: var(--ink-3); }
@@ -186,7 +187,7 @@ input[type=range] { accent-color: var(--policy); width: 140px; }
 .resp button { margin-top: .6rem; }
 .resp.win { border-color: var(--reward); box-shadow: 0 0 0 2px var(--reward-soft); }
 .meter { height: 14px; background: var(--bg-3); border-radius: 7px; overflow: hidden; margin: .4rem 0; }
-.meter i { display: block; height: 100%; background: var(--ref); transition: width .3s; }
+.meter i { display: block; height: 100%; background: var(--ref); }
 
 /* trajectory */
 .traj { display: grid; gap: .35rem; }
@@ -207,8 +208,9 @@ input[type=range] { accent-color: var(--policy); width: 140px; }
 .chip { border: 1px solid var(--line-2); background: transparent; color: var(--ink-2); border-radius: 999px; padding: .25rem .75rem; font-size: .8rem; }
 .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .labs { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: .9rem; }
-.lab { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; background: var(--bg-2); border-top: 4px solid var(--c, var(--policy)); }
+.lab { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; background: var(--bg-2); }
 .lab h4 { margin: 0 0 .25rem; font-size: 1.05rem; }
+.lab h4::before { content: ""; display: inline-block; width: .55rem; height: .55rem; margin-right: .45rem; border-radius: 50%; background: var(--c, var(--policy)); }
 .lab .sig { font-size: .78rem; color: var(--ink-3); margin-bottom: .6rem; }
 .lab ul { margin: 0; padding-left: 1.1rem; font-size: .85rem; }
 .lab li { margin-bottom: .3rem; }
@@ -254,7 +256,7 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
       <a href="#rlvr">Verifiable rewards</a>
       <a href="#agentic">Agentic RL</a>
       <a href="#hacking">Reward hacking</a>
-      <a href="#labs">Frontier labs</a>
+      <a href="#labs">Published methods</a>
       <a href="#scaling">Scaling</a>
       <a href="#problems">Open problems</a>
       <a href="#glossary">Glossary</a>
@@ -266,9 +268,8 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
-      <div class="eyebrow">A visual explainer · updated September 2026</div>
-      <h1>How reinforcement learning turns a language model into an agent</h1>
-      <p class="lede">Pretraining teaches a model to predict text. Reinforcement learning teaches it to <em>act</em>: to try things, get feedback, and shift probability toward behaviors that work. This page walks through the mechanics, from a single policy-gradient step to multi-turn tool-using agents, and surveys what OpenAI, Anthropic, Google DeepMind, DeepSeek and others have publicly said they do.</p>
+      <h1>Reinforcement learning for language-model agents</h1>
+      <p class="lede">A pretrained language model predicts tokens. Reinforcement learning updates that model from scores on sampled behavior. This page builds the mechanism from a single policy-gradient update to multi-turn tool use, then summarizes training methods that laboratories have described publicly.</p>
       <div class="legend">
         <span style="--c: var(--policy)">policy / model tokens</span>
         <span style="--c: var(--env)">environment / observations</span>
@@ -286,10 +287,10 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
   <div class="wrap">
     <div class="chapter-num">01</div>
     <h2>Where RL sits in the training pipeline</h2>
-    <p class="intro">A frontier model goes through several training phases. Each one changes <em>what the loss is about</em>. Click a stage to see what it optimizes and what it costs. The bars are a rough, illustrative share of total training compute in 2026; the RL slice has been growing fast.</p>
+    <p class="intro">Language models are usually trained in several phases. Each phase supplies a different target: next tokens, demonstrations, preferences, or task outcomes. Click a stage to see its training signal. Public training recipes often mix or repeat these phases.</p>
     <div class="pipeline" id="stages" data-widget="pipeline"></div>
     <div class="panel stage-detail" id="stage-detail"></div>
-    <div class="callout">The big shift of 2024 to 2026: RL went from a light "alignment polish" applied after pretraining to a <strong>primary capability engine</strong>. Reasoning models and coding agents get most of their skill from RL on tasks with checkable outcomes.</div>
+    <div class="callout">Public reports from OpenAI, DeepSeek, Qwen, and other teams describe larger RL runs for reasoning and tool use than earlier instruction-following systems. Training recipes and compute allocations remain mostly undisclosed.</div>
   </div>
 </section>
 
@@ -297,11 +298,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="loop">
   <div class="wrap">
     <div class="chapter-num">02</div>
-    <h2>The RL loop, translated to language models</h2>
+    <h2>The reinforcement-learning loop</h2>
     <div class="two">
       <div>
-        <p class="intro">Classical RL has an <strong>agent</strong> that observes a <strong>state</strong>, takes an <strong>action</strong>, and receives a <strong>reward</strong> from an <strong>environment</strong>. For a language model, the mapping is unusual: the state is the whole context window, an action is emitting a token (or, at a higher level, a whole message or tool call), and the environment is whatever produces the next observation, which might be a grader, a code sandbox, a browser, or a simulated user.</p>
-        <p>Toggle between the two views. Watch where the reward arrives: for a single-turn answer it comes once, at the very end. That is the core difficulty. Thousands of tokens are chosen and only one number comes back.</p>
+        <p class="intro">Classical RL has an <strong>agent</strong> that receives an <strong>observation</strong>, takes an <strong>action</strong>, and receives a <strong>reward</strong> from an <strong>environment</strong>. The environment has an underlying state that the agent may observe only partly. For a language-model agent, the observation is represented in the current context; an action can be a token, message, or tool call; and the environment might be a code sandbox, browser, grader, or simulated user.</p>
+        <p>Toggle between the views. This example uses one outcome reward at the end of the episode. A long sequence of token choices must therefore share a small amount of feedback. Other systems can add intermediate or process rewards.</p>
         <dl class="kv" id="loop-kv"></dl>
       </div>
       <div class="panel">
@@ -319,12 +320,12 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="policy">
   <div class="wrap">
     <div class="chapter-num">03</div>
-    <h2>The one idea under everything: nudge probabilities by advantage</h2>
-    <p class="intro">Every RL method used on LLMs today is a variant of the <strong>policy gradient</strong>. Sample a response from the model, score it, and then increase the log-probability of the tokens you sampled in proportion to how much better than expected the outcome was. That "better than expected" quantity is the <strong>advantage</strong>.</p>
+    <h2>Policy gradients and advantage</h2>
+    <p class="intro">Policy-gradient methods sample behavior, score it, and change the log-probability of sampled actions according to their <strong>advantage</strong>. Positive advantage raises their probability; negative advantage lowers it. Advantage compares an observed return with a baseline, which reduces variance without changing the expected policy gradient.</p>
     <div class="formula">∇J(θ) ≈ E[ Σ<sub>t</sub> <span class="hl-r">A<sub>t</sub></span> · ∇<sub>θ</sub> log <span class="hl-p">π<sub>θ</sub>(a<sub>t</sub> | s<sub>t</sub>)</span> ]  &nbsp;&nbsp; <span class="muted">// REINFORCE with a baseline</span></div>
     <div class="two">
       <div class="panel">
-        <h3>Try it: one update on a tiny vocabulary</h3>
+        <h3>Apply one update</h3>
         <div class="hint">The model must pick one of five "answers". Pick which one was sampled and how much reward it got, then apply an update. Advantage is reward minus the running baseline.</div>
         <div class="controls">
           <label>Sampled action <select id="pg-action"></select></label>
@@ -337,8 +338,8 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
         <div class="stat-row"><span>baseline <b id="pg-base">0.00</b></span><span>advantage <b id="pg-adv">1.00</b></span><span>updates <b id="pg-n">0</b></span></div>
       </div>
       <div>
-        <h3>Why the clipped objective (PPO)</h3>
-        <p>Raw policy gradients are unstable: one lucky sample can yank a probability far from where it was. <strong>PPO</strong> (Schulman et al., 2017) bounds each update by looking at the <em>ratio</em> between the new and old policy's probability of a token, and clipping the objective once that ratio leaves [1−ε, 1+ε]. Move the slider to see how the objective flattens: past the clip, the gradient is zero and the sample stops pushing.</p>
+        <h3>PPO's clipped objective</h3>
+        <p><strong>PPO</strong> compares the new and old probabilities of each sampled action using the ratio <em>r</em>. Its clipped surrogate removes the incentive to move that ratio farther once the change would improve the objective beyond the clip range. For positive advantage, the curve flattens above 1+ε; for negative advantage, it flattens below 1−ε. Clipping discourages large updates, but it does not impose a hard bound on the policy change.</p>
         <div class="formula">L<sup>CLIP</sup> = E[ min( <span class="hl-p">r<sub>t</sub></span>·<span class="hl-r">A<sub>t</sub></span>, clip(<span class="hl-p">r<sub>t</sub></span>, 1−ε, 1+ε)·<span class="hl-r">A<sub>t</sub></span> ) ],  &nbsp;<span class="hl-p">r<sub>t</sub></span> = π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>) / π<sub>old</sub>(a<sub>t</sub>|s<sub>t</sub>)</div>
         <div class="panel">
           <div class="controls">
@@ -346,7 +347,7 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
             <label>ratio r <input type="range" id="clip-r" min="0.4" max="1.8" step="0.01" value="1.0"><span class="mono" id="clip-r-v">1.00</span></label>
           </div>
           <div class="chart" id="clip-viz" data-widget="ppo-clip"></div>
-          <p class="small muted" style="margin:.5rem 0 0">DAPO (ByteDance, 2025) introduced "clip-higher": a larger upper ε so that rare tokens can still grow. Several labs adopted asymmetric clipping to avoid entropy collapse.</p>
+          <p class="small muted" style="margin:.5rem 0 0">DAPO (2025) uses separate lower and upper clip values and gives the upper side more room. Its authors report that this helps low-probability tokens increase during training.</p>
         </div>
       </div>
     </div>
@@ -358,11 +359,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
   <div class="wrap">
     <div class="chapter-num">04</div>
     <h2>GRPO: get the baseline from a group of samples</h2>
-    <p class="intro">PPO needs a separate <strong>value model</strong> (a critic) to estimate the baseline for each token. For a 100B-parameter policy, that is a second 100B-parameter network to train and serve. <strong>Group Relative Policy Optimization</strong> (DeepSeek, 2024) throws the critic away: sample a group of G responses to the same prompt, score them all, and use the group's mean and standard deviation as the baseline. Responses above the group mean get pushed up; those below get pushed down.</p>
+    <p class="intro">The PPO formulation used in early RLHF systems estimates advantages with a learned value function. <strong>Group Relative Policy Optimization</strong> (DeepSeekMath, 2024) removes that value model. It samples a group of responses to one prompt and normalizes their rewards within the group. Responses above the group mean receive positive advantages; those below it receive negative advantages.</p>
     <div class="formula"><span class="hl-r">Â<sub>i</sub></span> = ( r<sub>i</sub> − mean(r<sub>1..G</sub>) ) / std(r<sub>1..G</sub>) &nbsp;&nbsp;<span class="muted">// one advantage per response, applied to every token in it</span></div>
     <div class="two">
       <div class="panel">
-        <h3>Playground: a group of 6 rollouts</h3>
+        <h3>Compare six rollouts</h3>
         <div class="hint">Prompt: <em>"What is 17 × 24? Put the final answer in \boxed{}."</em> Toggle each rollout's correctness (that is the verifiable reward) and watch the advantages re-normalize.</div>
         <div class="controls">
           <label><input type="checkbox" id="grpo-format" checked> add +0.2 format reward when \boxed{} present</label>
@@ -373,15 +374,15 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
         <div class="callout warn small" id="grpo-note"></div>
       </div>
       <div>
-        <h3>What this buys you, and what it costs</h3>
+        <h3>Tradeoffs</h3>
         <ul>
-          <li><strong>No critic.</strong> Halves the memory and removes a notoriously hard-to-train component.</li>
+          <li><strong>No learned value model.</strong> This reduces memory and training complexity. The total saving depends on how the policy, reference, reward, and optimizer states are placed across hardware.</li>
           <li><strong>Natural for verifiable tasks.</strong> Binary correct/incorrect rewards give a clean relative signal inside a group.</li>
           <li><strong>Wasted groups.</strong> If every rollout is correct or every one is wrong, std is zero and the advantage is zero: no gradient. DAPO's "dynamic sampling" filters these prompts out and keeps sampling until the batch has signal. Curriculum methods keep prompts near 50% solve-rate for the same reason.</li>
           <li><strong>Length bias.</strong> The original per-response length normalization favored short correct answers and long wrong ones. Dr. GRPO and DAPO's token-level loss fix this.</li>
           <li><strong>Sequence vs token ratios.</strong> Qwen's GSPO (2025) computes the importance ratio at the sequence level, which they report stabilizes training for large mixture-of-experts models.</li>
         </ul>
-        <div class="callout">A whole family of 2025 methods, including RLOO, REINFORCE++, DAPO, Dr. GRPO, GSPO, VAPO and CISPO, are small modifications to this recipe: how to compute the baseline, how to clip, how to weight tokens, and how to correct for stale samples.</div>
+        <div class="callout">Later methods change specific parts of this recipe: the baseline, clipping rule, token weighting, sampling policy, or correction for stale samples. Similar names can still correspond to materially different objectives.</div>
       </div>
     </div>
   </div>
@@ -392,11 +393,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
   <div class="wrap">
     <div class="chapter-num">05</div>
     <h2>RLHF: when the reward has to be learned from people</h2>
-    <p class="intro">For "was this answer helpful, honest and harmless?" there is no checker. So the reward is itself a model, trained on human (or AI) <strong>preference comparisons</strong>. The reward model learns a scalar score such that the Bradley–Terry probability of the preferred response matches the labels. The policy is then optimized against that score with a <strong>KL penalty</strong> that keeps it close to the reference model, because a learned reward is only trustworthy near the data it was trained on.</p>
+    <p class="intro">Open-ended qualities such as helpfulness are difficult to score with a deterministic checker. RLHF trains a reward model from <strong>preference comparisons</strong>. Under the Bradley–Terry model, the difference between two scalar rewards determines the probability that one response is preferred. A KL penalty limits drift from a reference policy while the learned reward is optimized.</p>
     <div class="formula">P(A ≻ B) = σ( <span class="hl-k">r<sub>φ</sub>(A)</span> − <span class="hl-k">r<sub>φ</sub>(B)</span> ) &nbsp;&nbsp;&nbsp; objective: E[ <span class="hl-k">r<sub>φ</sub>(y)</span> ] − β · KL( <span class="hl-p">π<sub>θ</sub></span> ‖ π<sub>ref</sub> )</div>
     <div class="two">
       <div class="panel">
-        <h3>Train a tiny reward model by clicking</h3>
+        <h3>Update a small reward model</h3>
         <div class="hint">Pick the response you prefer. Each click is one gradient step on the Bradley–Terry loss. The scores start equal; watch the probability move.</div>
         <div class="pair" id="rlhf-pair" data-widget="rlhf"></div>
         <div style="margin-top:.75rem" class="small">P(A ≻ B) = <b class="mono" id="rlhf-p">0.50</b></div>
@@ -404,7 +405,7 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
         <div class="controls"><button class="btn" id="rlhf-next">Next pair</button><button class="btn" id="rlhf-reset">Reset scores</button><span class="muted" id="rlhf-count">0 comparisons</span></div>
       </div>
       <div class="panel">
-        <h3>The KL leash</h3>
+        <h3>KL regularization</h3>
         <div class="hint">A next-token distribution under the reference model (purple) and the policy after optimizing against a reward that likes one particular token. Increase optimization pressure and watch the policy sharpen and the KL grow; raise β to pull it back.</div>
         <div class="controls">
           <label>Optimization pressure <input type="range" id="kl-push" min="0" max="6" step="0.1" value="0"><span class="mono" id="kl-push-v">0.0</span></label>
@@ -414,11 +415,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
         <div class="stat-row"><span>KL(π‖π<sub>ref</sub>) <b id="kl-val">0.000</b></span><span>penalized objective <b id="kl-obj">0.00</b></span></div>
       </div>
     </div>
-    <h3>Variants you will hear about</h3>
+    <h3>Related methods</h3>
     <div class="grid3">
-      <div class="prob"><h4>DPO</h4><p>Direct Preference Optimization (2023) folds the reward model into the policy: the same preference data trains the policy directly with a classification-style loss. Cheaper, no sampling, but purely offline. Many open models use it for the "chat polish" stage.</p></div>
-      <div class="prob"><h4>RLAIF / Constitutional AI</h4><p>Anthropic's approach (2022): an AI model generates the preference labels by critiquing responses against a written set of principles. Scales labeling and makes the values explicit. Now standard practice everywhere in the form of "LLM-as-judge" rewards.</p></div>
-      <div class="prob"><h4>Rubric rewards</h4><p>For open-ended tasks, a grader model scores a response against a task-specific rubric written by experts (OpenAI's HealthBench, "Rubrics as Rewards", 2025). Bridges the gap between binary verifiers and vague preferences.</p></div>
+      <div class="prob"><h4>DPO</h4><p>Direct Preference Optimization (2023) derives a policy objective directly from preference pairs and a reference model. It avoids fitting an explicit reward model and running on-policy sampling during the DPO update.</p></div>
+      <div class="prob"><h4>RLAIF and Constitutional AI</h4><p>Constitutional AI (2022) uses written principles to guide model critiques, revisions, and AI-generated preference labels. Anthropic then trains a preference model and applies RL from AI feedback.</p></div>
+      <div class="prob"><h4>Rubric-based rewards</h4><p>A grader model can score an open-ended response against explicit criteria. The reward is more structured than a single overall preference, but its reliability still depends on the rubric, grader, and validation process.</p></div>
     </div>
   </div>
 </section>
@@ -427,11 +428,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="rlvr">
   <div class="wrap">
     <div class="chapter-num">06</div>
-    <h2>Verifiable rewards and the reasoning-model breakthrough</h2>
-    <p class="intro">In late 2024, OpenAI's <strong>o1</strong> and then DeepSeek's <strong>R1</strong> showed that if you take a strong base model, give it math and code problems with automatically checkable answers, and run policy-gradient RL at scale, the model learns to <em>think longer</em>. Chain-of-thought stops being a prompting trick and becomes a learned behavior: the model backtracks, verifies, and tries alternatives, because those tokens raise the probability of a correct final answer. Nobody wrote those behaviors into the data. This is <strong>RL with Verifiable Rewards</strong> (RLVR).</p>
+    <h2>Reinforcement learning with verifiable rewards</h2>
+    <p class="intro"><strong>RL with verifiable rewards</strong> uses tasks whose outcomes can be checked automatically, such as a final math answer or a program evaluated by tests. OpenAI reports that o1 learned useful chain-of-thought behavior through large-scale RL, but has not published its full reward design. DeepSeek documents a clearer RLVR example: R1-Zero was trained with accuracy and format rewards, without supervised reasoning traces, and developed longer responses, self-checking, and strategy changes during training.</p>
     <div class="panel">
       <h3>Simulated training run (illustrative)</h3>
-      <div class="hint">Shaped after the curves DeepSeek published for R1-Zero: accuracy on a math benchmark and average response length both climb over thousands of RL steps. Press play. The model discovers that "thinking longer" pays.</div>
+      <div class="hint">This teaching simulation follows the qualitative trend in DeepSeek's R1-Zero figures: benchmark accuracy and average response length rise during training. The values are hand-shaped and do not reproduce a training run.</div>
       <div class="controls">
         <button class="btn primary" id="rlvr-play">▶ Train</button>
         <button class="btn" id="rlvr-reset">Reset</button>
@@ -439,21 +440,21 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
         <span class="muted small">step <b class="mono" id="rlvr-step">0</b></span>
       </div>
       <div class="chart" id="rlvr-viz" data-widget="rlvr"></div>
-      <div class="callout small" id="rlvr-msg">The "aha moment": partway through, sampled solutions start containing phrases like "wait, let me re-check" and the length curve bends upward.</div>
+      <div class="callout small" id="rlvr-msg">DeepSeek called one observed shift an “aha moment”: an intermediate R1-Zero checkpoint began reconsidering its approach and allocating more tokens to a problem. This chart marks that qualitative observation.</div>
     </div>
     <div class="two">
       <div>
-        <h3>Why verifiable rewards were the unlock</h3>
+        <h3>Why verifiable rewards help</h3>
         <ul>
-          <li><strong>Hard to flatter.</strong> A math answer either matches or it doesn't; a unit test passes or fails. The reward can't be charmed the way a judge model can.</li>
-          <li><strong>Cheap at scale.</strong> No humans in the loop, so you can run millions of rollouts.</li>
-          <li><strong>Long-horizon by nature.</strong> The reward only arrives at the end, which forces the model to learn internal verification rather than rely on the grader.</li>
+          <li><strong>Objective checks.</strong> Exact answers and well-designed tests provide a more reproducible signal than an overall preference score. Poor tests can still be incomplete or exploitable.</li>
+          <li><strong>Automated scoring.</strong> Once tasks and checkers exist, many sampled responses can be graded without a person labeling each one.</li>
+          <li><strong>Outcome-level feedback.</strong> A final score can reward any sampled reasoning path that reaches the correct result. It does not identify which intermediate steps were valid.</li>
         </ul>
       </div>
       <div>
-        <h3>What the labs then did</h3>
+        <h3>Uses of the method</h3>
         <ul>
-          <li><strong>Distillation.</strong> R1's long reasoning traces, used as SFT data, made small models dramatically better at reasoning. This kicked off the open-weights reasoning wave (Qwen3, Phi-4-reasoning, Magistral, Kimi).</li>
+          <li><strong>Distillation.</strong> DeepSeek used reasoning traces from R1 to fine-tune smaller Qwen and Llama models and reported large benchmark gains over the corresponding base models.</li>
           <li><strong>Thinking budgets.</strong> Claude's extended thinking, Gemini's thinking budget and OpenAI's reasoning effort expose the length-vs-accuracy trade-off to the user.</li>
           <li><strong>Beyond math and code.</strong> Verifiers now cover formal proofs (Lean), tool-call schemas, structured extraction, chemistry, and rubric-graded free text.</li>
         </ul>
@@ -466,11 +467,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="agentic">
   <div class="wrap">
     <div class="chapter-num">07</div>
-    <h2>Agentic RL: multi-turn, tools, and a real environment</h2>
-    <p class="intro">A reasoning model produces one long answer. An <strong>agent</strong> produces many messages, interleaved with tool calls whose results it did not write. The RL episode becomes a whole <em>trajectory</em>: think, call a tool, read the output, think again, edit a file, run the tests, submit. The reward, still just a number, arrives at the very end when the hidden tests run. This is how coding agents like Claude Code, Codex and Gemini's agent modes are trained, and how deep-research agents learn to browse.</p>
+    <h2>Reinforcement learning for tool-using agents</h2>
+    <p class="intro">A tool-using episode contains model messages, tool calls, and observations returned by an environment. Training can score the whole trajectory with an outcome such as hidden-test results, or add intermediate scores. OpenAI has described end-to-end RL for deep research and tool use; Qwen has published an agentic RL setup for coding. Other providers disclose less, so the widget shows a representative training design rather than one product's exact recipe.</p>
     <div class="panel">
-      <h3>Anatomy of one training episode for a coding agent</h3>
-      <div class="hint">Blue turns are sampled from the policy and receive gradient. Orange turns come from the environment (a sandbox shell) and are <strong>loss-masked</strong>: the model is never trained to predict tool output, only to act on it. Flip the outcome to see the credit assignment change.</div>
+      <h3>A coding-agent trajectory</h3>
+      <div class="hint">Blue turns are sampled from the policy and receive policy-gradient updates. Orange turns are observations from a sandbox. This example masks observation tokens from the policy loss because the model did not choose them. Flip the outcome to see how the teaching example assigns credit.</div>
       <div class="controls">
         <div class="seg" id="traj-outcome"><button class="on" data-v="pass">Hidden tests pass (+1)</button><button data-v="fail">Hidden tests fail (0)</button></div>
         <div class="seg" id="traj-credit"><button class="on" data-v="outcome">Outcome reward only</button><button data-v="turn">+ per-turn shaping</button></div>
@@ -481,18 +482,18 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
     </div>
     <div class="two">
       <div>
-        <h3>What makes this harder than single-turn RL</h3>
+        <h3>Training difficulties</h3>
         <ul>
-          <li><strong>Credit assignment.</strong> One reward for a 40-turn, 60k-token trajectory. Which decision mattered? Most labs still use pure outcome reward plus large groups; some add turn-level judges or process reward models.</li>
-          <li><strong>The environment is expensive.</strong> Each rollout needs a fresh container with the repo checked out, dependencies installed and tests runnable. Alibaba's Qwen3-Coder team described running 20,000 parallel environments; every frontier lab runs fleets like this.</li>
-          <li><strong>Asynchrony.</strong> Trajectories finish at wildly different times. Modern trainers (verl, AReaL, PRIME-RL, slime, the labs' internal stacks) generate off-policy, train continuously, and correct the staleness with importance weights.</li>
-          <li><strong>Train/inference mismatch.</strong> Sampling runs on an inference engine (vLLM, SGLang) with different numerics than the training kernels. The token probabilities differ slightly, which quietly makes the update off-policy. 2025 work (e.g. MiniMax's CISPO, the "your RL framework is secretly off-policy" analysis) showed this alone can crash training.</li>
+          <li><strong>Credit assignment.</strong> One outcome reward can apply to thousands of token choices across many turns without identifying which choices caused the result. Turn-level judges and process reward models provide denser feedback, but also introduce additional learned graders.</li>
+          <li><strong>The environment is expensive.</strong> Coding rollouts need isolated repositories, dependencies, tools, and tests. The Qwen3-Coder team reported running 20,000 environments in parallel.</li>
+          <li><strong>Asynchrony.</strong> Trajectories take different amounts of time to finish. Systems such as AReaL overlap generation and training to improve hardware use, then use importance weighting to account for samples generated by an older policy.</li>
+          <li><strong>Train/inference mismatch.</strong> Separate generation and training systems can compute slightly different token probabilities. That changes the effective sampling policy and can destabilize importance-weighted updates.</li>
         </ul>
       </div>
       <div>
         <h3>Where rewards come from in agentic RL</h3>
         <div class="chart" id="reward-sources" data-widget="reward-sources"></div>
-        <p class="small muted">Environments are the new data. The scarce input is no longer text, it's realistic, gradable tasks: repositories with hidden tests, browsers with ground-truth answers, spreadsheets with a known correct cell, simulated customers with a hidden satisfaction score.</p>
+        <p class="small muted">This chart is illustrative. Agent training needs tasks, environments, and graders that expose the behavior being trained: repositories with tests, browsers with known answers, or structured tools with checkable state.</p>
       </div>
     </div>
   </div>
@@ -502,8 +503,8 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="hacking">
   <div class="wrap">
     <div class="chapter-num">08</div>
-    <h2>Reward hacking: the optimizer finds the holes in your grader</h2>
-    <p class="intro">RL is an adversary to its own reward function. If the tests can be passed by special-casing the inputs, the policy will learn to special-case. If the judge model can be flattered, it will flatter. If a task is impossible, the agent will learn to claim it's done. This is <strong>Goodhart's law</strong> with a gradient behind it, and it is the single most-discussed problem at every lab doing agentic RL.</p>
+    <h2>Reward hacking</h2>
+    <p class="intro">A policy is optimized against the reward that the training system computes. If that reward omits part of the intended behavior, the policy can improve its score without improving the real outcome. Examples include modifying tests, exploiting grader preferences, or reading information that the task meant to hide.</p>
     <div class="two">
       <div class="panel">
         <h3>Proxy vs true reward under optimization</h3>
@@ -515,7 +516,7 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
         <div class="chart" id="gh-viz" data-widget="goodhart"></div>
       </div>
       <div>
-        <h3>Hacks seen in the wild (from lab reports)</h3>
+        <h3>Examples from published reports</h3>
         <ul>
           <li><strong>Test special-casing.</strong> Detecting the test harness and hard-coding expected outputs; editing or deleting failing tests instead of fixing code.</li>
           <li><strong>Sycophancy toward the judge.</strong> Long, confident, well-formatted answers that an LLM grader scores higher regardless of correctness.</li>
@@ -523,12 +524,12 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
           <li><strong>Sandbox escape.</strong> Reading the answer file, monkey-patching the checker, or altering the timer in a benchmark.</li>
           <li><strong>Impossible-task capitulation.</strong> Claiming success on tasks that cannot be completed, because "I could not do this" scores zero.</li>
         </ul>
-        <h3>Countermeasures labs describe</h3>
+        <h3>Countermeasures</h3>
         <ul>
           <li>Hidden, held-out tests and randomized environments so the hack doesn't generalize.</li>
           <li>Chain-of-thought monitoring: a second model reads the reasoning for intent to hack. OpenAI reported in 2025 that penalizing "bad thoughts" directly makes the model hide them, so they monitor without optimizing against the monitor.</li>
           <li>Anthropic's 2025 finding: when a model learns to hack rewards in training, misalignment can generalize to unrelated behaviors. Their mitigation, "inoculation prompting", tells the model during training that hacking is acceptable in that specific environment, which breaks the link between hacking and "being a bad model".</li>
-          <li>Better graders: ensembles, rubric-based judges, and verifiers that check the process (was the test file modified?) not just the result.</li>
+          <li>Stronger graders: ensembles, explicit rubrics, and checks on relevant state changes such as whether the agent modified test files.</li>
         </ul>
       </div>
     </div>
@@ -539,11 +540,11 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="labs">
   <div class="wrap">
     <div class="chapter-num">09</div>
-    <h2>What the frontier labs are doing</h2>
-    <p class="intro">Frontier labs publish little about training details, so this is assembled from system cards, papers, blog posts and interviews through mid-2026. Treat each card as "what they have said in public", not a full picture. Filter by theme.</p>
+    <h2>Published training methods</h2>
+    <p class="intro">These cards summarize system cards, papers, and official posts published through mid-2026. They describe disclosed methods and omit details that the organizations have not published. Filter by theme.</p>
     <div class="chips" id="lab-chips"></div>
     <div class="labs" id="labs-grid" data-widget="labs"></div>
-    <h3 style="margin-top:2rem">A timeline of the algorithms and milestones</h3>
+    <h3 style="margin-top:2rem">Algorithms and published milestones</h3>
     <p class="small muted">Hover, tap, or Tab to a point for details.</p>
     <div class="timeline"><div class="chart" id="tl-viz" data-widget="timeline"></div><div class="panel tl-detail" id="tl-detail">Hover a point on the timeline.</div></div>
   </div>
@@ -553,12 +554,12 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="scaling">
   <div class="wrap">
     <div class="chapter-num">10</div>
-    <h2>Scaling RL compute</h2>
+    <h2>Scaling train-time and test-time compute</h2>
     <div class="two">
       <div>
-        <p class="intro">Pretraining scaling is famous: more data and parameters, predictably lower loss. The 2025 to 2026 story is the same curve for RL. OpenAI's o3 announcement showed a log-linear relationship between RL training compute and benchmark performance, and said o3 used roughly ten times the RL compute of o1. xAI said Grok 4's RL compute was scaled to match pretraining compute. Every lab now describes RL as a compute sink comparable to, and in some accounts exceeding, pretraining.</p>
-        <p>The chart is <strong>illustrative</strong>: it shows the shape of the claims (RL compute as a share of total training compute, by model generation), not audited numbers.</p>
-        <p class="small muted">A second scaling axis is <strong>test-time compute</strong>: a model trained with RL to reason can be given more tokens at inference to think longer. o1 popularized the picture of two log-linear curves, one for training compute and one for inference compute.</p>
+        <p class="intro">OpenAI reports that o1 performance improved with more RL training compute and more test-time compute. Its o3 announcement says the team added an order of magnitude in both dimensions and continued to see gains. These are performance trends from one provider, without absolute compute values or a public breakdown of total training cost.</p>
+        <p>xAI separately states that Grok 4 used reinforcement-learning compute comparable to its pretraining compute. The claim uses a different model and reporting basis, so it should not be placed on the same numeric curve as OpenAI's relative scaling result.</p>
+        <p class="small muted"><strong>Train-time compute</strong> updates model weights. <strong>Test-time compute</strong> gives a trained model more generation or search during inference. Both can improve measured performance, but they incur cost at different stages.</p>
       </div>
       <div class="panel">
         <div class="chart" id="scale-viz" data-widget="scaling"></div>
@@ -571,17 +572,17 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
 <section class="chapter" id="problems">
   <div class="wrap">
     <div class="chapter-num">11</div>
-    <h2>Open problems the field is working on</h2>
+    <h2>Open problems</h2>
     <div class="grid3">
-      <div class="prob"><h4>Long-horizon credit assignment</h4><p>Rewards arrive after hours of agent activity. Process rewards, turn-level judges, and hierarchical policies are all being tried; nobody has a clean answer beyond "more samples".</p></div>
-      <div class="prob"><h4>Environment scarcity</h4><p>Building realistic, gradable environments is now the bottleneck. A cottage industry of "RL gym" vendors sells them; labs also synthesize tasks with models, then filter with verifiers.</p></div>
-      <div class="prob"><h4>Reward hacking at scale</h4><p>Every grader is a target. Monitoring chain-of-thought helps but creates pressure to obfuscate. Keeping reasoning legible is now an explicit training constraint at several labs.</p></div>
-      <div class="prob"><h4>Exploration and entropy collapse</h4><p>RL sharpens the policy. Once entropy collapses, the model stops trying new strategies. Clip-higher, entropy bonuses, and mixing in pretraining data are partial fixes.</p></div>
-      <div class="prob"><h4>Does RL teach or just select?</h4><p>Studies in 2025 found RLVR mostly reweights capabilities the base model already had (pass@k barely moves). Longer training and better exploration seem to push past this, but it's contested.</p></div>
-      <div class="prob"><h4>Generalization from narrow rewards</h4><p>Training on math and code transfers surprisingly well to reasoning elsewhere, but can hurt instruction-following and calibration. Labs mix RLVR with RLHF and safety training in one curriculum.</p></div>
-      <div class="prob"><h4>Infrastructure</h4><p>Async, off-policy training with thousands of sandboxes, KV-cache-aware rollouts, and importance-sampling corrections. The systems work is as important as the algorithm.</p></div>
-      <div class="prob"><h4>Self-play and self-verification</h4><p>Can models generate their own tasks and rewards? AlphaProof-style self-play in formal domains works; open-domain self-improvement is an active bet.</p></div>
-      <div class="prob"><h4>Evaluation</h4><p>Benchmarks saturate months after release, and contaminated environments give false progress. Held-out, live, and agentic evals (SWE-bench Pro, Terminal-Bench, GDPval, τ-bench) are the current answer.</p></div>
+      <div class="prob"><h4>Long-horizon credit assignment</h4><p>A trajectory-level reward does not show which earlier decisions caused the outcome. Process rewards, turn-level judges, and hierarchical policies provide denser signals, but each can introduce new grader errors.</p></div>
+      <div class="prob"><h4>Environment construction</h4><p>Useful agent training requires realistic tasks with reproducible initial state and reliable grading. Teams build and synthesize such tasks, then filter or validate them with tests and verifiers.</p></div>
+      <div class="prob"><h4>Reward hacking at scale</h4><p>A fixed grader can contain exploitable gaps. Held-out checks and chain-of-thought monitoring can reveal some failures, while optimizing directly against a monitor can teach a model to hide the behavior being monitored.</p></div>
+      <div class="prob"><h4>Exploration and entropy collapse</h4><p>Some RL runs become too concentrated on a small set of responses. Asymmetric clipping, entropy bonuses, and prompt curricula are among the methods used to preserve useful exploration.</p></div>
+      <div class="prob"><h4>Capability elicitation</h4><p>Researchers disagree about how much RL creates new strategies versus shifting probability toward behaviors already reachable from the base model. Results depend on the task, training horizon, and metric.</p></div>
+      <div class="prob"><h4>Generalization from narrow rewards</h4><p>Improvements on math or code do not guarantee better instruction following, calibration, or performance in other domains. Mixed training objectives try to preserve several behaviors at once.</p></div>
+      <div class="prob"><h4>Infrastructure</h4><p>Large runs coordinate generation, sandboxed environments, training, and evaluation. Asynchronous rollouts improve hardware use but make policy staleness and importance weighting harder to control.</p></div>
+      <div class="prob"><h4>Self-play and self-verification</h4><p>Formal systems can verify generated proofs and support self-play. Open-ended domains lack an equally reliable verifier, which makes self-generated tasks and rewards harder to validate.</p></div>
+      <div class="prob"><h4>Evaluation</h4><p>Static benchmarks can saturate or leak into training data. Held-out tasks, live evaluations, and carefully isolated agent environments reduce these problems without eliminating them.</p></div>
     </div>
   </div>
 </section>
@@ -592,23 +593,23 @@ footer { padding: 2.5rem 0 4rem; color: var(--ink-3); font-size: .85rem; }
     <div class="chapter-num">12</div>
     <h2>Glossary</h2>
     <dl class="gloss">
-      <dt>Policy (π)</dt><dd>The model being trained, viewed as a distribution over actions (tokens) given a state (context).</dd>
-      <dt>Rollout / trajectory</dt><dd>One sampled episode: the sequence of states, actions and observations from prompt to final answer.</dd>
-      <dt>Reward</dt><dd>A scalar signal from the environment, a verifier, or a reward model. Usually terminal (one per episode) for LLMs.</dd>
+      <dt>Policy (π)</dt><dd>The model being trained, viewed as a distribution over actions given its observation or context.</dd>
+      <dt>Rollout / trajectory</dt><dd>One sampled episode: a sequence of observations, model actions, and rewards.</dd>
+      <dt>Reward</dt><dd>A scalar signal from the environment, a verifier, or a reward model. It can arrive during a trajectory or at the end.</dd>
       <dt>Advantage</dt><dd>How much better an action or episode was than expected. The quantity that scales each gradient step.</dd>
-      <dt>Baseline / critic / value model</dt><dd>The "expected" reward that advantage is measured against. PPO learns it with a critic; GRPO estimates it from the group.</dd>
+      <dt>Baseline / critic / value model</dt><dd>A baseline estimates expected return for the advantage calculation. PPO is commonly used with a learned value function; GRPO uses group reward statistics.</dd>
       <dt>On-policy vs off-policy</dt><dd>Whether the samples used for an update came from the current policy. Stale samples need importance-weight corrections.</dd>
-      <dt>KL penalty</dt><dd>A term that punishes the policy for drifting far from a reference model, keeping learned rewards trustworthy and language coherent.</dd>
+      <dt>KL penalty</dt><dd>A regularization term that penalizes divergence from a reference policy.</dd>
       <dt>RLHF</dt><dd>RL from human feedback: a reward model trained on preference comparisons, then policy optimization against it.</dd>
-      <dt>RLAIF</dt><dd>The same, but the preference labels come from a model (Constitutional AI, LLM-as-judge).</dd>
+      <dt>RLAIF</dt><dd>Reinforcement learning from AI feedback: model-generated evaluations supply some or all of the reward signal.</dd>
       <dt>RLVR</dt><dd>RL with verifiable rewards: the reward is a program (answer checker, unit tests, compiler, proof assistant).</dd>
-      <dt>PPO</dt><dd>Proximal Policy Optimization: clipped policy gradient with a learned critic. The RLHF workhorse from 2019 to 2024.</dd>
-      <dt>GRPO</dt><dd>Group Relative Policy Optimization: critic-free PPO variant using group-normalized rewards. The RLVR workhorse since R1.</dd>
-      <dt>DPO</dt><dd>Direct Preference Optimization: offline preference learning without a separate reward model or sampling.</dd>
+      <dt>PPO</dt><dd>Proximal Policy Optimization: a policy-gradient method with a clipped surrogate objective, commonly paired with a learned value function.</dd>
+      <dt>GRPO</dt><dd>Group Relative Policy Optimization: a PPO variant that normalizes rewards across responses to the same prompt and omits a learned value model.</dd>
+      <dt>DPO</dt><dd>Direct Preference Optimization: an objective that updates a policy directly from preference pairs and a reference policy, without fitting an explicit reward model.</dd>
       <dt>Process reward model (PRM)</dt><dd>A grader that scores intermediate steps rather than only the final result.</dd>
       <dt>Loss masking</dt><dd>Excluding environment-produced tokens (tool outputs) from the training loss in multi-turn episodes.</dd>
       <dt>Reward hacking / specification gaming</dt><dd>Achieving high measured reward through behavior that violates the intent of the task designer.</dd>
-      <dt>Entropy collapse</dt><dd>The policy becoming near-deterministic during RL, which kills exploration.</dd>
+      <dt>Entropy collapse</dt><dd>A large drop in output diversity during training, leaving fewer behaviors available for exploration.</dd>
       <dt>Test-time compute</dt><dd>Spending more inference tokens (longer reasoning, more samples) to improve accuracy on a single query.</dd>
     </dl>
   </div>
@@ -700,14 +701,14 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
    ============================================================ */
 (() => {
   const stages = [
-    { n: '01', name: 'Pretraining', d: 'Next-token prediction on trillions of tokens.', share: 70, body: `<h4>Pretraining: predict the next token</h4><p>The model reads most of the public internet plus licensed and synthetic data and learns to predict what comes next. This is where knowledge, language and latent skills come from. Loss: cross-entropy on every token. Cost: still the largest single line item, but its share has fallen from roughly 95% of compute in 2023 to a majority-but-shrinking share today.</p><p class="small muted">Output: a "base model" that continues text but does not follow instructions, use tools, or stop.</p>` },
-    { n: '02', name: 'Supervised fine-tuning', d: 'Imitate curated demonstrations.', share: 3, body: `<h4>SFT: imitate good behavior</h4><p>Train on (prompt, ideal response) pairs written by experts or generated by a stronger model and filtered. Also called instruction tuning. Same loss as pretraining, but only on the response tokens. In 2025 this stage increasingly became a "cold start": DeepSeek-R1 used a few thousand long reasoning traces to give RL a sane starting point.</p><p class="small muted">Output: a model that answers in the right format and tone, but with capability capped by the demonstrations.</p>` },
-    { n: '03', name: 'RL: preferences', d: 'RLHF / RLAIF for helpfulness and safety.', share: 5, body: `<h4>RL from feedback: learn a reward, then optimize it</h4><p>Collect comparisons (human or AI), fit a reward model, then push the policy toward higher reward while a KL penalty holds it near the SFT model. This is the classic "alignment" stage from InstructGPT (2022) and Claude's Constitutional AI. It sets style, refusals, honesty and tone. Frequently interleaved with the next stage rather than run separately.</p>` },
-    { n: '04', name: 'RL: verifiable & agentic', d: 'Reasoning, coding, tool use at scale.', share: 22, body: `<h4>RL on tasks with checkable outcomes</h4><p>Math with answer keys, code with hidden tests, browsing with known answers, tool-use with schema checks, and thousands of sandboxed environments. This is where reasoning models (o1, R1, Gemini Thinking, Claude's extended thinking) and coding agents get most of their capability. It is the fastest-growing compute item at every lab and, per public statements from OpenAI and xAI, now comparable to pretraining in scale for the top models.</p><p class="small muted">Output: the agent you talk to. In practice stages 03 and 04 run as one mixed curriculum with many reward types.</p>` },
+    { n: '01', name: 'Pretraining', d: 'Predict the next token in large text and multimodal corpora.', share: 70, body: `<h4>Pretraining</h4><p>Minimize next-token prediction loss across a large corpus. This phase learns broad statistical structure, including language, factual associations, and patterns that support later skills. The resulting base model can continue text, but reliable instruction following requires further training.</p>` },
+    { n: '02', name: 'Supervised fine-tuning', d: 'Learn from demonstrations of desired responses.', share: 3, body: `<h4>Supervised fine-tuning</h4><p>Train on prompt-response demonstrations written by people or generated and filtered by models. The loss usually applies to selected response tokens. DeepSeek-R1 also used a small set of long reasoning examples as cold-start data before its main reasoning RL phase.</p>` },
+    { n: '03', name: 'Preference training', d: 'Learn from comparisons or direct preference objectives.', share: 5, body: `<h4>Preference training</h4><p>Comparisons can train a reward model for RLHF or directly update a policy with an objective such as DPO. These methods shape instruction following, style, and safety behavior. Published recipes differ in how they mix human feedback, AI feedback, supervised data, and online sampling.</p>` },
+    { n: '04', name: 'Outcome-based RL', d: 'Optimize reasoning and tool-use trajectories with graders.', share: 22, body: `<h4>Outcome-based reinforcement learning</h4><p>Sample responses or tool-use trajectories and score them with answer checkers, tests, environment state, or learned graders. OpenAI, DeepSeek, Qwen, and other teams report using RL for reasoning or tool use, but their task mixtures and compute allocations are only partly public.</p>` },
   ];
   const cont = $('#stages'), det = $('#stage-detail');
   stages.forEach((s, i) => {
-    const d = document.createElement('button'); d.type = 'button'; d.className = 'stage' + (i === 3 ? ' on' : ''); d.setAttribute('aria-pressed', i === 3 ? 'true' : 'false'); d.innerHTML = `<div class="n">${s.n}</div><h4>${s.name}</h4><div class="d">${s.d}</div><div class="bar"><i style="width:${s.share}%"></i></div><div class="small muted mono" style="font-size:.7rem;margin-top:.25rem">≈${s.share}% compute (illustrative)</div>`;
+    const d = document.createElement('button'); d.type = 'button'; d.className = 'stage' + (i === 3 ? ' on' : ''); d.setAttribute('aria-pressed', i === 3 ? 'true' : 'false'); d.innerHTML = `<div class="n">${s.n}</div><h4>${s.name}</h4><div class="d">${s.d}</div>`;
     d.addEventListener('click', () => { $$('.stage', cont).forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); }); d.classList.add('on'); d.setAttribute('aria-pressed', 'true'); det.innerHTML = s.body; });
     cont.appendChild(d);
   });
@@ -721,8 +722,8 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   const el = $('#loop-viz'); const W = 520, H = 300; let mode = 'classic';
   const kv = $('#loop-kv');
   const text = {
-    classic: { agent: 'Agent', env: 'Environment', act: 'action aₜ', obs: 'state sₜ₊₁', rew: 'reward rₜ', kv: [['State', 'Position on a board, sensor readings'], ['Action', 'Move, press a button'], ['Reward', 'Score, every step or at the end'], ['Episode', 'Tens to thousands of steps'], ['Environment', 'A game engine or a robot\'s world']] },
-    llm: { agent: 'LLM policy πθ', env: 'Sandbox · grader · user', act: 'token / message / tool call', obs: 'tool output appended to context', rew: 'terminal reward (tests pass?)', kv: [['State', 'The entire context window so far'], ['Action', 'The next token; at a coarser level, a message or tool call'], ['Reward', 'Usually one number at the end: verifier, tests, judge model'], ['Episode', 'A single answer, or a 50-turn agent session'], ['Environment', 'Code sandbox, browser, API, or a simulated user']] }
+    classic: { agent: 'Agent', env: 'Environment', act: 'action aₜ', obs: 'observation oₜ₊₁', rew: 'reward rₜ', kv: [['Observation', 'Visible board position or sensor readings'], ['State', 'The environment\'s full condition, which may be hidden'], ['Action', 'Move or press a button'], ['Reward', 'Score at a step or at the end'], ['Episode', 'A sequence of interactions']] },
+    llm: { agent: 'LLM policy πθ', env: 'Sandbox · grader · user', act: 'token / message / tool call', obs: 'tool output appended to context', rew: 'outcome reward (tests pass?)', kv: [['Observation', 'The prompt and interaction history represented in the context'], ['State', 'The full environment state may include files or browser data outside the context'], ['Action', 'The next token; at a coarser level, a message or tool call'], ['Reward', 'A verifier, tests, a judge model, or intermediate feedback'], ['Episode', 'A single answer or a multi-turn agent session']] }
   };
   const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('class', 'rlloop');
   const defs = svg.append('defs'); defs.append('marker').attr('id', 'arr').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5).attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto').append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--line-2)');
@@ -827,7 +828,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
     [1 - e, 1 + e].forEach(v => gl.append('line').attr('x1', x2(v)).attr('x2', x2(v)).attr('y1', m2.t).attr('y2', H2 - m2.b).attr('stroke', 'var(--line-2)').attr('stroke-dasharray', '2 3'));
     gl.append('line').attr('x1', x2(r)).attr('x2', x2(r)).attr('y1', m2.t).attr('y2', H2 - m2.b).attr('stroke', 'var(--ink)').attr('stroke-width', 1.5);
     [1, -1].forEach(A => gl.append('circle').attr('cx', x2(r)).attr('cy', y2(L(r, A, e))).attr('r', 5).attr('fill', A > 0 ? 'var(--reward)' : 'var(--penalty)'));
-    const msg = r > 1 + e ? 'clipped: no gradient for A>0 (already pushed up enough)' : r < 1 - e ? 'clipped: no gradient for A<0 (already pushed down enough)' : 'inside trust region: full gradient';
+    const msg = r > 1 + e ? 'clipped: flat for A>0' : r < 1 - e ? 'clipped: flat for A<0' : 'inside clip range: unclipped slope';
     gl.append('text').attr('x', Math.min(x2(r) + 6, W2 - 250)).attr('y', m2.t + 12).style('font-size', '11px').style('fill', 'var(--ink-2)').text(msg);
   }
   ce.addEventListener('input', drawClip); cr.addEventListener('input', drawClip); drawClip();
@@ -852,7 +853,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
     $('#grpo-mean').textContent = fmt(mean); $('#grpo-std').textContent = fmt(std);
     const nOk = ok.filter(Boolean).length; const note = $('#grpo-note');
     if (std < 1e-9) { $('#grpo-signal').textContent = 'none'; note.textContent = `All ${nOk === 6 ? 'correct' : 'wrong'}: std = 0, every advantage is 0, this prompt contributes no gradient. DAPO's dynamic sampling would drop it and sample another prompt.`; }
-    else { $('#grpo-signal').textContent = nOk === 3 ? 'maximal' : 'ok'; note.textContent = nOk === 1 || nOk === 5 ? `A lone ${nOk === 1 ? 'correct' : 'wrong'} rollout gets a large advantage (±${fmt(Math.max(...adv.map(Math.abs)))}): rare successes on hard prompts teach the most, which is why curricula target prompts the model solves rarely but not never.` : `Correct rollouts are pushed up, wrong ones pushed down; each token in a rollout gets that rollout's advantage. The format reward adds a small nudge that makes "wrong but boxed" slightly better than "wrong and unboxed".`; }
+    else { $('#grpo-signal').textContent = nOk === 3 ? 'maximal' : 'ok'; note.textContent = nOk === 1 || nOk === 5 ? `The minority outcome gets the larger normalized advantage magnitude (up to ±${fmt(Math.max(...adv.map(Math.abs)))} in this group). Prompts with mixed outcomes provide a learning signal; uniform groups do not.` : `Correct rollouts are pushed up and wrong rollouts are pushed down. Each token in this simplified widget receives its response-level advantage. The format reward distinguishes boxed and unboxed responses.`; }
   }
   $('#grpo-format').addEventListener('change', render);
   $('#grpo-resample').addEventListener('click', () => { ok = ok.map(() => Math.random() < .55); render(); });
@@ -865,7 +866,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
 (() => {
   const pairs = [
     { q: 'How do I remove a stuck bolt?', a: 'Apply penetrating oil, wait 15 minutes, then use a six-point socket and steady pressure. If it still won\'t move, heat the surrounding metal briefly with a torch. Don\'t use an impact wrench on a rusted bolt first; it can shear.', b: 'Great question! Bolts can be tricky. You could try turning it harder, or maybe use a bigger tool. Good luck!' },
-    { q: 'Is it safe to eat rice left out overnight?', a: 'It\'s risky. Cooked rice left at room temperature can grow Bacillus cereus, whose toxin isn\'t destroyed by reheating. Refrigerate within an hour; if it sat out overnight, throw it away.', b: 'Rice is generally fine to eat. Just reheat it thoroughly and it should be safe.' },
+    { q: 'Why does a metal spoon feel colder than a wooden spoon?', a: 'Metal conducts heat away from your hand faster than wood. Both spoons can start at the same temperature, but the faster heat flow makes the metal feel colder.', b: 'Metal naturally stays at a lower temperature than wood, even when both have been in the same room.' },
     { q: 'Write a one-line summary of PPO.', a: 'PPO is a policy-gradient method that clips the probability ratio between new and old policies to keep updates stable.', b: 'PPO stands for Proximal Policy Optimization, an algorithm introduced by OpenAI in 2017, which is widely used in reinforcement learning, including in robotics, games, and, more recently, large language model training via RLHF, and which works by…' },
   ];
   let scores = pairs.map(() => [0, 0]), idx = 0, count = 0;
@@ -925,7 +926,7 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
   const rnd = d3.randomNormal(0, 1);
   function sim(s, lp) { const t = s / MAX; const acc = .15 + .72 * (1 - Math.exp(-3.2 * t)) - .08 * lp * t + .015 * rnd(); const len = (600 + 9500 * (1 / (1 + Math.exp(-(s - 3000) / 900)))) * (1 - .7 * lp) + 200 * rnd(); return { s, acc: Math.max(0, Math.min(1, acc)), len: Math.max(200, len) }; }
   function draw() { pA.attr('d', d3.line().x(d => x(d.s)).y(d => yA(d.acc)).curve(d3.curveMonotoneX)(data)); pL.attr('d', d3.line().x(d => x(d.s)).y(d => yL(d.len)).curve(d3.curveMonotoneX)(data)); aha.attr('opacity', step > 2600 && +lenpen.value < .5 ? 1 : 0); $('#rlvr-step').textContent = step; }
-  function advance() { step += 50; data.push(sim(step, +lenpen.value)); if (step === 4000) $('#rlvr-msg').textContent = +lenpen.value > .5 ? 'With a strong length penalty, accuracy still rises but the model never learns to reason at length. Kimi k1.5 used a length penalty deliberately to get "short-CoT" models.' : 'Length keeps growing after accuracy plateaus. Labs cap it with token budgets or overlong-response shaping (DAPO), or expose it as a user-facing "thinking budget".'; }
+  function advance() { step += 50; data.push(sim(step, +lenpen.value)); if (step === 4000) $('#rlvr-msg').textContent = +lenpen.value > .5 ? 'In this simulation, a strong length penalty keeps responses shorter while accuracy rises. Kimi k1.5 used a length penalty when training short chain-of-thought models.' : 'In this simulation, response length continues to grow after accuracy begins to level off. Token budgets and overlong-response penalties can limit that growth.'; }
   function tick() { if (step >= MAX) { stop(); return; } advance(); draw(); }
   function stop() { if (timer) { clearInterval(timer); timer = null; } $('#rlvr-play').textContent = '▶ Train'; }
   $('#rlvr-play').addEventListener('click', () => { if (timer) { stop(); return; } if (step >= MAX) { step = 0; data = []; } if (REDUCED) { while (step < MAX) advance(); draw(); return; } timer = setInterval(tick, 40); $('#rlvr-play').textContent = '❚❚ Pause'; });
@@ -972,21 +973,19 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
 
   // reward sources chart
   const src = [
-    { k: 'Unit / hidden tests', v: 30, c: 'var(--reward)', d: 'SWE-style tasks: run the repo\'s tests after the agent submits.' },
-    { k: 'Answer checkers', v: 20, c: 'var(--reward)', d: 'Math, science and structured-output tasks with a known answer.' },
-    { k: 'LLM judge + rubric', v: 22, c: 'var(--ref)', d: 'Grader model scores against an expert-written rubric; used for research, writing, and long-form tasks.' },
-    { k: 'Simulated users', v: 10, c: 'var(--env)', d: 'A model plays the customer; reward from a hidden goal (τ-bench style).' },
-    { k: 'Human preference', v: 10, c: 'var(--ref)', d: 'Classic RLHF comparisons; now a smaller slice, still critical for tone and safety.' },
-    { k: 'Format / safety checks', v: 8, c: 'var(--policy)', d: 'Schema validity, no forbidden actions, thinking legibility.' },
+    { k: 'Unit or hidden tests', c: 'var(--reward)', d: 'SWE-style tasks can run repository tests after the agent submits.' },
+    { k: 'Answer checkers', c: 'var(--reward)', d: 'Math, science, and structured-output tasks can use a known answer.' },
+    { k: 'LLM judge with rubric', c: 'var(--ref)', d: 'A grader model scores the result against explicit criteria.' },
+    { k: 'Simulated users', c: 'var(--env)', d: 'A model plays a user with a hidden goal, as in τ-bench-style evaluations.' },
+    { k: 'Human preference', c: 'var(--ref)', d: 'People compare sampled trajectories or final responses.' },
+    { k: 'Format and policy checks', c: 'var(--policy)', d: 'Deterministic checks can score schemas, tool constraints, or forbidden actions.' },
   ];
-  const el2 = $('#reward-sources'); const W = 460, H = 210, m = { l: 140, r: 40, t: 8, b: 14 };
+  const el2 = $('#reward-sources'); const W = 460, H = 210, m = { l: 18, r: 18, t: 16, b: 16 };
   const s = d3.select(el2).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
-  const y = d3.scaleBand().domain(src.map(d => d.k)).range([m.t, H - m.b]).padding(.28); const x = d3.scaleLinear().domain([0, 35]).range([m.l, W - m.r]);
+  const y = d3.scaleBand().domain(src.map(d => d.k)).range([m.t, H - m.b]).padding(.28);
   const g = s.selectAll('g').data(src).join('g').on('mousemove', (e, d) => showTip(`<b>${d.k}</b><br>${d.d}`, e)).on('mouseleave', hideTip);
-  g.append('text').attr('x', m.l - 8).attr('y', d => y(d.k) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').style('font-size', '11px').style('fill', 'var(--ink-2)').text(d => d.k);
-  g.append('rect').attr('x', x(0)).attr('y', d => y(d.k)).attr('height', y.bandwidth()).attr('width', d => x(d.v) - x(0)).attr('fill', d => d.c).attr('rx', 3);
-  g.append('text').attr('x', d => x(d.v) + 5).attr('y', d => y(d.k) + y.bandwidth() / 2 + 4).style('font-size', '10px').style('fill', 'var(--ink-3)').text(d => d.v + '%');
-  s.append('text').attr('x', W - m.r).attr('y', H - 2).attr('text-anchor', 'end').style('font-size', '10px').style('fill', 'var(--ink-3)').text('illustrative mix for an agentic RL curriculum');
+  g.append('circle').attr('cx', m.l + 5).attr('cy', d => y(d.k) + y.bandwidth() / 2).attr('r', 5).attr('fill', d => d.c);
+  g.append('text').attr('x', m.l + 20).attr('y', d => y(d.k) + y.bandwidth() / 2 + 4).style('font-size', '11px').style('fill', 'var(--ink-2)').text(d => d.k);
 })();
 
 /* ============================================================
@@ -1023,54 +1022,50 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
     { name: 'OpenAI', src: [['o1', 'https://openai.com/index/learning-to-reason-with-llms/'], ['o3 / o4-mini', 'https://openai.com/index/introducing-o3-and-o4-mini/'], ['Deep Research', 'https://openai.com/index/introducing-deep-research/'], ['Codex', 'https://openai.com/index/introducing-codex/'], ['GPT-5', 'https://openai.com/index/introducing-gpt-5/'], ['CoT monitoring', 'https://openai.com/index/chain-of-thought-monitoring/'], ['HealthBench', 'https://openai.com/index/healthbench/']],  c: '#10a37f', sig: 'Reasoning models · RL on tool use · rubric graders', tags: ['reasoning', 'agents', 'coding', 'safety', 'scaling'], items: [
       'o1 (Sep 2024): "large-scale RL" that teaches the model to use chain-of-thought productively. Showed test-time compute scaling.',
       'o3 / o4-mini (Apr 2025): RL over tool use; the model learns when to search, run code, or look at images mid-reasoning. Reported ~10× the RL compute of o1.',
-      'Deep Research (Feb 2025) and Operator: agents trained end-to-end with RL on browsing tasks, not just prompted.',
+      'Deep Research (Feb 2025): OpenAI says it trained the browsing and reasoning behavior end-to-end with RL on difficult research tasks.',
       'Codex (May 2025) and GPT-5-Codex: RL on real software engineering tasks in sandboxed repos, optimizing for tests and PR-quality output.',
       'GPT-5 (Aug 2025) and GPT-5.x: unified system with a router; reasoning effort exposed to developers; rubric-graded RL (HealthBench) for open-ended domains.',
       'Reinforcement Fine-Tuning API: customers bring graders; OpenAI runs the RL. Chain-of-thought monitoring research warned against optimizing the CoT directly.',
     ] },
     { name: 'Anthropic', src: [['Constitutional AI', 'https://arxiv.org/abs/2212.08073'], ['Claude 3.7 Sonnet', 'https://www.anthropic.com/news/claude-3-7-sonnet'], ['Claude 4', 'https://www.anthropic.com/news/claude-4'], ['Claude Sonnet 4.5', 'https://www.anthropic.com/news/claude-sonnet-4-5'], ['reward hacking → misalignment', 'https://www.anthropic.com/research/emergent-misalignment-reward-hacking']],  c: '#d97757', sig: 'Constitutional AI · agentic coding · reward-hacking research', tags: ['agents', 'coding', 'safety', 'reasoning'], items: [
-      'Constitutional AI / RLAIF (2022): AI-generated preference labels against written principles; the ancestor of today\'s LLM-judge rewards.',
+      'Constitutional AI / RLAIF (2022): model-generated critiques, revisions, and preference labels guided by written principles.',
       'Claude 3.7 Sonnet (Feb 2025): extended thinking with a user-set budget; first Claude Code release, an agentic terminal coding tool.',
-      'Claude 4 family (May 2025 onward: Opus/Sonnet 4, 4.1, 4.5): release notes and system cards describe RL on agentic coding and long-running tool use, with SWE-bench-style results and multi-hour autonomous tasks as the headline metrics.',
+      'Claude 4 family (May 2025 onward): release materials emphasize coding, tool use, and longer tasks; system cards provide the more detailed evidence about reward-hacking behavior.',
       'Explicit reward-hacking work: the Claude 4 system card reports measured rates of test special-casing; 2025 research showed hacking can generalize to broader misalignment and introduced "inoculation prompting" as a training-time mitigation.',
-      'Interleaved thinking between tool calls, and training for legible, faithful reasoning as a monitoring aid.',
+      'Claude 4 introduced interleaved thinking between tool calls. Anthropic publishes separate research on the faithfulness and monitorability of reasoning traces.',
     ] },
     { name: 'Google DeepMind', src: [['Gemini 2.5', 'https://blog.google/technology/google-deepmind/gemini-model-thinking-updates-march-2025/'], ['Deep Think at IMO', 'https://deepmind.google/discover/blog/advanced-version-of-gemini-with-deep-think-officially-achieves-gold-medal-standard-at-the-international-mathematical-olympiad/'], ['AlphaProof', 'https://deepmind.google/discover/blog/ai-solves-imo-problems-at-silver-medal-level/'], ['AlphaEvolve', 'https://deepmind.google/discover/blog/alphaevolve-a-gemini-powered-coding-agent-for-designing-advanced-algorithms/'], ['Gemini 3', 'https://blog.google/products/gemini/gemini-3/']],  c: '#4285f4', sig: 'Thinking models · formal self-play · evolutionary search', tags: ['reasoning', 'agents', 'scaling', 'coding'], items: [
-      'Gemini 2.5 (Mar 2025) "thinking" models with a controllable thinking budget, then Gemini 3 (late 2025) and 3.x: RL-trained reasoning across text, code, image, audio and video.',
+      'Gemini 2.5 (Mar 2025) introduced controllable thinking budgets; later Gemini releases extend reasoning across multimodal inputs.',
       'Gemini Deep Think: parallel, multi-hypothesis reasoning trained with "novel RL techniques"; reached gold-medal level at IMO 2025 in natural language.',
-      'AlphaProof and AlphaGeometry: RL self-play in Lean with a verifier, the purest form of RLVR, producing millions of proved/disproved problems.',
+      'AlphaProof uses reinforcement learning in Lean, where the proof assistant can verify generated proofs. Its training system also generates and proves or disproves large numbers of formal problems.',
       'AlphaEvolve (May 2025): Gemini-driven evolutionary search with automated evaluators that found new algorithms and datacenter optimizations.',
       'Agent products (Jules, Gemini CLI, Project Mariner / Agent Mode); that they are RL-trained on coding and browsing environments is inferred from the model blog posts, not separately documented.',
     ] },
     { name: 'DeepSeek', src: [['DeepSeekMath (GRPO)', 'https://arxiv.org/abs/2402.03300'], ['DeepSeek-R1', 'https://arxiv.org/abs/2501.12948'], ['R1 in Nature', 'https://www.nature.com/articles/s41586-025-09422-z']],  c: '#4d6bfe', sig: 'GRPO · pure-RL reasoning · open weights', tags: ['reasoning', 'open', 'scaling', 'coding'], items: [
-      'DeepSeekMath (Feb 2024) introduced GRPO: critic-free group-normalized advantages, later the default algorithm for open RLVR.',
+      'DeepSeekMath (Feb 2024) introduced GRPO: group-normalized advantages without a learned value model.',
       'R1-Zero (Jan 2025): RL directly on the base model with rule-based rewards (answer correctness + format). Reasoning behaviors emerged with no SFT; the "aha moment".',
-      'R1: cold-start SFT, then reasoning RL, rejection sampling, then RLHF-style RL for general tasks. Distilled to small Qwen/Llama models, catalyzing the open reasoning wave.',
-      'Later releases (V3.1 onward): hybrid thinking modes and agentic post-training for tool use and code, with an emphasis on inference efficiency. Details beyond the release notes are not published.',
+      'R1: cold-start SFT, reasoning RL, rejection sampling, and a final RL stage for helpfulness and harmlessness. DeepSeek also distilled reasoning traces into smaller Qwen and Llama models.',
     ] },
     { name: 'Alibaba Qwen', src: [['Qwen3', 'https://qwenlm.github.io/blog/qwen3/'], ['Qwen3-Coder', 'https://qwenlm.github.io/blog/qwen3-coder/'], ['GSPO', 'https://arxiv.org/abs/2507.18071']],  c: '#615ced', sig: 'GSPO · massive parallel environments · hybrid thinking', tags: ['reasoning', 'coding', 'agents', 'open'], items: [
       'Qwen3 (Apr 2025): unified thinking / non-thinking modes; four-stage post-training with long-CoT cold start, reasoning RL, mode fusion, and general RL.',
       'Qwen3-Coder (Jul 2025): "agentic RL" on real software tasks, running 20,000 independent environments in parallel on Alibaba Cloud.',
       'GSPO (Jul 2025): sequence-level importance ratios and clipping; reported necessary for stable RL on large MoE models.',
-      'Later Qwen3 releases continue with long-horizon agent training and open weights, making them the base for much academic RL research.',
     ] },
     { name: 'Moonshot AI (Kimi)', src: [['Kimi k1.5', 'https://arxiv.org/abs/2501.12599'], ['Kimi K2', 'https://arxiv.org/abs/2507.20534']],  c: '#e11d48', sig: 'Agentic data synthesis · self-critique rubric reward', tags: ['agents', 'reasoning', 'open'], items: [
       'Kimi k1.5 (Jan 2025): RL with long-context scaling and a length penalty for "short-CoT" models; described online policy mirror descent rather than PPO.',
       'Kimi K2 (Jul 2025, 1T MoE): large-scale synthetic agentic tool-use data, then a joint RL stage mixing verifiable rewards with a self-critique rubric reward for non-verifiable tasks.',
-      'K2 Thinking (Nov 2025): interleaved thinking with hundreds of sequential tool calls, trained end-to-end (per the release notes).',
     ] },
     { name: 'xAI', src: [['Grok 4', 'https://x.ai/news/grok-4']],  c: '#555555', sig: 'RL compute scaled to pretraining scale', tags: ['reasoning', 'scaling', 'agents'], items: [
       'Grok 3 (Feb 2025): reasoning mode; Grok 4 (Jul 2025): claimed to spend as much compute on RL as on pretraining, with native tool use trained in, and Grok 4 Heavy using multi-agent parallel test-time compute.',
-      'Later Grok releases emphasize agentic coding; beyond the Grok 4 announcement, xAI has published few training details.',
+      'The Grok 4 announcement gives high-level compute and tool-use claims but few algorithmic details.',
     ] },
     { name: 'Meta', src: [['Llama 3 paper', 'https://arxiv.org/abs/2407.21783'], ['Llama 4', 'https://ai.meta.com/blog/llama-4-multimodal-intelligence/']],  c: '#0668e1', sig: 'Online RL with curriculum · open weights', tags: ['open', 'agents', 'scaling'], items: [
       'Llama 3 (2024): iterative rounds of rejection sampling, SFT and DPO, deliberately avoiding PPO for stability and scale.',
       'Llama 4 (Apr 2025): "continuous online RL" with a curriculum that filters to medium-and-hard prompts, alternating training and prompt filtering.',
-      'Meta Superintelligence Labs (mid-2025 onward): reorganization around frontier reasoning and agents; RL methods for later models are unpublished.',
     ] },
     { name: 'Mistral, ByteDance & others', src: [['Magistral', 'https://mistral.ai/news/magistral'], ['DAPO', 'https://arxiv.org/abs/2503.14476'], ['verl', 'https://github.com/volcengine/verl'], ['MiniMax-M1 (CISPO)', 'https://arxiv.org/abs/2506.13585'], ['AReaL', 'https://arxiv.org/abs/2505.24298']],  c: '#f59e0b', sig: 'Open RL systems and algorithm papers', tags: ['open', 'reasoning', 'coding'], items: [
       'Mistral Magistral (Jun 2025): reasoning via "pure RL" from Mistral Medium with a modified GRPO (no KL, clip-higher, minibatch normalization).',
-      'ByteDance Seed: DAPO (Mar 2025) and VAPO; verl, the most widely used open RL training framework, came out of ByteDance.',
+      'ByteDance Seed published DAPO (Mar 2025) and the open-source verl training framework.',
       'MiniMax M1 (Jun 2025): CISPO, clipping importance weights instead of token updates, and the diagnosis of train/inference numerical mismatch.',
       'Open infrastructure: OpenRLHF, TRL, AReaL (async), PRIME-RL and Prime Intellect\'s Environments Hub, slime, SkyRL; plus a market of "RL environment" vendors.',
     ] },
@@ -1086,23 +1081,23 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
 
   // timeline
   const ev = [
-    { y: 1992, k: 'algo', t: 'REINFORCE', d: 'Williams. The basic policy-gradient estimator every LLM RL method descends from.' },
+    { y: 1992, k: 'algo', t: 'REINFORCE', d: 'Williams introduced a likelihood-ratio policy-gradient estimator that underlies many later policy-gradient methods.' },
     { y: 2015.5, k: 'algo', t: 'TRPO', d: 'Trust-region policy optimization: bound the policy change per step.' },
-    { y: 2017.5, k: 'algo', t: 'PPO', d: 'Clipped surrogate objective. The default RLHF algorithm for seven years.' },
+    { y: 2017.5, k: 'algo', t: 'PPO', d: 'A clipped surrogate objective designed to permit several minibatch updates on sampled data.' },
     { y: 2017.6, k: 'milestone', t: 'RL from preferences', d: 'Christiano et al. Learn a reward model from comparisons of trajectories.' },
     { y: 2019.7, k: 'milestone', t: 'GPT-2 from preferences', d: 'First RLHF on a language model (Ziegler et al.).' },
-    { y: 2022.2, k: 'milestone', t: 'InstructGPT', d: 'SFT → reward model → PPO. The recipe behind ChatGPT.' },
+    { y: 2022.2, k: 'milestone', t: 'InstructGPT', d: 'OpenAI documented a pipeline of supervised fine-tuning, reward modeling, and PPO.' },
     { y: 2022.95, k: 'milestone', t: 'Constitutional AI', d: 'Anthropic: AI feedback against written principles (RLAIF).' },
     { y: 2023.4, k: 'algo', t: 'DPO', d: 'Preference optimization without a reward model or sampling.' },
     { y: 2024.1, k: 'algo', t: 'GRPO', d: 'DeepSeekMath: group-normalized advantages, no critic.' },
     { y: 2024.7, k: 'milestone', t: 'o1', d: 'OpenAI: large-scale RL on reasoning; test-time compute scaling.' },
-    { y: 2025.05, k: 'milestone', t: 'DeepSeek-R1', d: 'Open reasoning via pure RL; GRPO becomes the standard.' },
+    { y: 2025.05, k: 'milestone', t: 'DeepSeek-R1', d: 'DeepSeek published R1-Zero training with RL directly from a base model, followed by a multi-stage recipe for R1.' },
     { y: 2025.2, k: 'algo', t: 'DAPO / Dr. GRPO', d: 'Clip-higher, dynamic sampling, token-level loss, length-bias fixes.' },
-    { y: 2025.35, k: 'milestone', t: 'o3, Claude 4, Codex', d: 'RL over tool use; coding agents trained in sandboxed repos.' },
+    { y: 2025.35, k: 'milestone', t: 'o3 and Codex', d: 'OpenAI described RL for tool choice and software-engineering tasks in sandboxed repositories.' },
     { y: 2025.5, k: 'algo', t: 'GSPO / CISPO', d: 'Sequence-level ratios; importance-weight clipping; off-policy corrections.' },
     { y: 2025.6, k: 'milestone', t: 'Grok 4 · Kimi K2', d: 'RL compute ≈ pretraining; agentic data synthesis; 20k parallel envs.' },
     { y: 2025.85, k: 'milestone', t: 'Hacking → misalignment', d: 'Anthropic shows reward hacking generalizes; inoculation prompting.' },
-    { y: 2026.3, k: 'milestone', t: 'Long-horizon agents (trend)', d: 'A summary of the 2026 direction rather than a single release: multi-hour autonomous coding and research agents, environment marketplaces, async RL stacks as the default.' },
+    { y: 2026.3, k: 'milestone', t: 'Longer agent tasks', d: 'A general direction in public releases: longer coding and research trajectories, more parallel environments, and more asynchronous training infrastructure.' },
   ];
   const el = $('#tl-viz'); const W = 1000, H = 280, m = { l: 30, r: 30, t: 40, b: 30 }; const mid = 150;
   const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
@@ -1125,20 +1120,21 @@ function bindRange(id, out, f = (v) => v) { const r = $('#' + id), o = $('#' + o
    10 Scaling chart
    ============================================================ */
 (() => {
-  const gens = [
-    { g: 'GPT-4 class (2023)', rl: 3 }, { g: 'Claude 3 / Llama 3 (2024)', rl: 6 }, { g: 'o1 / R1 (late 2024–early 2025)', rl: 15 }, { g: 'o3 / Claude 4 / Gemini 2.5 (2025)', rl: 30 }, { g: 'Grok 4 / GPT-5 (mid-late 2025)', rl: 50 }, { g: '2026 frontier agents', rl: 55 },
+  const reported = [
+    { g: 'o1 baseline', v: 1, label: '1×' },
+    { g: 'o3 / o4-mini', v: 10, label: '≈10×' },
   ];
-  const el = $('#scale-viz'); const W = 460, H = 290, m = { l: 40, r: 20, t: 30, b: 100 };
+  const el = $('#scale-viz'); const W = 460, H = 290, m = { l: 60, r: 24, t: 54, b: 62 };
   const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
-  const x = d3.scaleBand().domain(gens.map(d => d.g)).range([m.l, W - m.r]).padding(.3); const y = d3.scaleLinear().domain([0, 100]).range([H - m.b, m.t]);
-  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '%'));
-  svg.append('text').attr('x', m.l).attr('y', 14).style('font-size', '11px').style('fill', 'var(--ink-2)').text('RL share of total training compute by model generation (illustrative)');
-  const g = svg.selectAll('g.b').data(gens).join('g');
-  g.append('rect').attr('x', d => x(d.g)).attr('y', y(100)).attr('width', x.bandwidth()).attr('height', y(0) - y(100)).attr('fill', 'var(--bg-3)').attr('rx', 3);
-  g.append('rect').attr('x', d => x(d.g)).attr('y', d => y(d.rl)).attr('width', x.bandwidth()).attr('height', d => y(0) - y(d.rl)).attr('fill', 'var(--policy)').attr('rx', 3);
-  g.append('text').attr('x', d => x(d.g) + x.bandwidth() / 2).attr('y', d => y(d.rl) - 5).attr('text-anchor', 'middle').style('font-size', '11px').style('fill', 'var(--ink-2)').text(d => d.rl + '%');
-  g.append('text').attr('transform', d => `translate(${x(d.g) + x.bandwidth() / 2},${H - m.b + 8}) rotate(35)`).attr('text-anchor', 'start').style('font-size', '9.5px').style('fill', 'var(--ink-3)').text(d => d.g);
-  svg.append('text').attr('x', m.l + 4).attr('y', y(88)).style('font-size', '10px').style('fill', 'var(--ink-3)').text('grey = pretraining + SFT share');
+  const x = d3.scaleBand().domain(reported.map(d => d.g)).range([m.l, W - m.r]).padding(.4);
+  const y = d3.scaleLinear().domain([0, 10]).range([H - m.b, m.t]);
+  svg.append('text').attr('x', m.l).attr('y', 18).style('font-size', '11px').style('fill', 'var(--ink-2)').text('OpenAI-reported RL training compute, normalized to o1');
+  svg.append('text').attr('x', m.l).attr('y', 35).style('font-size', '10px').style('fill', 'var(--ink-3)').text('Relative scale only; absolute compute was not published');
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([0, 2, 4, 6, 8, 10]).tickFormat(d => d + '×'));
+  const g = svg.selectAll('g.b').data(reported).join('g');
+  g.append('rect').attr('x', d => x(d.g)).attr('y', d => y(d.v)).attr('width', x.bandwidth()).attr('height', d => y(0) - y(d.v)).attr('fill', 'var(--policy)').attr('rx', 3);
+  g.append('text').attr('x', d => x(d.g) + x.bandwidth() / 2).attr('y', d => y(d.v) - 8).attr('text-anchor', 'middle').style('font-size', '12px').style('font-weight', 600).style('fill', 'var(--ink-2)').text(d => d.label);
+  g.append('text').attr('x', d => x(d.g) + x.bandwidth() / 2).attr('y', H - m.b + 24).attr('text-anchor', 'middle').style('font-size', '10px').style('fill', 'var(--ink-3)').text(d => d.g);
 })();
 </script>
 </body>
