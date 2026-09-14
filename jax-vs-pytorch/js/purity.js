@@ -96,7 +96,7 @@ def train_step(x, y):
   function normals(seed, n) { const r = hash(seed); const out = []; for (let i = 0; i < n; i++) { const u = Math.max(r(), 1e-9), v = r(); out.push(Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)); } return out.map((x) => (x >= 0 ? ' ' : '') + x.toFixed(2)).join(' '); }
 
   JT.widget('purity', (container) => {
-    const S = JT.stage(container, { title: 'The same training step, side by side', hint: 'Hover a concept to compare' });
+    const S = JT.stage(container, { title: 'Compare training steps', hint: 'Hover a concept to compare' });
 
     const jaxPre = JT.code(JAX_SRC), torchPre = JT.code(TORCH_SRC);
     const explJ = JT.el('div', { class: 'j' }), explT = JT.el('div', { class: 't' });
