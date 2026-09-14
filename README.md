@@ -1,7 +1,7 @@
 # Visual Learn
 
-Interactive, single-page explainers on how machine-learning systems work, in
-the spirit of the [Polo Club](https://poloclub.github.io/) explainers.
+Interactive explanations of machine-learning systems, with diagrams, worked
+examples, and browser experiments. Inspired by the [Polo Club](https://poloclub.github.io/) explainers.
 
 Live site: https://sghael.github.io/visual-learn/
 
@@ -9,10 +9,12 @@ Live site: https://sghael.github.io/visual-learn/
 
 | Folder | Explainer | What it covers |
 |---|---|---|
-| [`jax-vs-pytorch/`](jax-vs-pytorch/) | [JAX Explainer](https://sghael.github.io/visual-learn/jax-vs-pytorch/) | How JAX, XLA and TPUs run your code, side by side with PyTorch and CUDA |
-| [`qat-explainer/`](qat-explainer/) | [Quantization-Aware Training](https://sghael.github.io/visual-learn/qat-explainer/) | How LLMs are trained to survive 4-bit weights: fake quantization, the straight-through estimator, and a live PTQ vs QAT lab |
-| [`gcp-accelerators/`](gcp-accelerators/) | [Accelerator Atlas](https://sghael.github.io/visual-learn/gcp-accelerators/) | Every GPU and TPU on Google Cloud in 2026: anatomy, lineup, roofline, interconnects, and a model-fit calculator |
-| [`register-tokens/`](register-tokens/) | [Register Tokens Explainer](https://sghael.github.io/visual-learn/register-tokens/) | Why big ViTs grow high-norm artifact tokens in background patches and how register tokens fix it |
+| [`jax-vs-pytorch/`](jax-vs-pytorch/) | [JAX and PyTorch](https://sghael.github.io/visual-learn/jax-vs-pytorch/) | How JAX, XLA and TPUs run your code, side by side with PyTorch and CUDA |
+| [`qat-explainer/`](qat-explainer/) | [Quantization-Aware Training](https://sghael.github.io/visual-learn/qat-explainer/) | Training with low-precision weights: fake quantization, the straight-through estimator, and a live PTQ vs QAT lab |
+| [`gcp-accelerators/`](gcp-accelerators/) | [Google Cloud Accelerators](https://sghael.github.io/visual-learn/gcp-accelerators/) | GPU and TPU hardware on Google Cloud: anatomy, lineup, roofline, interconnects, and a model-fit calculator |
+| [`register-tokens/`](register-tokens/) | [Register Tokens Explainer](https://sghael.github.io/visual-learn/register-tokens/) | High-norm patch tokens in vision transformers and the effect of adding register tokens |
+| [`rl-agentic-llms/`](rl-agentic-llms/) | [Reinforcement Learning for LLM Agents](https://sghael.github.io/visual-learn/rl-agentic-llms/) | Policy gradients, preference learning, verifiable rewards, and tool-use training |
+| [`k2-horizon/`](k2-horizon/) | [K2 Horizon](https://sghael.github.io/visual-learn/k2-horizon/) | Model sizes, mixture-of-experts layers, attention, diffusion decoding, and reported benchmarks |
 
 ## How the repo works
 
