@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
@@ -31,7 +32,7 @@ for (const width of [1440, 390]) {
     assert.equal(await page.locator('#date').textContent(), '2026-09-23');
     assert.equal(await page.locator('#play').innerText(), 'Play');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: `/private/tmp/pareto-front-${width}.png`, fullPage: true });
+    await page.screenshot({ path: path.join(os.tmpdir(), `pareto-front-${width}.png`), fullPage: true });
     assert.deepEqual(errors, []);
     await context.close();
   });
