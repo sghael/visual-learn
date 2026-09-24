@@ -15,8 +15,8 @@ before(async () => {
 });
 after(async () => { if (browser) await browser.close(); });
 
-async function open(width = 1440) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+async function open(width = 1440, reduced = true) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -27,19 +27,20 @@ async function open(width = 1440) {
 }
 
 for (const width of [1440, 390]) {
-  test(`chart and controls render at ${width}px`, async () => {
+  test(`chart and controls render at ${width}px`, async (t) => {
     const { context, page, errors } = await open(width);
+    t.after(() => context.close());
     assert.equal(await page.locator('#date').textContent(), '2026-09-23');
     assert.equal(await page.locator('#play').innerText(), 'Play');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(os.tmpdir(), `pareto-front-${width}.png`), fullPage: true });
     assert.deepEqual(errors, []);
-    await context.close();
+    await page.screenshot({ path: path.join(os.tmpdir(), `pareto-front-${width}.png`), fullPage: true });
   });
 }
 
-test('date slider updates visible models and its spoken date', async () => {
+test('date slider updates visible models and its spoken date', async (t) => {
   const { context, page, errors } = await open();
+  t.after(() => context.close());
   const first = await page.evaluate(() => DATA.frames[0]);
   await page.locator('#scrub').focus();
   await page.locator('#scrub').press('Home');
@@ -47,11 +48,11 @@ test('date slider updates visible models and its spoken date', async () => {
   assert.equal(await page.locator('#scrub').getAttribute('aria-valuetext'), first.date);
   assert.equal(await page.locator('#model-picker option').count(), first.points.length + 1);
   assert.deepEqual(errors, []);
-  await context.close();
 });
 
-test('clicking a dot selects it, and a later release disappears at an earlier date', async () => {
+test('clicking a dot selects it, and a later release disappears at an earlier date', async (t) => {
   const { context, page, errors } = await open();
+  t.after(() => context.close());
   await page.locator('#scrub').focus();
   await page.locator('#scrub').press('Home');
   const first = await page.evaluate(() => {
@@ -73,5 +74,24 @@ test('clicking a dot selects it, and a later release disappears at an earlier da
   assert.equal(await page.locator('#model-picker').inputValue(), '');
   assert.match(await page.locator('#model-detail').innerText(), /Select a dot/);
   assert.deepEqual(errors, []);
-  await context.close();
+});
+
+test('animation advances, pauses, and restarts after the last date', async (t) => {
+  const { context, page, errors } = await open(1440, false);
+  t.after(() => context.close());
+  assert.equal(await page.locator('#play').innerText(), 'Pause');
+  const date = await page.locator('#date').textContent();
+  await page.waitForFunction(previous => document.querySelector('#date').textContent !== previous, date, { timeout: 4000 });
+  await page.locator('#play').click();
+  const pausedDate = await page.locator('#date').textContent();
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator('#date').textContent(), pausedDate);
+  await page.locator('#scrub').focus();
+  await page.locator('#scrub').press('End');
+  const restarted = await page.evaluate(() => {
+    document.querySelector('#play').click();
+    return document.querySelector('#date').textContent;
+  });
+  assert.equal(restarted, await page.evaluate(() => DATA.frames[0].date));
+  assert.deepEqual(errors, []);
 });

@@ -69,11 +69,12 @@ def nice_name(name):
     return name
 
 # Fix every model at its latest measurement under the same scoring method.
+# The boundary excludes retired models without a measurement on that method.
 # Dates control when models enter the plot; they never change an existing point.
 REFERENCE = {}
 for slug, model in HISTORY.items():
     observations = [o for o in model.get('observations', [])
-                    if BOUNDARY <= o[0] <= END and o[1] > 0 and o[2] is not None]
+                    if BOUNDARY <= o[0] <= END and o[1] is not None and o[1] > 0 and o[2] is not None]
     if observations and model.get('release_date'):
         cost, score = observations[-1][1:3]
         if math.isfinite(cost) and math.isfinite(score):
@@ -173,7 +174,7 @@ def draw_frame(fr):
         d.text((tx,ty),name,font=font(14),fill=FG)
     sx=922
     d.text((sx,155),dt.date.fromisoformat(fr['date']).strftime('%b %-d, %Y'),font=font(29,serif=True),fill=FG)
-    d.text((sx,201),'Models appear at release',font=font(15),fill=FRONT)
+    d.text((sx,201),'Models released by this date',font=font(15),fill=FRONT)
     d.text((sx,259),f"{len(fr['points'])} {'model' if len(fr['points'])==1 else 'models'} shown",font=font(19),fill=FG)
     d.text((sx,289),f"{len(front)} on plotted frontier",font=font(19),fill=FG)
     if front:
@@ -182,7 +183,7 @@ def draw_frame(fr):
         d.text((sx,391),f"{lead['score']:.1f}  ·  {price(lead['cost'])} per task",font=font(21),fill=FG)
         name=by_id[lead['id']]['name'];name=name[:29]+'…' if len(name)>30 else name
         d.text((sx,423),name,font=font(14),fill=MUTED)
-    note=['Dots use September 2026 data.', 'Many higher-scoring 2025 models', 'have no reported Index task cost', 'and cannot be plotted here.']
+    note=['Dots use September 2026 data.', '36 retired models have no score', 'on this Index version, leaving', 'gaps in earlier dates.']
     for j,line in enumerate(note):d.text((sx,510+23*j),line,font=font(14),fill=MUTED)
     d.text((sx,636),'Existing dots stay in place',font=font(13),fill=FRONT)
     d.text((58,735),'Data: Artificial Analysis via CatalystNeuro · Frontier: higher score and lower cost',font=font(13),fill=MUTED)
@@ -190,11 +191,11 @@ def draw_frame(fr):
 
 # The GIF uses the same discrete dates and frontier calculation as the HTML.
 images=[draw_frame(fr) for fr in frames]
-# Hold the end state for two seconds without repeating full frames in the file.
+# Hold the end state for 3.3 seconds without repeating full frames in the file.
 durations=[160 + 10 * (i % 2) for i in range(len(images))]
 durations[0]=900;durations[-1]=3300
 palette=images[-1].quantize(colors=256,method=Image.Quantize.MEDIANCUT,dither=Image.Dither.NONE)
 palette_images=[im.quantize(palette=palette,dither=Image.Dither.NONE) for im in images]
 palette_images[0].save(ROOT/'pareto-front.gif',save_all=True,append_images=palette_images[1:],duration=durations,loop=0,optimize=True,disposal=2)
-print(f'{len(models)} archived models; {len(frames)} frames; {START} to {END}')
+print(f'{len(models)} plotted models; {len(HISTORY)-len(models)} excluded from this scoring period; {len(frames)} frames; {START} to {END}')
 print('outputs:',ROOT/'index.html',ROOT/'pareto-front.gif')
