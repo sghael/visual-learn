@@ -1,0 +1,97 @@
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { chromium } from 'playwright';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const PAGE = pathToFileURL(path.join(here, '..', 'index.html')).href;
+let browser;
+
+before(async () => {
+  try { browser = await chromium.launch({ channel: 'chrome', headless: true }); }
+  catch { browser = await chromium.launch({ headless: true }); }
+});
+after(async () => { if (browser) await browser.close(); });
+
+async function open(width = 1440, reduced = true) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto(PAGE);
+  await page.waitForSelector('#model-picker option:nth-child(2)', { state: 'attached' });
+  return { context, page, errors };
+}
+
+for (const width of [1440, 390]) {
+  test(`chart and controls render at ${width}px`, async (t) => {
+    const { context, page, errors } = await open(width);
+    t.after(() => context.close());
+    assert.equal(await page.locator('#date').textContent(), '2026-09-23');
+    assert.equal(await page.locator('#play').innerText(), 'Play');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+    assert.deepEqual(errors, []);
+    await page.screenshot({ path: path.join(os.tmpdir(), `pareto-front-${width}.png`), fullPage: true });
+  });
+}
+
+test('date slider updates visible models and its spoken date', async (t) => {
+  const { context, page, errors } = await open();
+  t.after(() => context.close());
+  const first = await page.evaluate(() => DATA.frames[0]);
+  await page.locator('#scrub').focus();
+  await page.locator('#scrub').press('Home');
+  assert.equal(await page.locator('#date').textContent(), first.date);
+  assert.equal(await page.locator('#scrub').getAttribute('aria-valuetext'), first.date);
+  assert.equal(await page.locator('#model-picker option').count(), first.points.length + 1);
+  assert.deepEqual(errors, []);
+});
+
+test('clicking a dot selects it, and a later release disappears at an earlier date', async (t) => {
+  const { context, page, errors } = await open();
+  t.after(() => context.close());
+  await page.locator('#scrub').focus();
+  await page.locator('#scrub').press('Home');
+  const first = await page.evaluate(() => {
+    const p = DATA.frames[0].points[0];
+    return { id: p.id, name: models[p.id].name, point: xy(p.cost, p.score) };
+  });
+  const box = await page.locator('#chart').boundingBox();
+  await page.mouse.click(box.x + first.point[0] * box.width / 1200, box.y + first.point[1] * box.height / 760);
+  assert.equal(await page.locator('#model-picker').inputValue(), first.id);
+  assert.ok((await page.locator('#model-detail').innerText()).includes(first.name));
+  assert.equal(await page.locator('#play').innerText(), 'Play');
+
+  await page.locator('#scrub').press('End');
+  assert.equal(await page.locator('#model-picker').inputValue(), first.id);
+  const later = await page.evaluate(() => DATA.frames.at(-1).points.find(p => !DATA.frames[0].points.some(q => q.id === p.id)).id);
+  await page.locator('#model-picker').selectOption(later);
+  assert.equal(await page.locator('#model-picker').inputValue(), later);
+  await page.locator('#scrub').press('Home');
+  assert.equal(await page.locator('#model-picker').inputValue(), '');
+  assert.match(await page.locator('#model-detail').innerText(), /Select a dot/);
+  assert.deepEqual(errors, []);
+});
+
+test('animation advances, pauses, and restarts after the last date', async (t) => {
+  const { context, page, errors } = await open(1440, false);
+  t.after(() => context.close());
+  assert.equal(await page.locator('#play').innerText(), 'Pause');
+  const date = await page.locator('#date').textContent();
+  await page.waitForFunction(previous => document.querySelector('#date').textContent !== previous, date, { timeout: 4000 });
+  await page.locator('#play').click();
+  const pausedDate = await page.locator('#date').textContent();
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator('#date').textContent(), pausedDate);
+  await page.locator('#scrub').focus();
+  await page.locator('#scrub').press('End');
+  const restarted = await page.evaluate(() => {
+    document.querySelector('#play').click();
+    return document.querySelector('#date').textContent;
+  });
+  assert.equal(restarted, await page.evaluate(() => DATA.frames[0].date));
+  assert.deepEqual(errors, []);
+});

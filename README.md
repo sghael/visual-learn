@@ -15,6 +15,7 @@ Live site: https://sghael.github.io/visual-learn/
 | [`register-tokens/`](register-tokens/) | [Register Tokens Explainer](https://sghael.github.io/visual-learn/register-tokens/) | High-norm patch tokens in vision transformers and the effect of adding register tokens |
 | [`rl-agentic-llms/`](rl-agentic-llms/) | [Reinforcement Learning for LLM Agents](https://sghael.github.io/visual-learn/rl-agentic-llms/) | Policy gradients, preference learning, verifiable rewards, and tool-use training |
 | [`k2-horizon/`](k2-horizon/) | [K2 Horizon](https://sghael.github.io/visual-learn/k2-horizon/) | Model sizes, mixture-of-experts layers, attention, diffusion decoding, and reported benchmarks |
+| [`pareto-front/`](pareto-front/) | [Intelligence versus cost](https://sghael.github.io/visual-learn/pareto-front/) | Model release dates and the plotted Intelligence Index versus task cost frontier |
 
 ## How the repo works
 
