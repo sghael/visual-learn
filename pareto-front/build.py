@@ -103,6 +103,8 @@ for slug in REFERENCE:
     models.append({'id':slug,'name':nice_name(m['name']),'creator':m.get('creator') or 'Other','release':m.get('release_date'),'last':m.get('last_seen')})
 models.sort(key=lambda x:x['id'])
 by_id={m['id']:m for m in models}
+excluded={slug for slug in HISTORY if slug not in by_id}
+assert len(excluded)==36 and all(HISTORY[slug].get('retired') for slug in excluded), 'Review the page caveat: the excluded-model count or reason changed'
 frames=[]
 for date in dates():
     pts=[]
@@ -197,5 +199,5 @@ durations[0]=900;durations[-1]=3300
 palette=images[-1].quantize(colors=256,method=Image.Quantize.MEDIANCUT,dither=Image.Dither.NONE)
 palette_images=[im.quantize(palette=palette,dither=Image.Dither.NONE) for im in images]
 palette_images[0].save(ROOT/'pareto-front.gif',save_all=True,append_images=palette_images[1:],duration=durations,loop=0,optimize=True,disposal=2)
-print(f'{len(models)} plotted models; {len(HISTORY)-len(models)} excluded from this scoring period; {len(frames)} frames; {START} to {END}')
+print(f'{len(models)} plotted models; {len(excluded)} excluded; {len(frames)} frames; {START} to {END}')
 print('outputs:',ROOT/'index.html',ROOT/'pareto-front.gif')
