@@ -3,814 +3,256 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232457D6'/%3E%3Cpath d='M14 40h9V24h9v16h9V18h9v22' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
-<title>Quantization-Aware Training</title>
-<meta name="description" content="An interactive explanation of quantization-aware training, from integer grids and fake quantization to low-bit language-model recipes.">
+<title>Quantization-aware training · Visual Learn</title>
+<meta name="description" content="How quantization-aware training works: rounding weights onto an integer grid, training through the rounding with a straight-through estimator, and how it compares with post-training quantization.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%231c1b18'/%3E%3Cpath d='M14 40h9V24h9v16h9V18h9v22' fill='none' stroke='%23fcfbf7' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<style>
-:root{
-  --bg:#F4F6F9; --surface:#FFFFFF; --surface-2:#EAEEF4; --ink:#151A22; --ink-2:#3C4450; --muted:#5B6470;
-  --line:#D9DEE6; --line-2:#C3CAD5; --accent:#2457D6; --accent-ink:#1A44AE; --accent-soft:#E3EAFB;
-  --fp32:#2F6BD9; --ptq:#D9781E; --qat:#1D9A6C;
-  --div-neg:#2F6BD9; --div-mid:#D4D8DE; --div-pos:#D9781E;
-  --seq-1:#DCE6FA; --seq-5:#1A44AE;
-  --warn:#B4531A; --good:#1B7A57;
-  --shadow:0 1px 2px rgba(21,26,34,.06), 0 8px 24px -12px rgba(21,26,34,.18);
-  --radius:10px;
-  color-scheme:light;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#14181F; --surface:#1C2129; --surface-2:#242A34; --ink:#E8ECF2; --ink-2:#C6CDD7; --muted:#98A2B0;
-    --line:#2C333D; --line-2:#3A424E; --accent:#6B93E8; --accent-ink:#8FB0F5; --accent-soft:#1F2C47;
-    --fp32:#5585E0; --ptq:#CC7A30; --qat:#2FA97A;
-    --div-neg:#5585E0; --div-mid:#3A424E; --div-pos:#CC7A30;
-    --seq-1:#1F2C47; --seq-5:#8FB0F5;
-    --warn:#E39A5E; --good:#4FC79A;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#14181F; --surface:#1C2129; --surface-2:#242A34; --ink:#E8ECF2; --ink-2:#C6CDD7; --muted:#98A2B0;
-  --line:#2C333D; --line-2:#3A424E; --accent:#6B93E8; --accent-ink:#8FB0F5; --accent-soft:#1F2C47;
-  --fp32:#5585E0; --ptq:#CC7A30; --qat:#2FA97A;
-  --div-neg:#5585E0; --div-mid:#3A424E; --div-pos:#CC7A30;
-  --seq-1:#1F2C47; --seq-5:#8FB0F5;
-  --warn:#E39A5E; --good:#4FC79A;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
-  color-scheme:dark;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
-a{color:var(--accent-ink)}
-a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-h1,h2,h3{font-family:"Sora","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;line-height:1.15;margin:0}
-h1{font-size:clamp(2rem,5vw,3.4rem);font-weight:700;letter-spacing:-.02em}
-h2{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:600;letter-spacing:-.015em}
-h3{font-size:1.15rem;font-weight:600}
-p{margin:0 0 1rem}
-code,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
-.page{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
-@media (min-width:1100px){.page{grid-template-columns:220px minmax(0,1fr)}}
-nav.toc{display:none}
-@media (min-width:1100px){
-  nav.toc{display:block;position:sticky;top:0;align-self:start;height:100vh;padding:2.5rem 1.25rem 2rem 1.75rem;border-right:1px solid var(--line)}
-  nav.toc .brand{font-family:"Sora",sans-serif;font-weight:600;font-size:.95rem;margin-bottom:1.5rem;color:var(--ink)}
-  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:s}
-  nav.toc li{margin:0 0 .35rem}
-  nav.toc a{display:block;text-decoration:none;color:var(--muted);font-size:.86rem;padding:.3rem .5rem;border-radius:6px;border-left:2px solid transparent}
-  nav.toc a:hover{color:var(--ink);background:var(--surface-2)}
-  nav.toc a.active{color:var(--accent-ink);border-left-color:var(--accent);background:var(--accent-soft)}
-}
-main{padding:0 clamp(1rem,4vw,3rem) 6rem}
-.hero{padding:clamp(3rem,7vw,6rem) 0 2rem;max-width:64rem}
-.hero .lede{font-size:1.2rem;color:var(--ink-2);max-width:42rem;margin-top:1.25rem}
-.hero .meta{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;color:var(--muted);font-size:.85rem;margin-top:1.5rem}
-section.step{padding:3.5rem 0 1rem;max-width:64rem;border-top:1px solid var(--line);scroll-margin-top:1rem}
-section.step > .prose{max-width:40rem}
-.prose p{color:var(--ink-2)}
-.prose strong{color:var(--ink)}
-.figure{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.1rem 1.25rem 1rem;margin:1.5rem 0 1.25rem}
-.figure .caption{font-size:.85rem;color:var(--muted);margin:.6rem 0 0;line-height:1.45}
-.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1.4rem;margin-bottom:.75rem;font-size:.86rem}
-.controls label{display:flex;align-items:center;gap:.5rem;color:var(--ink-2)}
-.controls .val{font-family:"IBM Plex Mono",monospace;color:var(--ink);min-width:2.2em;font-variant-numeric:tabular-nums}
-input[type=range]{accent-color:var(--accent);width:150px}
-.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden}
-.seg button{background:var(--surface);color:var(--ink-2);border:0;padding:.3rem .7rem;font:inherit;font-size:.84rem;cursor:pointer}
-.seg button+button{border-left:1px solid var(--line-2)}
-.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
-button.primary{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:.45rem 1rem;font:inherit;font-size:.9rem;font-weight:500;cursor:pointer}
-button.primary:disabled{opacity:.5;cursor:default}
-button.ghost{background:transparent;color:var(--ink-2);border:1px solid var(--line-2);border-radius:6px;padding:.4rem .9rem;font:inherit;font-size:.86rem;cursor:pointer}
-svg{display:block;max-width:100%;height:auto}
-svg text{font-family:"IBM Plex Sans",system-ui,sans-serif;fill:var(--ink-2);font-size:12px}
-svg .mono{font-family:"IBM Plex Mono",monospace}
-svg .axis path,svg .axis line{stroke:var(--line-2)}
-svg .axis text{fill:var(--muted);font-size:11px}
-svg .grid line{stroke:var(--line);stroke-dasharray:2 3}
-.formula{font-family:"IBM Plex Mono",monospace;font-size:.95rem;background:var(--surface-2);border-radius:8px;padding:.8rem 1rem;margin:1rem 0;color:var(--ink);overflow-x:auto;white-space:nowrap}
-.formula .fp{color:var(--fp32)} .formula .q{color:var(--ptq)}
-.legend{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-size:.82rem;color:var(--ink-2);margin:.5rem 0 0}
-.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:.45rem;vertical-align:-1px;background:var(--c)}
-.legend .line::before{height:3px;border-radius:2px;vertical-align:3px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin-top:.8rem}
-.stat{background:var(--surface-2);border-radius:8px;padding:.55rem .8rem}
-.stat .k{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.stat .v{font-family:"IBM Plex Mono",monospace;font-size:1.05rem;font-variant-numeric:tabular-nums;color:var(--ink)}
-.stat .v.fp{color:var(--fp32)} .stat .v.ptq{color:var(--ptq)} .stat .v.qat{color:var(--qat)}
-.grid2{display:grid;grid-template-columns:1fr;gap:1rem}
-@media (min-width:820px){.grid2{grid-template-columns:1fr 1fr}}
-.grid3{display:grid;grid-template-columns:1fr;gap:1rem}
-@media (min-width:900px){.grid3{grid-template-columns:1fr 1fr 1fr}}
-.panel-title{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 .3rem}
-.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.78rem;padding:.35rem .55rem;border-radius:6px;white-space:nowrap;opacity:0;transform:translate(-50%,-120%);transition:opacity .1s;z-index:5;font-family:"IBM Plex Mono",monospace}
-.rel{position:relative}
-.callout{border:1px solid var(--line-2);background:var(--accent-soft);padding:.8rem 1rem;border-radius:8px;margin:1.2rem 0;font-size:.95rem;color:var(--ink)}
-.callout p:last-child{margin:0}
-table.recipes{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
-table.recipes th,table.recipes td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
-table.recipes th{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
-.tablewrap{overflow-x:auto}
-.steps{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem}
-.steps button{background:var(--surface-2);border:1px solid transparent;color:var(--ink-2);border-radius:999px;padding:.3rem .8rem;font:inherit;font-size:.82rem;cursor:pointer}
-.steps button[aria-current="true"]{background:var(--accent);color:#fff}
-.diagram-caption{min-height:3.2em;font-size:.95rem;color:var(--ink);margin:.5rem 0 0}
-.quiz details{border:1px solid var(--line);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;background:var(--surface)}
-.quiz summary{cursor:pointer;font-weight:500;color:var(--ink)}
-.quiz details p{margin:.6rem 0 0;color:var(--ink-2);font-size:.95rem}
-footer{max-width:64rem;color:var(--muted);font-size:.85rem;padding-top:3rem;border-top:1px solid var(--line);margin-top:3rem}
-footer p{margin:.3rem 0}
-.hidden{display:none!important}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="page">
-<nav class="toc" aria-label="Sections">
-  <div class="brand">Quantization-Aware Training</div>
-  <ol>
-    <li><a href="#why">1 · Weight memory</a></li>
-    <li><a href="#number">2 · Quantizing one number</a></li>
-    <li><a href="#matrix">3 · Quantizing a matrix</a></li>
-    <li><a href="#loop">4 · Rounding in the loop</a></li>
-    <li><a href="#ste">5 · Surrogate gradients</a></li>
-    <li><a href="#lab">6 · Training lab</a></li>
-    <li><a href="#llm">7 · Transformer tensors</a></li>
-    <li><a href="#recipes">8 · Published recipes</a></li>
-    <li><a href="#check">9 · Review questions</a></li>
-  </ol>
-</nav>
-<main>
-<header class="hero">
-  <h1>Quantization-Aware Training</h1>
-  <p class="lede">The raw weights of a 70-billion-parameter model occupy about 140 GB in 16-bit form and 35 GB at 4 bits. Quantization-aware training (QAT) includes simulated low-precision weights or activations in the forward pass, then updates higher-precision parameters with surrogate gradients. Training can therefore reduce the error introduced by the target quantizer.</p>
-  <div class="meta"><span>9 sections · ~15 minutes</span><span>Interactive diagrams and controls</span><span>Trains a small network in your browser</span></div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">Quantization-aware training</span>
+    <nav aria-label="Sections">
+      <a href="#memory">Memory</a>
+      <a href="#grid">The grid</a>
+      <a href="#granularity">Scales</a>
+      <a href="#loop">Training loop</a>
+      <a href="#ste">Gradients</a>
+      <a href="#lab">Lab</a>
+      <a href="#llm">Transformers</a>
+      <a href="#recipes">Recipes</a>
+      <a href="#check">Check</a>
+    </nav>
+  </div>
+  <div class="progress" id="progress"></div>
 </header>
 
-<!-- 1 -->
-<section class="step" id="why">
-  <div class="prose">
-    <h2>Weight memory</h2>
-    <p>In bf16, each parameter uses 2 bytes. A packed 4-bit weight uses half a byte before scales and other metadata. Pick a model size to compare raw weight storage with several device capacities. Running a model also requires memory for scales, activations, the KV cache, temporary buffers, and the runtime.</p>
-  </div>
-  <div class="figure rel">
-    <div class="controls">
-      <label>Model size
-        <span class="seg" id="modelSeg">
-          <button aria-pressed="false" data-b="1">1B</button><button aria-pressed="true" data-b="8">8B</button><button aria-pressed="false" data-b="27">27B</button><button aria-pressed="false" data-b="70">70B</button><button aria-pressed="false" data-b="405">405B</button>
+<main class="page">
+  <h1>Quantization-aware training</h1>
+  <p class="subtitle">How a network learns to work with weights rounded to a coarse grid of numbers</p>
+  <p class="lede">The weights of a 70-billion-parameter model take about 140 GB in 16-bit form and about 35 GB at 4 bits. Rounding the weights of a finished model to 4 bits costs accuracy, and the cost grows as bits are removed. Quantization-aware training puts the rounding inside training, so gradient descent can adjust the weights to it.</p>
+  <p class="meta">9 sections · about 20 minutes · the lab trains a small network in your browser</p>
+
+  <!-- 1 -->
+  <section id="memory">
+    <h2>How much memory the weights need</h2>
+    <p>A trained network is mostly a long list of numbers, its weights. Large models are usually trained and served in bf16, a 16-bit floating-point format, so each weight takes 2 bytes. Stored as 4-bit integers, each weight takes half a byte, plus a small overhead for the scale factors that map the integers back to real values.<span class="sn-ref"></span><span class="sidenote">With one bf16 scale for every group of 128 weights, the overhead is 16 bits ÷ 128 = 0.125 bits per weight, so “4-bit” storage costs about 4.13 bits per weight.</span> Figure 1 multiplies this out for five model sizes.</p>
+
+    <figure class="fig" id="fig-mem">
+      <div class="graphic" id="memChart"></div>
+      <figcaption><span class="fig-n"></span>Weight storage (parameters × bytes per weight) on a log scale, so each halving of the bit width is the same step to the left. Dashed lines: memory of three GPUs, nominal. Weights only: activations, the KV cache and runtime buffers need memory on top. <span class="takeaway">At 4 bits the weights of a 70B model fit on one 80 GB H100, and those of a 27B model fit in 16 GB.</span></figcaption>
+    </figure>
+
+    <p>Smaller weights also move faster. When a model generates text one token at a time, each step reads every weight from memory, so the time per token is often set by memory bandwidth rather than arithmetic. Packed 4-bit weights shrink that traffic, but the speed-up arrives only if the runtime has kernels that unpack the format efficiently.</p>
+    <p>The price is accuracy. Rounding every weight to one of 15 or 16 values perturbs the network, and the perturbation grows as bits are removed. Quantization-aware training pays less of that price by training the network with the rounding in place.</p>
+  </section>
+
+  <!-- 2 -->
+  <section id="grid">
+    <h2>Rounding a number onto a grid</h2>
+    <p>A uniform quantizer replaces a real number with the nearest of a fixed set of evenly spaced levels. This page uses the symmetric version that is common for weights. Choose a clipping range [−α, α]. With <i>b</i> bits, place the levels <i>s</i> = α / q<sub>max</sub> apart, where q<sub>max</sub> = 2<sup><i>b</i>−1</sup> − 1. The spacing <i>s</i> is called the <b>scale</b>. Each value <i>x</i> is stored as an integer <i>q</i> and read back as <i>x̂</i>:<span class="marginnote">At 4 bits q<sub>max</sub> = 7, so <i>q</i> runs from −7 to 7: 15 levels. The sixteenth code, −8, goes unused so that the grid is symmetric about zero. Many libraries use the full range instead.</span></p>
+<pre>q = clamp(round(x / s), −q_max, q_max)
+x̂ = s · q</pre>
+    <p>The error <i>x</i> − <i>x̂</i> comes in two kinds. Inside the range, <em>rounding error</em> is at most half a step, <i>s</i>/2. Outside it, the value is replaced by the edge level ±α, and this <em>clipping error</em> grows with the distance from the range.</p>
+
+    <figure class="fig" id="fig-quant">
+      <div class="controls">
+        <label class="control"><span class="label">Bits</span><input type="range" id="nlBits" min="2" max="8" step="1" value="4"><output id="nlBitsV" for="nlBits">4</output></label>
+        <label class="control"><span class="label">Clip range α</span><input type="range" id="nlAlpha" min="0.2" max="1.5" step="0.01" value="1"><output id="nlAlphaV" for="nlAlpha">1.00</output></label>
+        <label class="control"><span class="label"><i>x</i></span><input type="range" id="nlXin" min="-1.6" max="1.6" step="0.001" value="0.437" aria-label="Value x to quantize"><span class="hint">or drag the blue dot</span></label>
+      </div>
+      <div class="graphic">
+        <div class="panel"><p class="panel-title">(a) The grid <span class="muted">· grey curve: how the weights are distributed</span></p><div id="numLine"></div>
+          <p class="readout-line" aria-live="polite"><span class="ro"><span class="c-fp"><i>x</i></span> = <b id="nlX">0.437</b></span> <span class="sep">·</span> <span class="ro"><i>q</i> = <b id="nlQ">3</b></span> <span class="sep">·</span> <span class="ro"><span class="c-quant"><i>x̂</i></span> = <b id="nlXh">0.429</b></span> <span class="sep">·</span> <span class="ro"><span class="c-err">error</span> = <b id="nlErr">+0.008</b> (<span id="nlKind">rounding</span>)</span> <span class="sep">·</span> <span class="ro"><b id="nlLevels">15</b> levels, <i>s</i> = <b id="nlS">0.143</b></span></p></div>
+        <div class="panel"><p class="panel-title">(b) Error |<i>x</i> − <i>x̂</i>| at every <i>x</i></p><div id="errLine"></div></div>
+        <div class="panel"><p class="panel-title">(c) Average squared error over the weights, as α varies</p><div id="alphaPlot"></div></div>
+      </div>
+      <figcaption><span class="fig-n"></span>A symmetric uniform quantizer. The weights in (a) and (c) are drawn from a normal distribution with standard deviation σ = 0.35. Panel (c) splits the mean squared error into its rounding part (solid grey) and clipping part (dashed grey). <span class="takeaway">Shrinking α trades clipping error for rounding error. The best α is where their sum is lowest, and it moves outward as bits are added.</span></figcaption>
+    </figure>
+
+    <p>For these weights the best α is 1.2 standard deviations at 2 bits, 2.5 at 4 bits and 3.9 at 8 bits. With only a few levels, it pays to spend them on the dense middle of the distribution and give up the rare large values. Real weight tensors are not exactly normal, so quantization libraries choose α from the data. Common rules take the largest absolute value, a high percentile, or the α with the lowest measured error.</p>
+    <p>Activations may use an asymmetric range with a zero-point offset, because their values need not be centered on zero. After a ReLU, for example, every value is zero or positive, and a symmetric grid would waste half its levels.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="granularity">
+    <h2>One scale for many weights</h2>
+    <p>A tensor stores one scale for many weights, not one per weight. With a single scale for the whole tensor, called <em>per-tensor</em> scaling, α has to reach the largest weight. One outlier then stretches the grid for every other weight in the tensor. Giving each row its own scale, called <em>per-row</em> or <em>per-channel</em> scaling, confines the damage to the outlier's row.</p>
+
+    <figure class="fig" id="fig-heat">
+      <div class="graphic">
+        <div class="multiples three tight">
+          <div class="panel"><p class="panel-title">Per-tensor scale, no outlier</p><div id="hmA"></div><p class="panel-note">relative error <b id="hmRelA">–</b></p></div>
+          <div class="panel"><p class="panel-title">Per-tensor scale, one outlier</p><div id="hmB"></div><p class="panel-note">relative error <b id="hmRelB">–</b></p></div>
+          <div class="panel"><p class="panel-title">Per-row scales, one outlier</p><div id="hmC"></div><p class="panel-note">relative error <b id="hmRelC">–</b></p></div>
+        </div>
+        <div class="ramp" aria-hidden="true"><span>|error| 0</span><i id="hmRamp"></i><span id="hmMax">–</span></div>
+      </div>
+      <figcaption><span class="fig-n"></span>Quantization error |W − Q(W)| for the same 12 × 12 slice of a simulated weight matrix (normal, σ = 0.3), at 4 bits. Darker cells have larger error, on one color scale for all three panels. The ringed cell holds the outlier, 2.6; it sets α, lands exactly on the top level and so has no error itself. <span class="takeaway">Under a per-tensor scale the outlier raises the error of every other weight; with per-row scales only its own row pays.</span></figcaption>
+    </figure>
+
+    <p>Smaller groups isolate outliers better but store more scales. Four-bit formats for language models usually go further than per-row scales and use one scale per group of 32 to 128 consecutive weights.</p>
+    <p>Activations are harder to quantize than weights. They change with every input, and some channels carry large values on nearly every token, so low-bit activation quantization often needs finer scales, calibration data, clipping, or a transformation of the values first. This is one reason why quantizing only the weights to 4 bits is more common than quantizing weights and activations to 4 bits together, a combination written W4A4.</p>
+  </section>
+
+  <!-- 4 -->
+  <section id="loop">
+    <h2>Putting the rounding inside training</h2>
+    <p>There are two ways to arrive at a quantized model. <b>Post-training quantization</b> (PTQ) quantizes a finished model without further end-to-end training. Some PTQ methods use a small calibration set to choose scales; others work from the weights alone. At 8 bits PTQ often preserves quality. At 4 bits and below, the choice of quantizer and calibration matters more, and the accuracy loss can be large.</p>
+    <p><b>Quantization-aware training</b> (QAT) continues training, but computes the loss with quantized weights, and sometimes quantized activations, in the forward pass. The loss then includes the damage done by rounding, and gradient descent reduces that damage along with the rest of the loss. Figure 4 shows one training step.</p>
+
+    <figure class="fig" id="fig-loop">
+      <div class="graphic" id="loopSvg"></div>
+      <figcaption><span class="fig-n"></span>One QAT step for a single linear layer, simplified. Down the left, the forward pass computes the loss with the quantized weight Ŵ. Up the right, the gradient crosses the rounding step through the straight-through estimator (next section) and updates the master weight W, which is kept in fp32. <span class="takeaway">The optimizer only ever changes W; Ŵ is recomputed from W at every step.</span></figcaption>
+    </figure>
+
+    <p>The rounding step is called <b>fake quantization</b>. It rounds a tensor to the grid and immediately multiplies by the scale again, so the result is still a floating-point tensor whose values lie on the grid, and training runs on ordinary floating-point kernels.<span class="sn-ref"></span><span class="sidenote"><a href="https://arxiv.org/abs/1712.05877" rel="noopener">Jacob et al., 2018</a> describe training with simulated quantization for integer-only inference.</span> When training ends, the master weights are converted one last time, to the integer codes <i>q</i> and scales <i>s</i> that the inference runtime expects, and W is discarded.</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="ste">
+    <h2>Gradients through a staircase</h2>
+    <p>Rounding breaks gradient descent. As a function of its input, <code>round()</code> is a staircase, flat between jumps. Its derivative is zero almost everywhere and undefined at the jumps, so backpropagation through it delivers no gradient to the master weights.</p>
+    <p>The <b>straight-through estimator</b> (STE) works around this.<span class="sn-ref"></span><span class="sidenote"><a href="https://arxiv.org/abs/1308.3432" rel="noopener">Bengio, Léonard and Courville, 2013</a> study the straight-through estimator for neurons with hard thresholds.</span> In the backward pass it treats rounding as the identity, with derivative 1. The version on this page also keeps the derivative of clipping, which is 1 inside [−α, α] and 0 outside, so a clipped weight receives no gradient. Other QAT methods use other surrogate gradients, especially when they learn the scale.<span class="sn-ref"></span><span class="sidenote">LSQ (<a href="https://arxiv.org/abs/1902.08153" rel="noopener">Esser et al., 2020</a>) defines a gradient for the step size <i>s</i> itself, so the clipping range is trained along with the weights.</span></p>
+
+    <figure class="fig" id="fig-ste">
+      <div class="graphic">
+        <div class="multiples three tight stack-narrow">
+          <div class="panel"><p class="panel-title">Forward pass: <span class="c-quant">x̂</span></p><div id="steFwd"></div></div>
+          <div class="panel"><p class="panel-title">True derivative dx̂/dx</p><div id="steTrue"></div></div>
+          <div class="panel"><p class="panel-title">Straight-through estimate</p><div id="steSte"></div></div>
+        </div>
+      </div>
+      <figcaption><span class="fig-n"></span>One quantizer with <i>s</i> = 1 and α = 2, drawn three ways on the same <i>x</i>-axis. The true derivative is 0 on every flat step and undefined at the jumps (dotted). <span class="takeaway">The true derivative carries no signal. The STE passes the gradient through unchanged wherever the input lies inside the clipping range.</span></figcaption>
+    </figure>
+
+    <h3>Why the master weight stays in full precision</h3>
+    <p>An update applied to Ŵ directly would be rounded away. A weight on level 1 that is nudged by −0.03 rounds straight back to level 1, however many times it is nudged. The master weight W keeps the nudges. Each one moves W a little, and Ŵ changes only when their sum carries W across a rounding boundary, halfway between two levels.</p>
+
+    <figure class="fig" id="fig-drift">
+      <div class="graphic" id="driftSvg"></div>
+      <figcaption><span class="fig-n"></span>Simulated: one master weight receiving noisy updates that average −0.03 per step, with <i>s</i> = 1. Blue: the master weight W. Orange: Ŵ = round(W), the value the forward pass uses. Dashed: rounding boundaries. <span class="takeaway">Ŵ holds still for dozens of steps while W drifts, and moves only when W crosses a boundary.</span></figcaption>
+    </figure>
+
+    <p>The same mechanism has a failure mode. A master weight that sits near a boundary can flip Ŵ back and forth between two levels as noisy updates push it across and back, as happens early in Figure 6. Nagel et al. report that these oscillations hurt low-bit QAT of efficient networks such as MobileNets, and propose ways to damp them or freeze the oscillating weights.<span class="sn-ref"></span><span class="sidenote">Nagel, Fournarakis, Bondarenko and Blankevoort, <a href="https://arxiv.org/abs/2203.11086" rel="noopener">“Overcoming Oscillations in Quantization-Aware Training”</a>, ICML 2022.</span></p>
+  </section>
+
+  <!-- 6 -->
+  <section id="lab">
+    <h2>PTQ and QAT on a small network</h2>
+    <p>The lab below trains a network in your browser and quantizes it both ways. The network is small: one input, 32 tanh hidden units and one output, 97 parameters in all. Its task is to fit a wiggly one-dimensional curve through 64 points. Each run has three stages:<span class="sn-ref"></span><span class="sidenote">Details: full-batch Adam with a cosine learning-rate decay from 0.01 to 0. Weights are quantized per tensor with the symmetric scheme above, and the scale is recomputed from the largest master weight at every step, so no weight is ever clipped. Biases and activations stay in fp32. There is no distillation.</span></p>
+    <ol>
+      <li>Train in fp32 for 1,500 steps.</li>
+      <li>PTQ: round that model's weights to the grid at 2, 3 and 4 bits, and measure the loss.</li>
+      <li>QAT: starting from the same fp32 model, train 2,000 more steps at each bit width with fake-quantized weights and the STE.</li>
+    </ol>
+
+    <figure class="fig wide" id="fig-lab">
+      <div class="controls">
+        <span class="control"><span class="label">Random seed</span>
+          <span class="seg" role="group" aria-label="Random seed" id="labSeed">
+            <button type="button" data-seed="1" aria-pressed="false">1</button><button type="button" data-seed="2" aria-pressed="true">2</button><button type="button" data-seed="3" aria-pressed="false">3</button><button type="button" data-seed="4" aria-pressed="false">4</button><button type="button" data-seed="5" aria-pressed="false">5</button><button type="button" data-seed="6" aria-pressed="false">6</button><button type="button" data-seed="7" aria-pressed="false">7</button><button type="button" data-seed="8" aria-pressed="false">8</button>
+          </span>
         </span>
-      </label>
-    </div>
-    <svg id="memChart" viewBox="0 0 760 260" role="img" aria-label="Bar chart of model weight memory at 16-, 8- and 4-bit precision compared with GPU memory sizes"></svg>
-    <div class="tip" id="memTip"></div>
-    <p class="caption">Weight memory only, approximate (parameters × bytes per weight, ignoring group scales). Activations, the KV cache and framework overhead come on top. Reference lines: 16 GB laptop GPU, 24 GB RTX 4090, 80 GB H100.</p>
-  </div>
-  <div class="prose">
-    <p>Packed weights reduce memory traffic. This can speed up memory-bound decoding when the runtime has kernels that efficiently unpack and compute with the chosen format. Four bits provide 16 integer codes; the symmetric signed scheme used in this page represents 15 levels and leaves one code unused.</p>
-  </div>
-</section>
+        <span class="status" id="labStatus" aria-live="polite"></span>
+      </div>
+      <div class="graphic lab-grid">
+        <div class="lab-block" data-bits="2">
+          <p class="panel-title">2-bit weights <span class="muted">· 3 levels</span></p>
+          <div class="panel" id="labFit2"></div><div class="panel" id="labLoss2"></div>
+          <p class="panel-note" id="labGain2">–</p>
+        </div>
+        <div class="lab-block" data-bits="3">
+          <p class="panel-title">3-bit weights <span class="muted">· 7 levels</span></p>
+          <div class="panel" id="labFit3"></div><div class="panel" id="labLoss3"></div>
+          <p class="panel-note" id="labGain3">–</p>
+        </div>
+        <div class="lab-block" data-bits="4">
+          <p class="panel-title">4-bit weights <span class="muted">· 15 levels</span></p>
+          <div class="panel" id="labFit4"></div><div class="panel" id="labLoss4"></div>
+          <p class="panel-note" id="labGain4">–</p>
+        </div>
+      </div>
+      <figcaption><span class="fig-n"></span>Simulated and simplified: a 97-parameter network, weights quantized, nothing else. Upper chart of each pair: the function each model computes, against the training points (grey). Lower chart: loss during QAT, as mean squared error on a log scale shared by all three pairs; the dashed fp32 and PTQ losses do not change during QAT. Blue: fp32 model. Orange: PTQ. Green: QAT. <span class="takeaway" id="labTakeaway"></span></figcaption>
+    </figure>
 
-<!-- 2 -->
-<section class="step" id="number">
-  <div class="prose">
-    <h2>Uniform quantization</h2>
-    <p>This page uses a symmetric uniform quantizer. Choose a clipping range <code>[−α, α]</code>, set the spacing between levels to the <strong>scale</strong> <code>s</code>, and round each real value to an integer index <code>q</code>. This particular signed scheme uses indices from <code>−q<sub>max</sub></code> to <code>q<sub>max</sub></code>, leaving the most negative b-bit code unused.</p>
-  </div>
-  <div class="formula">q<sub>max</sub> = 2<sup>b−1</sup>−1&nbsp;&nbsp;&nbsp;&nbsp;s = α / q<sub>max</sub>&nbsp;&nbsp;&nbsp;&nbsp;<span class="q">q</span> = clamp( round( <span class="fp">x</span> / s ), −q<sub>max</sub>, q<sub>max</sub> )&nbsp;&nbsp;&nbsp;&nbsp;<span class="fp">x̂</span> = s · <span class="q">q</span></div>
-  <div class="figure rel">
-    <div class="controls">
-      <label>Bits <input type="range" id="nlBits" min="2" max="8" value="4"><span class="val" id="nlBitsV">4</span></label>
-      <label>Clip range α <input type="range" id="nlAlpha" min="0.2" max="1.5" step="0.01" value="1"><span class="val" id="nlAlphaV">1.00</span></label>
-      <label>x <input type="range" id="nlXin" min="-1.6" max="1.6" step="0.001" value="0.437" aria-label="value x to quantize"></label>
-      <span style="color:var(--muted)">or drag the blue dot.</span>
-    </div>
-    <svg id="numLine" viewBox="0 0 760 190" role="img" aria-label="Number line showing a real value snapping to the nearest quantization level"></svg>
-    <div class="stats">
-      <div class="stat"><div class="k">x (real)</div><div class="v fp" id="nlX">0.437</div></div>
-      <div class="stat"><div class="k">q (integer)</div><div class="v ptq" id="nlQ">3</div></div>
-      <div class="stat"><div class="k">x̂ = s·q</div><div class="v" id="nlXh">0.429</div></div>
-      <div class="stat"><div class="k">error x − x̂</div><div class="v" id="nlErr">+0.008</div></div>
-      <div class="stat"><div class="k">levels</div><div class="v" id="nlLevels">15</div></div>
-    </div>
-    <p class="caption">Ticks are the representable levels. Drag <strong>x</strong> past α and it gets <em>clipped</em> to the edge level. Shrink α and the levels get finer inside the range, at the cost of clipping more of the tail.</p>
-  </div>
-  <div class="prose">
-    <p>Inside the clipping range, nearest rounding introduces at most half a quantization step of absolute error. Reducing α makes the steps smaller but clips more values in the tails. A uniform quantizer must therefore choose a range that balances rounding and clipping error.</p>
-    <p>Symmetric quantization is common for weights. Activations may use an asymmetric range with a zero-point offset, especially when their distribution is not centered on zero.</p>
-  </div>
-</section>
+    <p>Two patterns hold across seeds. PTQ gets much worse with each bit removed, and QAT degrades more slowly: the rounding is the same, but QAT has had 2,000 steps to move the other weights to compensate. At 2 bits the grid has three levels, −<i>s</i>, 0 and +<i>s</i>, and the outcome swings from seed to seed. Figure 8 shows all eight seeds at once.</p>
 
-<!-- 3 -->
-<section class="step" id="matrix">
-  <div class="prose">
-    <h2>Scale granularity</h2>
-    <p>A weight matrix shares a scale across many values. With a single scale per tensor, one unusually large weight forces α up, which spreads the levels out for every other weight in the tensor. Toggle the outlier and watch the error map light up everywhere except at the outlier itself.</p>
-  </div>
-  <div class="figure rel">
-    <div class="controls">
-      <label>Bits <input type="range" id="hmBits" min="2" max="8" value="4"><span class="val" id="hmBitsV">4</span></label>
-      <label>Scale granularity
-        <span class="seg" id="hmGran"><button aria-pressed="true" data-g="tensor">per tensor</button><button aria-pressed="false" data-g="row">per row</button></span>
-      </label>
-      <label><input type="checkbox" id="hmOutlier"> inject an outlier</label>
-    </div>
-    <div class="grid3">
-      <div><p class="panel-title">W (fp32)</p><svg id="hmW" viewBox="0 0 220 220"></svg></div>
-      <div><p class="panel-title">Q(W) dequantized</p><svg id="hmQ" viewBox="0 0 220 220"></svg></div>
-      <div><p class="panel-title">error W − Q(W)</p><svg id="hmE" viewBox="0 0 220 220"></svg></div>
-    </div>
-    <div class="tip" id="hmTip"></div>
-    <div class="stats">
-      <div class="stat"><div class="k">mean |error|</div><div class="v" id="hmMae">0.012</div></div>
-      <div class="stat"><div class="k">relative error ‖W−Q‖/‖W‖</div><div class="v" id="hmRel">4.1%</div></div>
-      <div class="stat"><div class="k">scale s (max over rows)</div><div class="v" id="hmScale">0.11</div></div>
-    </div>
-    <p class="caption">12 × 12 slice of a weight matrix. Blue is negative, orange is positive, grey is zero. Hover a cell for its values. Per-row (per-channel) scales let each row pick its own α, so the outlier only hurts its own row. Real 4-bit LLM formats go further and use one scale per <em>group</em> of 32 to 128 weights.</p>
-  </div>
-  <div class="prose">
-    <p>Smaller scale groups isolate outliers and usually reduce weight error, at the cost of storing and applying more scales. Activations can have persistent outlier channels and change with every input, so low-bit activation quantization often needs different granularity, calibration, clipping, or transformations. Weight-only 4-bit deployment is consequently more common than W4A4 deployment.</p>
-  </div>
-</section>
+    <figure class="fig" id="fig-seeds">
+      <div class="graphic" id="seedPlot"></div>
+      <figcaption><span class="fig-n"></span>How many times lower QAT's final loss is than PTQ's, for each of the eight seeds, on a log scale. Right of 1×, QAT wins. The seed selected in Figure 7 is drawn in black. <span class="takeaway" id="seedTakeaway">At 3 and 4 bits QAT wins on every seed, by 2.8× to 41×. At 2 bits it wins on seven of eight, by anything from 1.1× to 56×, and on seed 3 it ends 2.7× worse.</span></figcaption>
+    </figure>
 
-<!-- 4 -->
-<section class="step" id="loop">
-  <div class="prose">
-    <h2>PTQ and QAT</h2>
-    <p><strong>Post-training quantization (PTQ)</strong> converts a trained model without continuing end-to-end task training through simulated quantization. Some methods use calibration data; others optimize from the weights alone. PTQ often preserves quality at 8 bits, while lower precision makes the quantizer and calibration choices more consequential.</p>
-    <p><strong>Quantization-aware training (QAT)</strong> evaluates the training loss with fake-quantized values in the forward pass. The backward pass uses surrogate gradients to update higher-precision master weights and, in some methods, quantizer parameters. Step through the example below.</p>
-  </div>
-  <div class="figure">
-    <div class="steps" id="loopSteps">
-      <button aria-current="true" data-i="0">1 · Master weights</button>
-      <button aria-current="false" data-i="1">2 · Fake-quantize</button>
-      <button aria-current="false" data-i="2">3 · Forward &amp; loss</button>
-      <button aria-current="false" data-i="3">4 · Backward through STE</button>
-      <button aria-current="false" data-i="4">5 · Update master weights</button>
-      <button aria-current="false" data-i="5">6 · Export integers</button>
-    </div>
-    <svg id="loopSvg" viewBox="0 0 760 300" role="img" aria-label="Diagram of the quantization-aware training loop"></svg>
-    <p class="diagram-caption" id="loopCaption"></p>
-  </div>
-  <div class="prose">
-    <p>A <em>fake-quantize</em> operation rounds and dequantizes a tensor during the forward pass. The simulated tensor remains in a floating-point type but is restricted to values on the target quantization grid. Training can use ordinary floating-point kernels; export converts the trained values to the deployment format.</p>
-  </div>
-</section>
+    <p>The lab is far simpler than QAT for a language model: weights only, per tensor, no activation quantization and no distillation. It shows the mechanism, not the size of the effect in a large model.</p>
+  </section>
 
-<!-- 5 -->
-<section class="step" id="ste">
-  <div class="prose">
-    <h2>Surrogate gradients</h2>
-    <p>There is a problem with putting <code>round()</code> inside a network you train by gradient descent. Rounding is a staircase: flat almost everywhere, with a jump at every half-step. Its derivative is zero, so no learning signal would reach the master weights.</p>
-    <p>A common <strong>straight-through estimator (STE)</strong> replaces the derivative of rounding with 1 during the backward pass. The example below also uses the derivative of clipping: 1 inside the range and 0 outside it. Other QAT recipes define different surrogate gradients, especially for learnable ranges or scales.</p>
-  </div>
-  <div class="figure rel">
-    <div class="controls">
-      <label>Gradient shown
-        <span class="seg" id="steSeg"><button aria-pressed="true" data-m="ste">straight-through</button><button aria-pressed="false" data-m="true">true derivative</button></span>
-      </label>
-      <label>x <input type="range" id="steX" min="-3" max="3" step="0.01" value="1.3"><span class="val" id="steXV">1.30</span></label>
-    </div>
-    <div class="grid2">
-      <div><p class="panel-title">forward: x̂ = s·round(x/s), clipped at ±2</p><svg id="steFwd" viewBox="0 0 360 230"></svg></div>
-      <div><p class="panel-title">backward: dx̂/dx</p><svg id="steBwd" viewBox="0 0 360 230"></svg></div>
-    </div>
-    <p class="caption">Left: the staircase every weight passes through (s = 1 here), clipped to [−2, 2] before rounding. Right: the true derivative is 0 everywhere except undefined spikes at the jumps. The STE replaces it with 1 inside [−2, 2] and 0 where the value is clipped.</p>
-  </div>
-  <div class="prose">
-    <h3>How the master weight changes levels</h3>
-    <p>The master weight is a float. Each step nudges it by a small amount, even when the nudge does not change which level it rounds to. Those nudges <em>accumulate</em>, and eventually the weight crosses a rounding boundary and flips level. The master weight is a memory of gradient evidence that the quantized weight cannot hold on its own.</p>
-  </div>
-  <div class="figure">
-    <div class="controls">
-      <button class="primary" id="driftPlay">Play</button>
-      <button class="ghost" id="driftReset">Reset</button>
-      <span style="color:var(--muted)">Gradient keeps saying "go left", 0.03 per step.</span>
-    </div>
-    <svg id="driftSvg" viewBox="0 0 760 130" role="img" aria-label="Animation of a latent weight drifting across a rounding boundary"></svg>
-    <p class="caption">Blue dot: the fp32 master weight. Orange square: the quantized value used by the forward pass. The quantized value changes when the master weight crosses a dotted boundary.</p>
-  </div>
-</section>
+  <!-- 7 -->
+  <section id="llm">
+    <h2>Which tensors a transformer quantizes</h2>
+    <p>A transformer keeps most of its parameters in a few kinds of large matrix: the linear projections of the attention and feed-forward (MLP) blocks. In Llama 3 8B these projections hold 87% of the parameters, so they are the first thing to quantize.<span class="sn-ref"></span><span class="sidenote">Computed from the published architecture: 32 layers, model dimension 4,096, feed-forward dimension 14,336 and 8 key/value heads (<a href="https://arxiv.org/abs/2407.21783" rel="noopener">Llama 3 paper</a>, Table 3), with a 128,256-token vocabulary and separate input and output embeddings (the released model configuration). Total: 8.03 billion parameters.</span> The table shows one illustrative layout, W4A8: 4-bit weights and 8-bit activations. Published recipes differ in which tensors they quantize, at what precision, and how finely they scale them.</p>
 
-<!-- 6 -->
-<section class="step" id="lab">
-  <div class="prose">
-    <h2>Training lab</h2>
-    <p>This browser simulation trains a 97-parameter network (1 → 32 tanh → 1) on a one-dimensional regression problem. It first trains an fp32 model. PTQ quantizes that finished model once; QAT starts from the same model and continues training with fake-quantized weights and the STE defined above. Pick a bit width and seed, then compare the losses.</p>
-  </div>
-  <div class="figure">
-    <div class="controls">
-      <label>Weight bits
-        <span class="seg" id="labBits"><button aria-pressed="false" data-b="2">2</button><button aria-pressed="true" data-b="3">3</button><button aria-pressed="false" data-b="4">4</button></span>
-      </label>
-      <label>Seed <input type="range" id="labSeed" min="1" max="8" value="3"><span class="val" id="labSeedV">3</span></label>
-      <button class="primary" id="labRun">Run</button>
-      <span id="labStatus" style="color:var(--muted)">Idle</span>
+    <div class="scroll-x" style="--min: 30rem">
+      <table>
+        <thead><tr><th>Tensor</th><th>Precision in this example</th><th class="n">Share of Llama 3 8B parameters</th><th>Scale shared by</th></tr></thead>
+        <tbody>
+          <tr><td>MLP projections <code>W_gate</code>, <code>W_up</code>, <code>W_down</code></td><td>4-bit</td><td class="n">70.2%</td><td>a group of 32–128 weights</td></tr>
+          <tr><td>Attention projections <code>W_q</code>, <code>W_k</code>, <code>W_v</code>, <code>W_o</code></td><td>4-bit</td><td class="n">16.7%</td><td>a group of 32–128 weights</td></tr>
+          <tr><td>Token embedding and output head</td><td>bf16</td><td class="n">13.1%</td><td>–</td></tr>
+          <tr><td>RMSNorm weights</td><td>bf16</td><td class="n">&lt;0.01%</td><td>–</td></tr>
+          <tr><td>Activations entering each projection</td><td>8-bit</td><td class="n">–</td><td>one token</td></tr>
+          <tr><td>KV cache (keys and values of earlier tokens)</td><td>8-bit</td><td class="n">–</td><td>–</td></tr>
+          <tr><td>Attention scores and softmax, residual additions</td><td>bf16</td><td class="n">–</td><td>–</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="grid3">
-      <div><p class="panel-title">What the network learned</p><svg id="labFit" viewBox="0 0 300 220"></svg></div>
-      <div><p class="panel-title">Loss during QAT fine-tuning</p><svg id="labLoss" viewBox="0 0 300 220"></svg></div>
-      <div><p class="panel-title">First-layer weights vs. the grid</p><svg id="labHist" viewBox="0 0 300 220"></svg></div>
-    </div>
-    <div class="legend"><span class="line" style="--c:var(--fp32)">fp32 model</span><span class="line" style="--c:var(--ptq)">PTQ: quantized after training</span><span class="line" style="--c:var(--qat)">QAT: quantized during fine-tuning</span><span style="--c:var(--muted)">training data</span></div>
-    <div class="stats">
-      <div class="stat"><div class="k">fp32 loss</div><div class="v fp" id="labL0">–</div></div>
-      <div class="stat"><div class="k">PTQ loss</div><div class="v ptq" id="labL1">–</div></div>
-      <div class="stat"><div class="k">QAT loss</div><div class="v qat" id="labL2">–</div></div>
-      <div class="stat"><div class="k">QAT vs PTQ</div><div class="v" id="labGain">–</div></div>
-    </div>
-    <p class="caption">Simplified: a 97-parameter regression network with per-tensor weight quantization, no activation quantization, and no distillation. The chart reports mean squared error on the training points with a logarithmic loss axis. The histogram shows higher-precision master weights; vertical ticks show the representable levels used in the forward pass.</p>
-  </div>
-  <div class="prose">
-    <p>At 2 bits, this symmetric scheme has three represented levels per tensor: <code>−s</code>, 0, and <code>+s</code>. Results vary by seed because both PTQ and QAT are sensitive to such a coarse grid. Compare the measured fp32, PTQ, and QAT losses rather than assuming QAT must recover the full-precision result.</p>
-    <p>In this lab, the scale is recomputed from the largest absolute master weight each step, so the quantizer does not clip weights. The STE is applied to all weights, and the learning rate decays to zero. These are choices made by this simulation, not requirements of every QAT method.</p>
-  </div>
-</section>
 
-<!-- 7 -->
-<section class="step" id="llm">
-  <div class="prose">
-    <h2>Quantization in a transformer</h2>
-    <p>This figure shows one illustrative W4A8 transformer layout. The large linear projections contain most of the parameters, so their weights use 4-bit groups. Selected activations and the KV cache use 8 bits. Norms, softmax, and residual additions stay in bf16 in this example. Published recipes choose different tensors, precisions, and scale granularities.</p>
-  </div>
-  <div class="figure rel">
-    <svg id="blockSvg" viewBox="0 0 760 330" role="img" aria-label="Transformer block with quantized parts highlighted"></svg>
-    <div class="tip" id="blockTip"></div>
-    <div class="legend"><span style="--c:var(--fp32)">weights, fake-quantized to 4-bit (per-group scales)</span><span style="--c:var(--ptq)">activations, 8-bit, per-token scales</span><span style="--c:var(--qat)">KV cache, 8-bit</span><span style="--c:var(--line-2)">kept in bf16</span></div>
-    <p class="caption">Simplified W4A8 layout. The diagram assumes per-group weight scales, per-token activation scales, an 8-bit KV cache, and bf16 normalization and softmax. These choices describe the figure rather than a standard shared by all runtimes.</p>
-  </div>
-  <div class="prose">
-    <h3>Common LLM training choices</h3>
-    <p><strong>Fine-tune a pretrained checkpoint.</strong> Many LLM QAT methods start from a higher-precision checkpoint and run a shorter quantization-aware phase. Low-bit architectures such as BitNet are instead trained with quantization from the start.</p>
-    <p><strong>Use distillation when useful.</strong> Some recipes train the quantized model to match a higher-precision model's output distribution. Others use ordinary language-model targets, or combine the two objectives.</p>
-    <p><strong>Learn scales in some methods.</strong> LSQ defines a surrogate gradient for the quantizer step size, allowing optimization of the range and precision trade-off with the model parameters. Other methods recompute or calibrate scales.</p>
-    <p><strong>Outliers are handled structurally.</strong> Per-group weight scales, per-token activation scales, and sometimes rotations that spread outlier channels out before quantizing (as in QuaRot and SpinQuant) are combined with QAT rather than replaced by it.</p>
-  </div>
-</section>
+    <p>The choices in the example follow from the earlier sections. The projections are large, so 4 bits saves the most memory there, and per-group scales contain outliers. Activations change with every token, so each token gets its own scale. The KV cache grows with context length and can become a large share of memory in long conversations; this layout stores it in 8 bits, and some deployments use 4. Normalization and softmax are cheap and sensitive to rounding, and the residual path is where every layer writes its output, so this layout leaves them in bf16.</p>
 
-<!-- 8 -->
-<section class="step" id="recipes">
-  <div class="prose">
+    <h3>Common choices in LLM quantization-aware training</h3>
+    <ul>
+      <li><i>Start from a pretrained checkpoint.</i> Many methods fine-tune a higher-precision model for a short quantization-aware phase. BitNet b1.58 instead trains with quantization from the start.</li>
+      <li><i>Distill.</i> Some recipes train the quantized model to match the output probabilities of a higher-precision model. Others use ordinary next-token targets, or combine the two.</li>
+      <li><i>Learn the scales.</i> LSQ and its successors give the step size its own gradient. Other methods recompute or calibrate the scales.</li>
+      <li><i>Handle outliers in the model's structure.</i> Per-group weight scales, per-token activation scales, and rotations that spread outlier channels before quantizing, as in <a href="https://arxiv.org/abs/2404.00456" rel="noopener">QuaRot</a> and <a href="https://arxiv.org/abs/2405.16406" rel="noopener">SpinQuant</a>, complement QAT; they can be used with or without it.</li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section id="recipes">
     <h2>Published recipes</h2>
-    <p>These examples use different bit widths, training signals, and starting points. Each row links to the paper or official announcement that supports its details.</p>
-  </div>
-  <div class="tablewrap"><table class="recipes">
-    <thead><tr><th>Recipe</th><th>What is quantized</th><th>Training signal</th><th>Notable</th></tr></thead>
-    <tbody>
-      <tr><td><strong><a href="https://arxiv.org/abs/2305.17888" rel="noopener">LLM-QAT</a></strong> (Liu et al., 2023)</td><td>Weights 4-bit, activations 8-bit, KV cache 4–8-bit</td><td>Distill from the full-precision model on text the model generates itself</td><td>Data-free: no need for the pretraining corpus</td></tr>
-      <tr><td><strong><a href="https://arxiv.org/abs/2402.17764" rel="noopener">BitNet b1.58</a></strong> (Ma et al., 2024)</td><td>Ternary weights {−1, 0, +1}, 8-bit activations</td><td>QAT from scratch, STE throughout</td><td>Shows extreme low-bit is viable if the model is trained for it from the start</td></tr>
-      <tr><td><strong><a href="https://arxiv.org/abs/2407.11062" rel="noopener">EfficientQAT</a></strong> (Chen et al., 2024)</td><td>2–4-bit weights, per-group scales</td><td>Block-wise training of all parameters, then end-to-end training of only the scales</td><td>2-bit Llama-2-70B trained on a single A100-80GB in 41 hours</td></tr>
-      <tr><td><strong><a href="https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/" rel="noopener">Gemma 3 QAT</a></strong> (Google, 2025)</td><td>Weights int4 (Q4_0)</td><td>About 5,000 steps using the non-quantized checkpoint's probabilities as targets</td><td>27B weights drop from 54 GB (bf16) to 14.1 GB; 54% less perplexity degradation than plain Q4_0 as measured by llama.cpp</td></tr>
-      <tr><td><strong><a href="https://arxiv.org/abs/2502.02631" rel="noopener">ParetoQ</a></strong> (Liu et al., 2025)</td><td>Binary, ternary, 2-, 3-, and 4-bit weights</td><td>Unified QAT framework with bit-width-specific quantizers</td><td>Compares accuracy and model-size trade-offs across several low-bit regimes</td></tr>
-    </tbody>
-  </table></div>
-  <div class="callout"><p><strong>Practical pattern.</strong> PTQ is often the first option at 8 bits and for weight-only 4-bit deployment because it avoids retraining. QAT becomes more valuable as precision drops, activations are quantized, or PTQ misses the required quality. The result still depends on the model, task, quantizer, calibration data, kernels, and training recipe.</p></div>
-</section>
+    <p>These five recipes differ in bit width, training signal and starting point. Each row links to the paper or official announcement that supports it.</p>
+    <div class="scroll-x wide" style="--min: 40rem">
+      <table>
+        <thead><tr><th>Recipe</th><th>What is quantized</th><th>Training signal</th><th>Reported result</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://arxiv.org/abs/2305.17888" rel="noopener">LLM-QAT</a><br>Liu et al., 2023</td><td>Weights 4-bit, activations 8-bit, KV cache 4- to 8-bit</td><td>Distillation from the full-precision model on text the model generates itself</td><td>Needs no access to the original training data</td></tr>
+          <tr><td><a href="https://arxiv.org/abs/2402.17764" rel="noopener">BitNet b1.58</a><br>Ma et al., 2024</td><td>Ternary weights {−1, 0, +1}, 8-bit activations</td><td>QAT from scratch, STE throughout</td><td>Extreme low-bit weights work when the model is trained for them from the start</td></tr>
+          <tr><td><a href="https://arxiv.org/abs/2407.11062" rel="noopener">EfficientQAT</a><br>Chen et al., 2024</td><td>2- to 4-bit weights, per-group scales</td><td>Block-wise training of all parameters, then end-to-end training of the scales only</td><td>2-bit Llama-2-70B trained on one A100-80GB in 41 hours</td></tr>
+          <tr><td><a href="https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/" rel="noopener">Gemma 3 QAT</a><br>Google, 2025</td><td>Weights int4 (Q4_0)</td><td>About 5,000 steps with the non-quantized checkpoint's probabilities as targets</td><td>27B weights shrink from 54 GB (bf16) to 14.1 GB; the perplexity drop from Q4_0 quantization is 54% smaller, measured with llama.cpp</td></tr>
+          <tr><td><a href="https://arxiv.org/abs/2502.02631" rel="noopener">ParetoQ</a><br>Liu et al., 2025</td><td>Binary, ternary, 2-, 3- and 4-bit weights</td><td>One QAT framework with quantizers specific to each bit width</td><td>Compares accuracy against model size across these low-bit settings</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>A practical order follows. PTQ comes first at 8 bits and for weight-only 4-bit deployment, because it needs no retraining. QAT becomes worth its training cost as precision drops, when activations are quantized too, or when PTQ misses the quality target. How much QAT recovers depends on the model, the task, the quantizer, the calibration data, the kernels and the training recipe.</p>
+  </section>
 
-<!-- 9 -->
-<section class="step quiz" id="check">
-  <div class="prose">
-    <h2>Review questions</h2>
-  </div>
-  <details><summary>Why does QAT usually keep higher-precision master weights?</summary><p>The forward pass uses fake-quantized values, while the optimizer updates master weights in a higher-precision training dtype such as fp32 or bf16. Small updates can accumulate there even when they do not immediately change a quantized level. Export stores the representation required by the inference runtime.</p></details>
-  <details><summary>What gradient does this page use outside the clipping range?</summary><p>This page uses the derivative of clipping: 1 inside the range and 0 outside it. A value beyond α maps to the same edge level as it moves farther out, so this surrogate sends no gradient to that value. Learnable-scale methods define an additional surrogate gradient for the scale, and other QAT methods may choose different estimators.</p></details>
-  <details><summary>Why does QAT tend to help more at lower precision?</summary><p>Lower precision increases the spacing between representable values, so independent post-training rounding decisions can cause larger changes to the network. QAT evaluates the loss with those quantized values in the forward pass and can update parameters and, in some methods, quantizer settings to reduce the resulting task loss. At 8 bits, a good PTQ result may already leave little error for QAT to recover.</p></details>
-</section>
+  <!-- 9 -->
+  <section id="check" class="check">
+    <h2>Check your understanding</h2>
+    <details><summary>Why does QAT keep a higher-precision master copy of each weight?</summary><p>The forward pass uses fake-quantized values, but the optimizer updates master weights kept in fp32 or bf16. Updates too small to change a weight's level accumulate in the master copy until they carry it across a rounding boundary. Applied to the quantized value directly, each small update would be rounded away.</p></details>
+    <details><summary>What gradient does this page's STE give a weight outside the clipping range?</summary><p>Zero. Past α, the quantized value stays at the edge level however far the input moves, and the STE here keeps the derivative of clipping, which is 0 outside the range. Methods that learn the scale add a separate gradient for the scale itself, and other QAT methods use other estimators.</p></details>
+    <details><summary>Why does QAT help more at lower precision?</summary><p>Fewer bits means wider spacing between levels, so rounding each weight independently after training changes the network more. QAT computes the loss with those rounded values and adjusts the remaining parameters, and in some methods the scales, to reduce it. At 8 bits PTQ often leaves little error for QAT to recover.</p></details>
+  </section>
 
-<footer>
-  <p>Built as a standalone page in the style of the Polo Club of Data Science explainers. Visualizations use D3. Everything here runs in the browser, including the training lab.</p>
-  <p>Foundations: <a href="https://arxiv.org/abs/1712.05877" rel="noopener">Jacob et al., 2018</a> (integer-arithmetic QAT with fake quantization) · <a href="https://arxiv.org/abs/1308.3432" rel="noopener">Bengio et al., 2013</a> (the straight-through estimator) · <a href="https://arxiv.org/abs/1902.08153" rel="noopener">Esser et al., 2020</a> (LSQ, learned scales). The recipes table links each row's source.</p>
-</footer>
+  <footer class="colophon">
+    <p>Sources: <a href="https://arxiv.org/abs/1712.05877" rel="noopener">Jacob et al., 2018</a> (QAT with fake quantization for integer inference); <a href="https://arxiv.org/abs/1308.3432" rel="noopener">Bengio et al., 2013</a> (the straight-through estimator); <a href="https://arxiv.org/abs/1902.08153" rel="noopener">Esser et al., 2020</a> (LSQ, learned step sizes); <a href="https://arxiv.org/abs/2203.11086" rel="noopener">Nagel et al., 2022</a> (weight oscillations in QAT); <a href="https://arxiv.org/abs/2407.21783" rel="noopener">Llama 3 paper</a> (architecture). The recipes table links a source for each row. GPU memory sizes are nominal. Every simulation on this page runs in your browser.</p>
+    <p>Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn/tree/main/qat-explainer">GitHub</a>.</p>
+  </footer>
 </main>
-</div>
-
-<script>
-(function(){
-"use strict";
-const css = (name)=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const fmt = (v,d=3)=>(v>=0?"+":"−")+Math.abs(v).toFixed(d);
-/* Shared quantizer, symmetric per-tensor: q = clamp(round(x/s), -qmax, qmax), s = max|x| / qmax, qmax = 2^(b-1) - 1.
-   The most negative signed code (-qmax-1) is deliberately unused so the grid is symmetric about zero. Exposed on window.QAT for the tests. */
-function quantizeArray(arr, bits){
-  const qmax=(1<<(bits-1))-1; const s=(Math.max(...arr.map(Math.abs))||1e-8)/qmax; const out=[],mask=[];
-  for(const v of arr){const q=Math.round(v/s);const c=Math.max(-qmax,Math.min(qmax,q));mask.push(c===q?1:0);out.push(s*c)}
-  return {out,mask,s,qmax};
-}
-window.QAT = { quantizeArray };
-const redraws = [];
-function onTheme(fn){redraws.push(fn)}
-function rerenderAll(){redraws.forEach(f=>f())}
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",rerenderAll);
-new MutationObserver(rerenderAll).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
-
-function seg(el, cb){
-  el.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
-    el.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
-    b.setAttribute("aria-pressed","true"); cb(b.dataset);
-  }));
-}
-function tipShow(tip, host, evt, html){
-  const r = host.getBoundingClientRect();
-  tip.innerHTML = html; tip.style.left = (evt.clientX - r.left) + "px"; tip.style.top = (evt.clientY - r.top) + "px"; tip.style.opacity = 1;
-}
-function tipHide(tip){tip.style.opacity=0}
-function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function gauss(r){let u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
-
-/* ---------- TOC highlight ---------- */
-const tocLinks=[...document.querySelectorAll("nav.toc a")];
-const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){tocLinks.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+e.target.id))}})},{rootMargin:"-30% 0px -60% 0px"});
-document.querySelectorAll("section.step").forEach(s=>obs.observe(s));
-
-/* ---------- 1. Memory chart ---------- */
-(function(){
-  const svg=d3.select("#memChart"), tip=document.getElementById("memTip"), host=document.getElementById("memChart").parentElement;
-  let params=8;
-  const W=760,H=260,m={t:18,r:20,b:34,l:160};
-  const gpus=[{n:"16 GB laptop GPU",v:16},{n:"24 GB RTX 4090",v:24},{n:"80 GB H100",v:80}];
-  function draw(){
-    svg.selectAll("*").remove();
-    const rows=[{k:"bf16 · 2 bytes/weight",v:params*2,b:16},{k:"int8 · 1 byte/weight",v:params*1,b:8},{k:"int4 · 0.5 byte/weight",v:params*0.5,b:4}];
-    const maxV=Math.max(rows[0].v, params*2>=80?rows[0].v:Math.max(rows[0].v,gpus.filter(g=>g.v<=rows[0].v*2.2).slice(-1)[0]?.v||0));
-    const x=d3.scaleLinear().domain([0,maxV*1.08]).range([m.l,W-m.r]);
-    const y=d3.scaleBand().domain(rows.map(r=>r.k)).range([m.t,H-m.b]).paddingInner(.35).paddingOuter(.15);
-    const seq=d3.interpolateRgb(css("--seq-1"),css("--seq-5"));
-    svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+" GB").tickSize(-(H-m.b-m.t))).call(g=>g.selectAll(".tick line").attr("stroke",css("--line")).attr("stroke-dasharray","2 3")).call(g=>g.select(".domain").remove());
-    svg.append("g").selectAll("text").data(rows).join("text").attr("x",m.l-8).attr("y",d=>y(d.k)+y.bandwidth()/2).attr("dy",".35em").attr("text-anchor","end").text(d=>d.k).style("font-size","12px");
-    svg.append("g").selectAll("rect").data(rows).join("rect")
-      .attr("x",x(0)).attr("y",d=>y(d.k)).attr("height",y.bandwidth()).attr("width",d=>Math.max(2,x(d.v)-x(0))).attr("rx",4)
-      .attr("fill",(d,i)=>seq(0.45+i*0.27))
-      .on("mousemove",(e,d)=>tipShow(tip,host,e,`${params}B × ${d.b}-bit = ${d.v} GB`)).on("mouseleave",()=>tipHide(tip));
-    svg.append("g").selectAll("text.v").data(rows).join("text").attr("class","v mono").attr("x",d=>x(d.v)+6).attr("y",d=>y(d.k)+y.bandwidth()/2).attr("dy",".35em").text(d=>d.v+" GB").style("font-size","12px").attr("fill",css("--ink"));
-    gpus.filter(g=>g.v<=maxV*1.08).forEach(g=>{
-      svg.append("line").attr("x1",x(g.v)).attr("x2",x(g.v)).attr("y1",m.t-6).attr("y2",H-m.b).attr("stroke",css("--ink-2")).attr("stroke-width",1.2).attr("stroke-dasharray","4 3");
-      svg.append("text").attr("x",x(g.v)+4).attr("y",m.t+2).text(g.n).style("font-size","11px").attr("fill",css("--muted"));
-    });
-  }
-  seg(document.getElementById("modelSeg"),d=>{params=+d.b;draw()});
-  draw(); onTheme(draw);
-})();
-
-/* ---------- 2. Number line ---------- */
-(function(){
-  const svg=d3.select("#numLine"); const W=760,H=190,m={l:40,r:40};
-  let bits=4, alpha=1, xv=0.437;
-  const x=d3.scaleLinear().domain([-1.6,1.6]).range([m.l,W-m.r]);
-  const el={bits:document.getElementById("nlBits"),bitsV:document.getElementById("nlBitsV"),a:document.getElementById("nlAlpha"),aV:document.getElementById("nlAlphaV"),X:document.getElementById("nlX"),Q:document.getElementById("nlQ"),Xh:document.getElementById("nlXh"),Err:document.getElementById("nlErr"),L:document.getElementById("nlLevels")};
-  function quant(v){const qmax=(1<<(bits-1))-1;const s=alpha/qmax;const q=Math.max(-qmax,Math.min(qmax,Math.round(v/s)));return{q,s,xh:s*q,qmax}}
-  function draw(){
-    svg.selectAll("*").remove();
-    const {q,s,xh,qmax}=quant(xv);
-    const yAxis=110;
-    svg.append("line").attr("x1",x(-1.6)).attr("x2",x(1.6)).attr("y1",yAxis).attr("y2",yAxis).attr("stroke",css("--line-2")).attr("stroke-width",1.5);
-    [-1.5,-1,-0.5,0,0.5,1,1.5].forEach(t=>{svg.append("text").attr("x",x(t)).attr("y",yAxis+22).attr("text-anchor","middle").text(t).style("font-size","11px").attr("fill",css("--muted"))});
-    svg.append("rect").attr("x",x(-alpha)).attr("y",yAxis-30).attr("width",x(alpha)-x(-alpha)).attr("height",60).attr("fill",css("--accent-soft")).attr("opacity",.6).attr("rx",4);
-    svg.append("text").attr("x",x(-alpha)).attr("y",yAxis-36).attr("text-anchor","middle").text("−α").attr("class","mono").style("font-size","11px");
-    svg.append("text").attr("x",x(alpha)).attr("y",yAxis-36).attr("text-anchor","middle").text("+α").attr("class","mono").style("font-size","11px");
-    const levels=[];for(let i=-qmax;i<=qmax;i++)levels.push(i);
-    const showIdx = levels.length<=16;
-    svg.append("g").selectAll("line").data(levels).join("line").attr("x1",d=>x(d*s)).attr("x2",d=>x(d*s)).attr("y1",yAxis-10).attr("y2",yAxis+10).attr("stroke",d=>d===q?css("--ptq"):css("--ink-2")).attr("stroke-width",d=>d===q?2.5:1);
-    if(showIdx) svg.append("g").selectAll("text").data(levels).join("text").attr("x",d=>x(d*s)).attr("y",yAxis+40).attr("text-anchor","middle").attr("class","mono").style("font-size","10px").attr("fill",d=>d===q?css("--ptq"):css("--muted")).text(d=>d);
-    svg.append("text").attr("x",x(-1.6)).attr("y",yAxis+40).style("font-size","10px").attr("fill",css("--muted")).text(showIdx?"q →":"q → ("+(2*qmax+1)+" levels)");
-    // error bracket
-    svg.append("line").attr("x1",x(xv)).attr("x2",x(xh)).attr("y1",yAxis-52).attr("y2",yAxis-52).attr("stroke",css("--warn")).attr("stroke-width",2);
-    svg.append("line").attr("x1",x(xv)).attr("x2",x(xv)).attr("y1",yAxis-52).attr("y2",yAxis).attr("stroke",css("--fp32")).attr("stroke-dasharray","3 2");
-    svg.append("line").attr("x1",x(xh)).attr("x2",x(xh)).attr("y1",yAxis-52).attr("y2",yAxis).attr("stroke",css("--ptq")).attr("stroke-dasharray","3 2");
-    svg.append("text").attr("x",(x(xv)+x(xh))/2).attr("y",yAxis-58).attr("text-anchor","middle").attr("class","mono").style("font-size","11px").attr("fill",css("--warn")).text("error "+fmt(xv-xh));
-    svg.append("rect").attr("x",x(xh)-6).attr("y",yAxis-6).attr("width",12).attr("height",12).attr("fill",css("--ptq")).attr("stroke",css("--surface")).attr("stroke-width",2);
-    svg.append("text").attr("x",x(xh)).attr("y",yAxis+60).attr("text-anchor","middle").attr("class","mono").style("font-size","11px").attr("fill",css("--ptq")).text("x̂ = "+xh.toFixed(3));
-    const dot=svg.append("circle").attr("cx",x(xv)).attr("cy",yAxis).attr("r",9).attr("fill",css("--fp32")).attr("stroke",css("--surface")).attr("stroke-width",2.5).style("cursor","ew-resize");
-    svg.append("text").attr("x",x(xv)).attr("y",yAxis-72).attr("text-anchor","middle").attr("class","mono").style("font-size","12px").attr("fill",css("--fp32")).text("x = "+xv.toFixed(3));
-    dot.call(d3.drag().on("drag",(e)=>{xv=Math.max(-1.6,Math.min(1.6,x.invert(e.x)));draw()}));
-    document.getElementById("nlXin").value=xv;
-    el.X.textContent=xv.toFixed(3);el.Q.textContent=q;el.Xh.textContent=xh.toFixed(3);el.Err.textContent=fmt(xv-xh);el.L.textContent=2*qmax+1;
-  }
-  el.bits.addEventListener("input",()=>{bits=+el.bits.value;el.bitsV.textContent=bits;draw()});
-  el.a.addEventListener("input",()=>{alpha=+el.a.value;el.aV.textContent=alpha.toFixed(2);draw()});
-  const xin=document.getElementById("nlXin"); xin.addEventListener("input",()=>{xv=+xin.value;draw()});
-  draw(); onTheme(draw);
-})();
-
-/* ---------- 3. Heatmap ---------- */
-(function(){
-  const n=12; const r=mulberry(11); const base=[];for(let i=0;i<n;i++){base.push([]);for(let j=0;j<n;j++)base[i].push(gauss(r)*0.3)}
-  let bits=4,gran="tensor",outlier=false;
-  const tip=document.getElementById("hmTip"), host=tip.parentElement;
-  const el={bits:document.getElementById("hmBits"),bitsV:document.getElementById("hmBitsV"),mae:document.getElementById("hmMae"),rel:document.getElementById("hmRel"),sc:document.getElementById("hmScale")};
-  function compute(){
-    const Wm=base.map(row=>row.slice()); if(outlier)Wm[3][7]=2.6;
-    const qmax=(1<<(bits-1))-1; const scales=[];
-    if(gran==="tensor"){const mx=Math.max(...Wm.flat().map(Math.abs));for(let i=0;i<n;i++)scales.push(mx/qmax)}
-    else for(let i=0;i<n;i++)scales.push(Math.max(...Wm[i].map(Math.abs))/qmax);
-    const Q=Wm.map((row,i)=>row.map(v=>{const s=scales[i];return s*Math.max(-qmax,Math.min(qmax,Math.round(v/s)))}));
-    const E=Wm.map((row,i)=>row.map((v,j)=>v-Q[i][j]));
-    return{Wm,Q,E,scales};
-  }
-  function heat(id,M,dom,label){
-    const svg=d3.select(id);svg.selectAll("*").remove();const c=220/n;
-    const col=d3.scaleLinear().domain([-dom,0,dom]).range([css("--div-neg"),css("--div-mid"),css("--div-pos")]).interpolate(d3.interpolateRgb).clamp(true);
-    svg.append("g").selectAll("rect").data(M.flatMap((row,i)=>row.map((v,j)=>({i,j,v})))).join("rect")
-      .attr("x",d=>d.j*c+1).attr("y",d=>d.i*c+1).attr("width",c-2).attr("height",c-2).attr("rx",2).attr("fill",d=>col(d.v))
-      .on("mousemove",(e,d)=>tipShow(tip,host,e,`${label}[${d.i},${d.j}] = ${fmt(d.v,3)}`)).on("mouseleave",()=>tipHide(tip));
-  }
-  function draw(){
-    const {Wm,Q,E,scales}=compute();
-    const dom=Math.max(1e-6,...Wm.flat().map(Math.abs));
-    heat("#hmW",Wm,dom,"W");heat("#hmQ",Q,dom,"Q");
-    const edom=Math.max(1e-6,...E.flat().map(Math.abs));
-    heat("#hmE",E,edom,"err");
-    const flat=Wm.flat(),ef=E.flat();
-    const mae=d3.mean(ef.map(Math.abs)); const rel=Math.sqrt(d3.sum(ef.map(v=>v*v))/d3.sum(flat.map(v=>v*v)));
-    el.mae.textContent=mae.toFixed(4);el.rel.textContent=(rel*100).toFixed(1)+"%";el.sc.textContent=Math.max(...scales).toFixed(3);
-  }
-  el.bits.addEventListener("input",()=>{bits=+el.bits.value;el.bitsV.textContent=bits;draw()});
-  seg(document.getElementById("hmGran"),d=>{gran=d.g;draw()});
-  document.getElementById("hmOutlier").addEventListener("change",e=>{outlier=e.target.checked;draw()});
-  draw(); onTheme(draw);
-})();
-
-/* ---------- 4. Loop diagram ---------- */
-(function(){
-  const svg=d3.select("#loopSvg"); const cap=document.getElementById("loopCaption");
-  const nodes=[
-    {id:"W",x:70,y:80,w:120,h:56,t:["Master weights","W (fp32)"],c:"fp32"},
-    {id:"FQ",x:250,y:80,w:130,h:56,t:["Fake quantize","Ŵ = s·clamp(round(W/s))"],c:"ptq"},
-    {id:"MM",x:440,y:80,w:110,h:56,t:["Forward","y = Ŵ x"],c:"ink"},
-    {id:"L",x:610,y:80,w:90,h:56,t:["Loss","L(y, target)"],c:"ink"},
-    {id:"OPT",x:70,y:210,w:120,h:56,t:["Optimizer","W ← W − η·∂L/∂W"],c:"fp32"},
-    {id:"STE",x:250,y:210,w:130,h:56,t:["STE","∂L/∂W := ∂L/∂Ŵ · 1[|W/s|≤qmax]"],c:"qat"},
-    {id:"G",x:440,y:210,w:110,h:56,t:["Backprop","∂L/∂Ŵ"],c:"ink"},
-    {id:"EXP",x:610,y:210,w:90,h:56,t:["Export","int4 q, scale s"],c:"ptq"},
-  ];
-  const edges=[["W","FQ",0],["FQ","MM",1],["MM","L",2],["L","G",3,"down"],["G","STE",3],["STE","OPT",3],["OPT","W",4,"up"],["FQ","EXP",5,"export"]];
-  const caps=[
-    "This example keeps fp32 master weights for the optimizer. Fake quantization creates the values used in the forward pass.",
-    "Before each forward pass, the example rounds the weights to the grid and dequantizes them back to floating-point values. A QAT method may recompute, calibrate, or learn the scale s.",
-    "The forward pass and loss use the fake-quantized weights Ŵ, so the measured loss includes quantization error.",
-    "Backpropagation gives ∂L/∂Ŵ. This example uses an STE that treats rounding as the identity inside the clipping range and uses zero outside it.",
-    "The optimizer updates the fp32 master weights. Updates that leave the weight inside one quantization bin do not change its forward value; accumulated updates can move it across a boundary.",
-    "Export converts the trained values to the integer codes q, scales s, and metadata required by the target inference format.",
-  ];
-  let step=0;
-  function color(c){return c==="fp32"?css("--fp32"):c==="ptq"?css("--ptq"):c==="qat"?css("--qat"):css("--ink-2")}
-  function draw(){
-    svg.selectAll("*").remove();
-    const N=Object.fromEntries(nodes.map(n=>[n.id,n]));
-    svg.append("defs").append("marker").attr("id","arr").attr("viewBox","0 0 10 10").attr("refX",9).attr("refY",5).attr("markerWidth",7).attr("markerHeight",7).attr("orient","auto-start-reverse").append("path").attr("d","M0,0L10,5L0,10z").attr("fill",css("--ink-2"));
-    edges.forEach(([a,b,s,kind])=>{
-      const A=N[a],B=N[b];let d;
-      if(kind==="down") d=`M${A.x+A.w/2},${A.y+A.h} L${A.x+A.w/2},${B.y}`;
-      else if(kind==="up") d=`M${A.x+A.w/2},${A.y} L${A.x+A.w/2},${B.y+B.h}`;
-      else if(kind==="export") d=`M${A.x+A.w/2+20},${A.y+A.h} C${A.x+A.w/2+20},${A.y+A.h+40} ${B.x},${B.y-40} ${B.x+B.w/2},${B.y}`;
-      else if(A.x<B.x) d=`M${A.x+A.w},${A.y+A.h/2} L${B.x},${B.y+B.h/2}`;
-      else d=`M${A.x},${A.y+A.h/2} L${B.x+B.w},${B.y+B.h/2}`;
-      const active=s===step;
-      svg.append("path").attr("d",d).attr("fill","none").attr("stroke",active?css("--accent"):css("--line-2")).attr("stroke-width",active?2.5:1.5).attr("marker-end","url(#arr)").attr("opacity",active||s<step?1:.45).attr("stroke-dasharray",kind==="export"?"5 4":null);
-    });
-    const g=svg.append("g").selectAll("g").data(nodes).join("g").attr("transform",d=>`translate(${d.x},${d.y})`);
-    g.append("rect").attr("width",d=>d.w).attr("height",d=>d.h).attr("rx",8).attr("fill",d=>{const active=activeIds().includes(d.id);return active?css("--accent-soft"):css("--surface-2")}).attr("stroke",d=>activeIds().includes(d.id)?css("--accent"):color(d.c)).attr("stroke-width",d=>activeIds().includes(d.id)?2.5:1.5);
-    g.append("text").attr("x",d=>d.w/2).attr("y",22).attr("text-anchor","middle").style("font-weight",600).style("font-size","12.5px").attr("fill",css("--ink")).text(d=>d.t[0]);
-    g.append("text").attr("x",d=>d.w/2).attr("y",41).attr("text-anchor","middle").attr("class","mono").style("font-size","9.5px").attr("fill",d=>color(d.c)).text(d=>d.t[1]);
-    svg.append("text").attr("x",380).attr("y",22).attr("text-anchor","middle").style("font-size","11px").attr("fill",css("--muted")).text("forward →");
-    svg.append("text").attr("x",380).attr("y",292).attr("text-anchor","middle").style("font-size","11px").attr("fill",css("--muted")).text("← backward");
-    cap.textContent=caps[step];
-    document.querySelectorAll("#loopSteps button").forEach(b=>b.setAttribute("aria-current",+b.dataset.i===step?"true":"false"));
-  }
-  function activeIds(){return [["W"],["FQ"],["MM","L"],["G","STE"],["OPT","W"],["EXP"]][step]}
-  document.querySelectorAll("#loopSteps button").forEach(b=>b.addEventListener("click",()=>{step=+b.dataset.i;draw()}));
-  draw(); onTheme(draw);
-})();
-
-/* ---------- 5. STE plots + drift ---------- */
-(function(){
-  let mode="ste", x0=1.3;
-  const el={x:document.getElementById("steX"),xV:document.getElementById("steXV")};
-  const clip=2;
-  function q(v){return Math.round(Math.max(-clip,Math.min(clip,v)))} // clamp, then round: identical to round-then-clamp for the values drawn here
-  function draw(){
-    const W=360,H=230,m={t:12,r:12,b:28,l:34};
-    const xs=d3.scaleLinear().domain([-3,3]).range([m.l,W-m.r]);
-    // forward
-    {const svg=d3.select("#steFwd");svg.selectAll("*").remove();const ys=d3.scaleLinear().domain([-3,3]).range([H-m.b,m.t]);
-     svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(xs).ticks(7));
-     svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(ys).ticks(7));
-     svg.append("line").attr("x1",xs(-3)).attr("x2",xs(3)).attr("y1",ys(-3)).attr("y2",ys(3)).attr("stroke",css("--line-2")).attr("stroke-dasharray","3 3");
-     svg.append("text").attr("x",xs(2.55)).attr("y",ys(2.85)).text("identity").style("font-size","10px").attr("fill",css("--muted"));
-     const pts=d3.range(-3,3.001,0.01).map(v=>[xs(v),ys(q(v))]);
-     svg.append("path").attr("d",d3.line()(pts)).attr("fill","none").attr("stroke",css("--ptq")).attr("stroke-width",2);
-     svg.append("circle").attr("cx",xs(x0)).attr("cy",ys(x0)).attr("r",5).attr("fill",css("--fp32")).attr("stroke",css("--surface")).attr("stroke-width",2);
-     svg.append("circle").attr("cx",xs(x0)).attr("cy",ys(q(x0))).attr("r",5).attr("fill",css("--ptq")).attr("stroke",css("--surface")).attr("stroke-width",2);
-     svg.append("line").attr("x1",xs(x0)).attr("x2",xs(x0)).attr("y1",ys(x0)).attr("y2",ys(q(x0))).attr("stroke",css("--warn")).attr("stroke-width",1.5);
-     svg.append("text").attr("x",xs(x0)+8).attr("y",ys(q(x0))-8).attr("class","mono").style("font-size","11px").attr("fill",css("--ptq")).text("x̂="+q(x0));
-     svg.append("text").attr("x",m.l+6).attr("y",m.t+12).text("x̂").style("font-size","11px").attr("fill",css("--muted"));
-    }
-    // backward
-    {const svg=d3.select("#steBwd");svg.selectAll("*").remove();const ys=d3.scaleLinear().domain([-0.2,1.4]).range([H-m.b,m.t]);
-     svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(xs).ticks(7));
-     svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(ys).ticks(4));
-     const c=css("--qat");
-     if(mode==="ste"){
-       svg.append("path").attr("d",d3.line()([[xs(-3),ys(0)],[xs(-clip),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
-       svg.append("path").attr("d",d3.line()([[xs(-clip),ys(1)],[xs(clip),ys(1)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
-       svg.append("path").attr("d",d3.line()([[xs(clip),ys(0)],[xs(3),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
-       [-clip,clip].forEach(k=>svg.append("line").attr("x1",xs(k)).attr("x2",xs(k)).attr("y1",ys(0)).attr("y2",ys(1)).attr("stroke",c).attr("stroke-dasharray","2 3"));
-       svg.append("text").attr("x",xs(0)).attr("y",ys(1)-8).attr("text-anchor","middle").style("font-size","11px").attr("fill",c).text("pretend dx̂/dx = 1");
-       svg.append("text").attr("x",xs(2.75)).attr("y",ys(0)-8).attr("text-anchor","middle").style("font-size","10px").attr("fill",c).text("clipped: 0");
-     } else {
-       svg.append("path").attr("d",d3.line()([[xs(-3),ys(0)],[xs(3),ys(0)]])).attr("stroke",c).attr("stroke-width",2.5).attr("fill","none");
-       for(let k=-2.5;k<=2.5;k+=1){if(Math.abs(k)>clip)continue;svg.append("line").attr("x1",xs(k)).attr("x2",xs(k)).attr("y1",ys(0)).attr("y2",ys(1.35)).attr("stroke",c).attr("stroke-width",1.5).attr("stroke-dasharray","2 3");svg.append("text").attr("x",xs(k)).attr("y",ys(1.35)-4).attr("text-anchor","middle").style("font-size","9px").attr("fill",c).text("∞")}
-       svg.append("text").attr("x",xs(0)).attr("y",ys(0)+16).attr("text-anchor","middle").style("font-size","11px").attr("fill",c).text("dx̂/dx = 0 almost everywhere");
-     }
-     const gv = mode==="ste" ? (Math.abs(x0)<=clip?1:0) : 0;
-     svg.append("circle").attr("cx",xs(x0)).attr("cy",ys(gv)).attr("r",5).attr("fill",css("--fp32")).attr("stroke",css("--surface")).attr("stroke-width",2);
-     svg.append("text").attr("x",xs(x0)+8).attr("y",ys(gv)+(gv?16:-8)).attr("class","mono").style("font-size","11px").attr("fill",css("--fp32")).text("grad="+gv);
-    }
-  }
-  seg(document.getElementById("steSeg"),d=>{mode=d.m;draw()});
-  el.x.addEventListener("input",()=>{x0=+el.x.value;el.xV.textContent=x0.toFixed(2);draw()});
-  draw(); onTheme(draw);
-
-  // drift animation
-  const svg=d3.select("#driftSvg"); let w=1.42, timer=null, t=0;
-  const xs=d3.scaleLinear().domain([-2.2,2.2]).range([60,700]);
-  function drawDrift(){
-    svg.selectAll("*").remove();
-    const y=70;
-    svg.append("line").attr("x1",xs(-2.2)).attr("x2",xs(2.2)).attr("y1",y).attr("y2",y).attr("stroke",css("--line-2")).attr("stroke-width",1.5);
-    [-2,-1,0,1,2].forEach(k=>{svg.append("line").attr("x1",xs(k)).attr("x2",xs(k)).attr("y1",y-8).attr("y2",y+8).attr("stroke",css("--ink-2"));svg.append("text").attr("x",xs(k)).attr("y",y+26).attr("text-anchor","middle").attr("class","mono").style("font-size","11px").text("level "+k)});
-    [-1.5,-0.5,0.5,1.5].forEach(k=>{svg.append("line").attr("x1",xs(k)).attr("x2",xs(k)).attr("y1",y-28).attr("y2",y+12).attr("stroke",css("--warn")).attr("stroke-dasharray","2 3")});
-    svg.append("text").attr("x",xs(0.5)).attr("y",y-34).attr("text-anchor","middle").style("font-size","10px").attr("fill",css("--warn")).text("rounding boundary");
-    const qw=Math.max(-2,Math.min(2,Math.round(w)));
-    svg.append("rect").attr("x",xs(qw)-8).attr("y",y-8).attr("width",16).attr("height",16).attr("fill",css("--ptq")).attr("stroke",css("--surface")).attr("stroke-width",2);
-    svg.append("circle").attr("cx",xs(w)).attr("cy",y).attr("r",8).attr("fill",css("--fp32")).attr("stroke",css("--surface")).attr("stroke-width",2.5);
-    svg.append("text").attr("x",xs(w)).attr("y",y-16).attr("text-anchor","middle").attr("class","mono").style("font-size","11px").attr("fill",css("--fp32")).text("W = "+w.toFixed(2));
-    svg.append("text").attr("x",xs(qw)).attr("y",y+44).attr("text-anchor","middle").attr("class","mono").style("font-size","11px").attr("fill",css("--ptq")).text("Ŵ = "+qw);
-    svg.append("text").attr("x",700).attr("y",20).attr("text-anchor","end").attr("class","mono").style("font-size","11px").attr("fill",css("--muted")).text("step "+t);
-  }
-  const play=document.getElementById("driftPlay");
-  function stop(){if(timer){clearInterval(timer);timer=null;play.textContent="Play"}}
-  const driftReduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  play.addEventListener("click",()=>{ if(timer){stop();return}
-    if(driftReduced){ while(w>-1.95){w-=0.03;t++} drawDrift(); return } // no motion: jump straight to the end state
-    play.textContent="Pause"; timer=setInterval(()=>{ if(w<=-1.95){stop();return} w-=0.03;t++;drawDrift() },90) });
-  document.getElementById("driftReset").addEventListener("click",()=>{stop();w=1.42;t=0;drawDrift()});
-  drawDrift(); onTheme(drawDrift);
-})();
-
-/* ---------- 6. Training lab ---------- */
-(function(){
-  const H=32,N=64;
-  const xs=d3.range(N).map(i=>-1+2*i/(N-1)); const ys=xs.map(x=>Math.sin(3*x)+0.3*Math.cos(9*x));
-  const el={run:document.getElementById("labRun"),status:document.getElementById("labStatus"),seed:document.getElementById("labSeed"),seedV:document.getElementById("labSeedV"),L0:document.getElementById("labL0"),L1:document.getElementById("labL1"),L2:document.getElementById("labL2"),gain:document.getElementById("labGain")};
-  let bits=3, seed=3, running=false;
-  let state=null; // {fp, qat, bits, phase, lossHist, every, l0, l1}; phase 0 = pretraining, 1 = QAT fork exists
-  const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function init(s){const r=mulberry(s);const g=()=>r()*2-1;return{w1:Array.from({length:H},()=>g()*2),b1:Array.from({length:H},()=>g()*1.5),w2:Array.from({length:H},()=>g()*0.5),b2:0}}
-  const qt=quantizeArray;
-  function fwd(p,x,b){let w1=p.w1,w2=p.w2,m1=null,m2=null;if(b){const a=qt(p.w1,b),c=qt(p.w2,b);w1=a.out;w2=c.out;m1=a.mask;m2=c.mask}const h=[];let y=p.b2;for(let j=0;j<H;j++){const t=Math.tanh(w1[j]*x+p.b1[j]);h.push(t);y+=w2[j]*t}return{y,h,w2,m1,m2}}
-  function loss(p,b){let s=0;for(let i=0;i<N;i++){s+=(fwd(p,xs[i],b).y-ys[i])**2}return s/N}
-  function makeOpt(){return{m:{w1:Array(H).fill(0),b1:Array(H).fill(0),w2:Array(H).fill(0),b2:0},v:{w1:Array(H).fill(0),b1:Array(H).fill(0),w2:Array(H).fill(0),b2:0},t:0}}
-  function step(p,o,b,lr){const B1=0.9,B2=0.999,eps=1e-8;o.t++;const t=o.t;const g={w1:Array(H).fill(0),b1:Array(H).fill(0),w2:Array(H).fill(0),b2:0};let L=0;
-    for(let i=0;i<N;i++){const x=xs[i];const f=fwd(p,x,b);const e=f.y-ys[i];L+=e*e/N;const dy=2*e/N;g.b2+=dy;
-      for(let j=0;j<H;j++){g.w2[j]+=dy*f.h[j]*(f.m2?f.m2[j]:1);const dh=dy*f.w2[j]*(1-f.h[j]**2);g.b1[j]+=dh;g.w1[j]+=dh*x*(f.m1?f.m1[j]:1)}}
-    const upd=k=>{for(let j=0;j<H;j++){o.m[k][j]=B1*o.m[k][j]+(1-B1)*g[k][j];o.v[k][j]=B2*o.v[k][j]+(1-B2)*g[k][j]**2;p[k][j]-=lr*(o.m[k][j]/(1-B1**t))/(Math.sqrt(o.v[k][j]/(1-B2**t))+eps)}};
-    upd("w1");upd("b1");upd("w2");o.m.b2=B1*o.m.b2+(1-B1)*g.b2;o.v.b2=B2*o.v.b2+(1-B2)*g.b2**2;p.b2-=lr*(o.m.b2/(1-B1**t))/(Math.sqrt(o.v.b2/(1-B2**t))+eps);return L}
-  const cos=(t,T,lr)=>lr*0.5*(1+Math.cos(Math.PI*t/T));
-  const FP_STEPS=1500, QAT_STEPS=2000;
-
-  function drawFit(){
-    const svg=d3.select("#labFit");svg.selectAll("*").remove();const W=300,Hh=220,m={t:10,r:10,b:24,l:30};
-    const x=d3.scaleLinear().domain([-1,1]).range([m.l,W-m.r]),y=d3.scaleLinear().domain([-1.6,1.6]).range([Hh-m.b,m.t]);
-    svg.append("g").attr("class","axis").attr("transform",`translate(0,${Hh-m.b})`).call(d3.axisBottom(x).ticks(4));
-    svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4));
-    svg.append("g").selectAll("circle").data(xs).join("circle").attr("cx",d=>x(d)).attr("cy",(d,i)=>y(ys[i])).attr("r",2.2).attr("fill",css("--muted")).attr("opacity",.7);
-    if(!state)return;
-    const grid=d3.range(-1,1.001,0.01);
-    const line=(p,b,c,dash)=>svg.append("path").attr("d",d3.line().x(d=>x(d)).y(d=>y(Math.max(-1.6,Math.min(1.6,fwd(p,d,b).y))))(grid)).attr("fill","none").attr("stroke",c).attr("stroke-width",2).attr("stroke-dasharray",dash||null);
-    line(state.fp,0,css("--fp32"));
-    if(state.phase>=1)line(state.fp,state.bits,css("--ptq"),"5 3");
-    if(state.phase>=1)line(state.qat,state.bits,css("--qat"));
-  }
-  function drawLoss(){
-    const svg=d3.select("#labLoss");svg.selectAll("*").remove();const W=300,Hh=220,m={t:10,r:10,b:24,l:40};
-    const x=d3.scaleLinear().domain([0,QAT_STEPS]).range([m.l,W-m.r]);
-    const vals=[state?.l0,state?.l1,...(state?.lossHist||[])].filter(v=>v>0);
-    const lo=Math.max(1e-4,d3.min(vals)||1e-3),hi=d3.max(vals)||1;
-    const y=d3.scaleLog().domain([lo/1.5,hi*1.5]).range([Hh-m.b,m.t]);
-    svg.append("g").attr("class","axis").attr("transform",`translate(0,${Hh-m.b})`).call(d3.axisBottom(x).ticks(4));
-    svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4,".0e"));
-    svg.append("text").attr("x",W-m.r).attr("y",m.t+10).attr("text-anchor","end").style("font-size","10px").attr("fill",css("--muted")).text("QAT step →");
-    if(!state)return;
-    const hl=(v,c)=>{svg.append("line").attr("x1",x(0)).attr("x2",x(QAT_STEPS)).attr("y1",y(v)).attr("y2",y(v)).attr("stroke",c).attr("stroke-width",2).attr("stroke-dasharray","5 3")};
-    hl(state.l0,css("--fp32")); if(state.phase>=1)hl(state.l1,css("--ptq"));
-    if(state.lossHist.length>1)svg.append("path").attr("d",d3.line().x((d,i)=>x(i*state.every)).y(d=>y(Math.max(lo,d)))(state.lossHist)).attr("fill","none").attr("stroke",css("--qat")).attr("stroke-width",2);
-  }
-  function drawHist(){
-    const svg=d3.select("#labHist");svg.selectAll("*").remove();const W=300,Hh=220,m={t:10,r:10,b:24,l:30};
-    if(!state)return;
-    const p=state.phase>=1?state.qat:state.fp; const w=p.w1; const mx=Math.max(...w.map(Math.abs))||1; const bits=state.bits;
-    const x=d3.scaleLinear().domain([-mx*1.1,mx*1.1]).range([m.l,W-m.r]);
-    const bins=d3.bin().domain(x.domain()).thresholds(28)(w);
-    const y=d3.scaleLinear().domain([0,d3.max(bins,b=>b.length)||1]).range([Hh-m.b,m.t]);
-    svg.append("g").attr("class","axis").attr("transform",`translate(0,${Hh-m.b})`).call(d3.axisBottom(x).ticks(5));
-    const qmax=(1<<(bits-1))-1,s=mx/qmax;
-    for(let k=-qmax;k<=qmax;k++)svg.append("line").attr("x1",x(k*s)).attr("x2",x(k*s)).attr("y1",m.t).attr("y2",Hh-m.b).attr("stroke",css("--ptq")).attr("stroke-dasharray","2 3");
-    svg.append("g").selectAll("rect").data(bins).join("rect").attr("x",b=>x(b.x0)+1).attr("width",b=>Math.max(1,x(b.x1)-x(b.x0)-2)).attr("y",b=>y(b.length)).attr("height",b=>y(0)-y(b.length)).attr("fill",state.phase>=1?css("--qat"):css("--fp32")).attr("rx",2);
-    svg.append("text").attr("x",W-m.r).attr("y",m.t+10).attr("text-anchor","end").style("font-size","10px").attr("fill",css("--muted")).text(state.phase>=1?"QAT master weights":"fp32 weights");
-  }
-  function drawAll(){drawFit();drawLoss();drawHist()}
-  function fmtL(v){return v.toExponential(2)}
-  const lockControls=on=>{el.run.disabled=on;el.seed.disabled=on;document.querySelectorAll("#labBits button").forEach(b=>b.disabled=on)};
-  function clearStats(){el.L0.textContent=el.L1.textContent=el.L2.textContent=el.gain.textContent="–"}
-  function run(){
-    if(running)return; running=true; lockControls(true);
-    const fp=init(seed); const ofp=makeOpt(); let t=0;
-    const runBits=bits; // snapshot: the whole run, and everything drawn from it, uses this precision
-    state={fp,qat:null,bits:runBits,phase:0,lossHist:[],every:20,l0:null,l1:null};
-    clearStats();
-    const CHUNK=reduced?Infinity:40; // reduced motion: compute in one go and paint only the final state
-    const next=reduced?(f=>f()):(f=>requestAnimationFrame(f));
-    function fpChunk(){
-      const end=Math.min(FP_STEPS,t+CHUNK);
-      for(;t<end;t++)step(fp,ofp,0,cos(t,FP_STEPS,0.01));
-      el.status.textContent=`Pretraining fp32 · step ${t}/${FP_STEPS}`;
-      state.l0=loss(fp,0); if(!reduced)drawAll();
-      if(t<FP_STEPS)next(fpChunk); else startQat();
-    }
-    function startQat(){
-      state.l0=loss(fp,0); state.l1=loss(fp,runBits);
-      el.L0.textContent=fmtL(state.l0); el.L1.textContent=fmtL(state.l1);
-      state.qat=JSON.parse(JSON.stringify(fp)); state.phase=1; const oq=makeOpt(); let k=0;
-      state.lossHist=[state.l1];
-      function qChunk(){
-        const end=Math.min(QAT_STEPS,k+CHUNK);let L=0;
-        for(;k<end;k++){L=step(state.qat,oq,runBits,cos(k,QAT_STEPS,0.01)); if(k%state.every===0)state.lossHist.push(L)}
-        el.status.textContent=`QAT fine-tuning · step ${k}/${QAT_STEPS}`;
-        const l2=loss(state.qat,runBits); el.L2.textContent=fmtL(l2); el.gain.textContent=(state.l1/l2).toFixed(1)+"× lower";
-        if(k<QAT_STEPS){ if(!reduced)drawAll(); next(qChunk) } else {drawAll();el.status.textContent=`Done at ${runBits} bits. Change bits or seed and run again.`;running=false;lockControls(false)}
-      }
-      qChunk();
-    }
-    fpChunk();
-  }
-  // Changing a setting after a run invalidates its results: clear them rather than show stale numbers next to a new grid.
-  function settingsChanged(){ if(running)return; state=null; clearStats(); el.status.textContent="Settings changed. Run to compare."; drawAll() }
-  seg(document.getElementById("labBits"),d=>{ if(running)return; bits=+d.b; settingsChanged() });
-  window.QAT.lab = { get running(){return running}, get state(){return state}, get bits(){return bits} };
-  el.seed.addEventListener("input",()=>{seed=+el.seed.value;el.seedV.textContent=seed;settingsChanged()});
-  el.run.addEventListener("click",run);
-  drawAll(); onTheme(drawAll);
-  // auto-run once so the figure is never empty; under reduced motion this computes synchronously and paints once
-  if(reduced) run(); else setTimeout(run,600);
-})();
-
-/* ---------- 7. Transformer block ---------- */
-(function(){
-  const svg=d3.select("#blockSvg"), tip=document.getElementById("blockTip"), host=tip.parentElement;
-  const parts=[
-    {x:20,y:135,w:70,h:60,t:"input\nx",k:"act",d:"Residual stream in bf16. Quantized to int8 per token right before each projection."},
-    {x:110,y:135,w:60,h:60,t:"RMS\nNorm",k:"keep",d:"Normalization stays in bf16: it is cheap and its outputs contain the outlier channels that make activation quantization hard."},
-    {x:190,y:40,w:80,h:48,t:"W_q",k:"w",d:"Query projection, 4-bit weights with a scale per group of 32–128 weights. Fake-quantized every training step."},
-    {x:190,y:104,w:80,h:48,t:"W_k",k:"w",d:"Key projection, 4-bit weights. Its int8 outputs go into the KV cache."},
-    {x:190,y:168,w:80,h:48,t:"W_v",k:"w",d:"Value projection, 4-bit weights."},
-    {x:300,y:104,w:80,h:112,t:"KV\ncache",k:"kv",d:"Keys and values for previous tokens. This diagram uses int8; some deployments use int4. At long context, the cache can become a major part of memory use."},
-    {x:410,y:100,w:70,h:60,t:"attn\nsoftmax",k:"keep",d:"Attention scores and softmax stay in bf16. Softmax is sensitive to rounding and is a tiny fraction of the compute."},
-    {x:500,y:100,w:80,h:60,t:"W_o",k:"w",d:"Output projection, 4-bit weights."},
-    {x:110,y:245,w:60,h:60,t:"RMS\nNorm",k:"keep",d:"Second normalization, bf16."},
-    {x:190,y:232,w:80,h:40,t:"W_gate",k:"w",d:"MLP gate projection, 4-bit. In many gated transformer architectures, the MLP projections contain most of a layer's parameters."},
-    {x:190,y:280,w:80,h:40,t:"W_up",k:"w",d:"MLP up projection, 4-bit."},
-    {x:300,y:245,w:70,h:60,t:"SiLU\n×",k:"act",d:"Activation function output, quantized to int8 per token before the down projection."},
-    {x:410,y:245,w:80,h:60,t:"W_down",k:"w",d:"MLP down projection, 4-bit. Its input has some of the largest activation outliers in the network."},
-    {x:620,y:135,w:100,h:60,t:"+ residual\n(bf16)",k:"keep",d:"This layout keeps residual additions in bf16 to avoid adding another low-precision quantization point on the residual path."},
-  ];
-  const col={w:"--fp32",act:"--ptq",kv:"--qat",keep:"--line-2"};
-  function draw(){
-    svg.selectAll("*").remove();
-    const link=(a,b)=>svg.append("line").attr("x1",a[0]).attr("y1",a[1]).attr("x2",b[0]).attr("y2",b[1]).attr("stroke",css("--line-2")).attr("stroke-width",1.5);
-    link([90,165],[110,165]);link([170,165],[190,64]);link([170,165],[190,128]);link([170,165],[190,192]);
-    link([270,128],[300,128]);link([270,192],[300,192]);link([270,64],[410,120]);link([380,160],[410,140]);link([480,130],[500,130]);
-    link([580,130],[620,150]);link([60,195],[60,275]);link([60,275],[110,275]);link([170,275],[190,252]);link([170,275],[190,300]);
-    link([270,252],[300,275]);link([270,300],[300,275]);link([370,275],[410,275]);link([490,275],[670,275]);link([670,275],[670,195]);
-    const g=svg.append("g").selectAll("g").data(parts).join("g").attr("transform",d=>`translate(${d.x},${d.y})`).style("cursor","help")
-      .attr("tabindex",0).attr("role","button").attr("aria-label",d=>d.t.replace("\n"," ")+": "+d.d)
-      .on("mousemove",(e,d)=>tipShow(tip,host,e,d.d)).on("mouseleave",()=>tipHide(tip))
-      .on("click",(e,d)=>{tipShow(tip,host,e,d.d);setTimeout(()=>tipHide(tip),2500)})
-      .on("focus",function(e,d){const r=this.getBoundingClientRect(),hr=host.getBoundingClientRect();tipShow(tip,host,{clientX:r.left+r.width/2,clientY:r.top},d.d)})
-      .on("blur",()=>tipHide(tip))
-      .on("keydown",function(e,d){if(e.key==="Enter"||e.key===" "){e.preventDefault();const r=this.getBoundingClientRect();tipShow(tip,host,{clientX:r.left+r.width/2,clientY:r.top},d.d)}});
-    g.append("rect").attr("width",d=>d.w).attr("height",d=>d.h).attr("rx",7).attr("fill",d=>d.k==="keep"?css("--surface-2"):css("--surface")).attr("stroke",d=>css(col[d.k])).attr("stroke-width",d=>d.k==="keep"?1.5:2.5);
-    g.each(function(d){const lines=d.t.split("\n");const sel=d3.select(this);lines.forEach((l,i)=>sel.append("text").attr("x",d.w/2).attr("y",d.h/2+(i-(lines.length-1)/2)*15).attr("dy",".35em").attr("text-anchor","middle").attr("class",l.startsWith("W_")?"mono":null).style("font-size","12px").attr("fill",css("--ink")).text(l))});
-    svg.append("text").attr("x",340).attr("y",22).attr("text-anchor","middle").style("font-size","11px").attr("fill",css("--muted")).text("attention");
-    svg.append("text").attr("x",20).attr("y",325).attr("text-anchor","start").style("font-size","11px").attr("fill",css("--muted")).text("feed-forward (MLP)");
-  }
-  draw(); onTheme(draw);
-})();
-})();
-</script>
+<script src="qat.js"></script>
 </body>
 </html>
