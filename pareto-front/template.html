@@ -1,49 +1,550 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23117965'/%3E%3Cpath d='M10 46L24 33l11 5L54 16' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<title>Intelligence versus cost · Artificial Analysis Pareto frontier</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intelligence versus cost · Visual Learn</title>
+<meta name="description" content="The Pareto frontier of language-model score against cost per task, from Artificial Analysis data, and how it moved by release date.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23fcfbf7'/%3E%3Cpath d='M8 52H22V36H36V22H50V10' fill='none' stroke='%232f6ea6' stroke-width='6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light;--bg:#fbfbf8;--fg:#1d2b2d;--muted:#58696b;--front:#117965;--focus:#9c652e}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:"Helvetica Neue",Arial,sans-serif}
-.shell{max-width:1240px;margin:auto;padding:18px 20px 35px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.viewport{overflow-x:auto}.stage{width:100%;min-width:960px;aspect-ratio:1200/760}canvas{width:100%;height:100%;display:block}
-.controls{display:flex;gap:18px;align-items:center;margin:2px 38px 0 38px}button{background:var(--front);color:white;border:0;border-radius:4px;padding:9px 16px;font:500 15px "Helvetica Neue",Arial,sans-serif;min-width:80px;min-height:40px}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:3px}input[type=range]{flex:1;accent-color:var(--front);min-width:120px}output{font-variant-numeric:tabular-nums;color:var(--fg);min-width:100px;text-align:right;font-size:14px}.inspect{margin:20px 38px 0;padding:17px 20px;border-top:1px solid #dce4e1;display:grid;grid-template-columns:minmax(200px,340px) 1fr;gap:22px;align-items:start}.inspect label{display:block;color:var(--muted);font-size:13px;margin-bottom:7px}.inspect select{width:100%;max-width:340px;min-height:40px;padding:7px 9px;border:1px solid #aebfbd;border-radius:4px;background:white;color:var(--fg);font:15px "Helvetica Neue",Arial,sans-serif}.details{min-height:59px;line-height:1.5}.details strong{display:block;font-size:17px;font-weight:600}.details span{color:var(--muted);font-size:14px}.details a,footer a{color:var(--front)}.hint{margin:9px 38px 0;color:var(--muted);font-size:13px}footer{color:var(--muted);font-size:14px;line-height:1.55;margin:21px 38px 0;max-width:92ch}
-.method{max-width:77ch;margin:34px 38px 0;padding-top:24px;border-top:1px solid #dce4e1;line-height:1.6}.method h2{font:400 26px Georgia,serif;margin:0 0 11px}.method p{margin:0 0 13px;color:var(--fg);font-size:15px}.method a{color:var(--front)}
-@media(max-width:650px){.shell{padding:10px 8px 24px}.controls{margin:8px 7px 0;gap:8px}.inspect{margin:16px 7px 0;padding:15px 0;grid-template-columns:1fr;gap:10px}.hint,footer{margin:18px 7px 0}.method{margin:28px 7px 0}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:0.01ms!important}}
-</style></head><body><main class="shell"><h1 class="sr-only">Intelligence versus cost over time</h1><div class="viewport"><div class="stage"><canvas id="chart" role="img" aria-label="Animated scatterplot of model intelligence and task cost with the Pareto frontier highlighted"></canvas></div></div>
-<div class="controls"><button id="play" type="button" aria-label="Pause animation">Pause</button><input id="scrub" type="range" min="0" max="0" value="0" aria-label="Animation date"><output id="date"></output></div>
-<p class="hint">Drag the date slider to compare releases. Click a dot to inspect a model. On narrow screens, swipe the chart sideways.</p>
-<section class="inspect" aria-label="Model details"><div><label for="model-picker">Inspect a model at this date</label><select id="model-picker"><option value="">Choose a model</option></select></div><div id="model-detail" class="details" aria-live="polite">Select a dot or choose a model to see its score and cost.</div></section>
-<section class="method" aria-labelledby="method-title"><h2 id="method-title">What the dates mean</h2><p>DeepSeek V3 appears first because it has the earliest release date among models measured on the scoring method used here. It was not necessarily the most intelligent model available then. The early curve is an incomplete view of the frontier.</p><p><a href="https://artificialanalysis.ai/methodology/intelligence-benchmarking">Artificial Analysis revised its Intelligence Index</a> in September 2026. Scores from before and after that change cannot be compared directly. This chart uses measurements from September 5 onward. The archive has 36 retired models with no measurement on that basis, including GPT-5 and GPT-5.1 from 2025. They are absent from this curve, which is the main reason the early dates are sparse. The <a href="https://llm-frontier.catalystneuro.com/methodology/">archive methodology</a> explains how it separates scoring periods.</p><p>There is a separate coverage gap on the live Artificial Analysis site: some models have an Index score but no reported cost per Index task. Its listings for <a href="https://artificialanalysis.ai/models/comparisons/claude-4-opus-vs-claude-4-opus-thinking">Claude 4 Opus</a> and <a href="https://artificialanalysis.ai/models/comparisons/gpt-5-2-medium-vs-claude-opus-4-5">GPT-5.2</a> are examples. These models are also outside the archived set used here.</p><p>The slider reveals models by release date. Every plotted dot uses its September 2026 score and cost. The animation does not reconstruct past scores or prices.</p></section>
-<footer>Data: <a href="https://artificialanalysis.ai/#intelligence-comparison-tabs">Artificial Analysis</a> via the <a href="https://github.com/catalystneuro/llm-frontier">CatalystNeuro archive</a>. <a href="pareto-front.gif">Download the animated GIF</a>.</footer>
-</main>
-<script>const DATA=/*__DATA__*/;
-const canvas=document.getElementById('chart'),ctx=canvas.getContext('2d'),slider=document.getElementById('scrub'),play=document.getElementById('play'),dateOut=document.getElementById('date'),picker=document.getElementById('model-picker'),detail=document.getElementById('model-detail');
-const models=Object.fromEntries(DATA.models.map(m=>[m.id,m]));const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;let index=reducedMotion?DATA.frames.length-1:0,playing=!reducedMotion,last=0,selected=null,detailKey='',choicesCount=-1;slider.max=DATA.frames.length-1;
-const C={bg:'#fbfbf8',fg:'#1d2b2d',muted:'#58696b',grid:'#dce4e1',front:'#117965',point:'#aebfbd',gold:'#9c652e'};
-const W=1200,H=760,P={l:108,t:154,r:878,b:660},AX=DATA.axes;
-function xy(cost,score){return [P.l+(Math.log10(cost)-Math.log10(AX.cost[0]))/(Math.log10(AX.cost[1])-Math.log10(AX.cost[0]))*(P.r-P.l),P.b-(score-AX.score[0])/(AX.score[1]-AX.score[0])*(P.b-P.t)]}
-function txt(s,x,y,size=16,color=C.fg,bold=false,serif=false){ctx.fillStyle=color;ctx.font=`${bold?'700':'400'} ${size}px ${serif?'Georgia,serif':'"Helvetica Neue",Arial,sans-serif'}`;ctx.fillText(s,x,y)}
-function price(v){return v>=1?'$'+Number(v.toPrecision(3)):'$'+Number(v.toFixed(3))}
-function pause(){playing=false;play.textContent='Play';play.setAttribute('aria-label','Play animation')}
-function visiblePoint(id){return DATA.frames[index].points.find(p=>p.id===id)}
-function updateInspector(){const f=DATA.frames[index];if(selected&&!visiblePoint(selected))selected=null;if(f.points.length!==choicesCount){const choices=f.points.slice().sort((a,b)=>models[a.id].name.localeCompare(models[b.id].name));picker.replaceChildren(new Option('Choose a model',''),...choices.map(p=>new Option(models[p.id].name,p.id)));choicesCount=f.points.length}picker.value=selected||'';const key=selected?selected+'|'+f.frontier.includes(selected):'';if(key===detailKey)return;detailKey=key;if(!selected){detail.textContent='Select a dot or choose a model to see its score and cost.';return}const p=visiblePoint(selected),m=models[selected];detail.replaceChildren();const title=document.createElement('strong');title.textContent=m.name;const facts=document.createElement('span');facts.textContent=`${m.creator} · Index score ${p.score.toFixed(1)} · ${price(p.cost)} per task · Released ${m.release} · ${f.frontier.includes(selected)?'On plotted frontier':'Outside plotted frontier'}`;detail.append(title,facts)}
-function draw(){let f=DATA.frames[index],m=Object.fromEntries(f.points.map(p=>[p.id,p])),front=f.frontier.map(id=>m[id]).filter(Boolean);let box=canvas.getBoundingClientRect(),ratio=Math.min(3,(window.devicePixelRatio||1)*2),width=Math.round(box.width*ratio),height=Math.round(box.height*ratio);if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height}ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
- txt('Intelligence versus cost',58,69,36,C.fg,false,true);txt('Artificial Analysis Intelligence Index · Models with reported task cost',59,103,17,C.muted);
- ctx.lineWidth=1;ctx.strokeStyle=C.grid;for(let s=0;s<=70;s+=10){let y=xy(AX.cost[0],s)[1];ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.r,y);ctx.stroke();txt(String(s),70,y+5,15,C.muted)}ctx.beginPath();ctx.moveTo(P.l,P.t);ctx.lineTo(P.l,P.b);ctx.stroke();
- for(let c of [.003,.01,.03,.1,.3,1,3,10,20]){let x=xy(c,0)[0];ctx.beginPath();ctx.moveTo(x,P.b);ctx.lineTo(x,P.b+5);ctx.stroke();let label=price(c);ctx.font='14px "Helvetica Neue",Arial,sans-serif';txt(label,x-ctx.measureText(label).width/2,P.b+30,14,C.muted)}
- txt('Intelligence Index',P.l,P.t-12,16,C.muted);txt('Cost per Index task (USD, log scale)',P.l+230,P.b+60,16,C.muted);
- for(let p of f.points){let [x,y]=xy(p.cost,p.score);if(x<P.l||x>P.r||y<P.t||y>P.b)continue;ctx.beginPath();ctx.arc(x,y,2.8,0,Math.PI*2);ctx.fillStyle=C.point;ctx.fill()}
- if(front.length>1){ctx.beginPath();front.forEach((p,i)=>{let [x,y]=xy(p.cost,p.score);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle=C.front;ctx.lineWidth=3;ctx.lineJoin='round';ctx.stroke()}
- for(let p of front){let [x,y]=xy(p.cost,p.score);ctx.beginPath();ctx.arc(x,y,4.5,0,Math.PI*2);ctx.fillStyle=C.front;ctx.fill();ctx.lineWidth=1;ctx.strokeStyle=C.bg;ctx.stroke()}
- if(selected&&m[selected]){let [x,y]=xy(m[selected].cost,m[selected].score);ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.strokeStyle=C.gold;ctx.lineWidth=2.5;ctx.stroke();ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle=C.gold;ctx.fill()}
- let chosen=[];if(front.length){chosen.push(front[front.length-1]);if(front.length>1)chosen.push(front[0]);if(front.length>6)chosen.push(front[Math.floor(front.length/2)])}let occupied=[];for(let p of chosen){let [x,y]=xy(p.cost,p.score),name=models[p.id].name;name=name.length>24?name.slice(0,23)+'…':name;ctx.font='14px "Helvetica Neue",Arial,sans-serif';let tx=Math.max(8,x-ctx.measureText(name).width-12),ty=y-16;for(let j=0;j<5&&occupied.some(q=>Math.abs(tx-q[0])<110&&Math.abs(ty-q[1])<22);j++)ty-=22;occupied.push([tx,ty]);txt(name,tx,ty,14,C.fg)}
- let sx=922;txt(new Date(f.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),sx,188,29,C.fg,false,true);txt('Models released by this date',sx,217,15,C.front);txt(`${f.points.length} ${f.points.length===1?'model':'models'} shown`,sx,278,19,C.fg);txt(`${front.length} on plotted frontier`,sx,308,19,C.fg);
- if(selected&&m[selected]){let p=m[selected],nm=models[selected].name;txt('Selected model',sx,376,15,C.gold);txt(nm.length>30?nm.slice(0,29)+'…':nm,sx,409,17,C.fg);txt(p.score.toFixed(1)+'  ·  '+price(p.cost)+' per task',sx,441,18,C.fg)}else if(front.length){let lead=front.reduce((a,b)=>a.score>b.score?a:b);txt('Highest plotted score',sx,376,15,C.muted);txt(lead.score.toFixed(1)+'  ·  '+price(lead.cost)+' per task',sx,409,21,C.fg);let nm=models[lead.id].name;txt(nm.length>30?nm.slice(0,29)+'…':nm,sx,441,14,C.muted)}
- let note=['Dots use September 2026 data.','36 retired models have no score','on this Index version, leaving','gaps in earlier dates.'];note.forEach((line,j)=>txt(line,sx,523+23*j,14,C.muted));txt('Existing dots stay in place',sx,649,13,C.front);txt('Data: Artificial Analysis via CatalystNeuro · Frontier: higher score and lower cost',58,749,13,C.muted);
- dateOut.value=f.date;slider.value=index;slider.setAttribute('aria-valuetext',f.date);canvas.setAttribute('aria-label',`${f.date}: ${f.points.length} models; ${front.length} on the frontier. Models are shown by release date using September 2026 positions. Fixed axes: cost $0.003 to $20, score 0 to 70.`);updateInspector()
+/* ===== Visual Learn house style (copied from the collection's base.css) ===== */
+:root {
+  color-scheme: light;
+  --paper: #fcfbf7; --wash: #f3f1ea; --ink: #1c1b18; --ink-2: #57544c; --ink-3: #8a867b;
+  --rule: #e2ded3; --rule-2: #c9c4b6; --link: #1f4e79;
+  --c-blue: #2f6ea6; --c-orange: #c8682a; --c-green: #2a8a6a; --c-purple: #6a51a3;
+  --c-red: #b8433a; --c-gold: #b8901f; --c-sky: #6ea8d6; --c-grey: #a8a396;
+  --serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text: 37rem; --gap: 2.5rem; --margin: 15rem;
+  --page: calc(var(--text) + var(--gap) + var(--margin));
+
+  /* Entity colors for this page, assigned once:
+     the Pareto frontier is blue; every other model is grey context. */
+  --frontier: var(--c-blue);
+  --other: var(--c-grey);
 }
-function tick(ts){if(playing&&ts-last>=165){index=(index+1)%DATA.frames.length;last=ts;draw()}requestAnimationFrame(tick)}
-play.addEventListener('click',()=>{playing=!playing;play.textContent=playing?'Pause':'Play';play.setAttribute('aria-label',playing?'Pause animation':'Play animation');if(playing&&index===DATA.frames.length-1)index=0;draw()});slider.addEventListener('input',()=>{index=Number(slider.value);pause();draw()});picker.addEventListener('focus',pause);picker.addEventListener('change',()=>{selected=picker.value||null;pause();draw()});function pointAt(event){let rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*W/rect.width,y=(event.clientY-rect.top)*H/rect.height,best=null,distance=14*14;for(let p of DATA.frames[index].points){let [px,py]=xy(p.cost,p.score),d=(x-px)**2+(y-py)**2;if(d<distance){distance=d;best=p}}return best}canvas.addEventListener('click',event=>{let p=pointAt(event);if(!p)return;selected=p.id;pause();draw()});canvas.addEventListener('pointermove',event=>{canvas.style.cursor=pointAt(event)?'pointer':'default'});canvas.addEventListener('pointerleave',()=>{canvas.style.cursor='default'});window.addEventListener('resize',draw);if(reducedMotion)pause();draw();requestAnimationFrame(tick);
-</script></body></html>
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 3.5rem; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: 1.1875rem; line-height: 1.58; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; counter-reset: sidenote figure; }
+::selection { background: #e8dfc3; }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.page { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem 6rem; }
+.page > :not(section), section > * { max-width: var(--text); }
+.page > .wide, section > .wide { max-width: none; }
+.page > h1 { max-width: 48rem; }
+h1, h2, h3 { font-weight: 400; color: var(--ink); text-wrap: balance; }
+h1 { font-size: clamp(2.5rem, 5.5vw, 3.6rem); line-height: 1.04; letter-spacing: -0.012em; margin: 4.5rem 0 0.6rem; }
+.subtitle { font-style: italic; font-size: 1.45rem; line-height: 1.35; color: var(--ink-2); margin: 0 0 2rem; }
+h2 { font-size: 1.95rem; line-height: 1.15; letter-spacing: -0.005em; margin: 4.5rem 0 1rem; }
+h3 { font-style: italic; font-size: 1.35rem; line-height: 1.25; margin: 2.5rem 0 0.6rem; }
+p, ul, ol { margin: 0 0 1.1rem; text-wrap: pretty; }
+strong, b { font-weight: 600; }
+.lede { font-size: 1.3rem; line-height: 1.5; }
+.meta { font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-3); letter-spacing: 0.01em; }
+a { color: var(--link); text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.16em; text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent); }
+a:hover { text-decoration-color: currentColor; }
+.num, table, svg text, .controls { font-variant-numeric: lining-nums tabular-nums; }
+.sidenote, .marginnote { float: right; clear: right; width: var(--margin); margin: 0.3rem calc(-1 * (var(--margin) + var(--gap))) 1rem 0; font-size: 0.875rem; line-height: 1.45; color: var(--ink-2); font-style: normal; font-weight: 400; }
+.sn-ref { counter-increment: sidenote; }
+.sn-ref::after { content: counter(sidenote); font-family: var(--sans); font-size: 0.66em; font-weight: 600; vertical-align: super; line-height: 0; margin-left: 0.08em; color: var(--ink-2); }
+.sidenote::before { content: counter(sidenote) "\2002"; font-family: var(--sans); font-size: 0.8em; font-weight: 600; }
+p, li, figure { position: relative; }
+figure { margin: 2.25rem 0 2.5rem; padding: 0; }
+.fig { counter-increment: figure; }
+.fig figcaption { font-size: 0.875rem; line-height: 1.45; color: var(--ink-2); margin-top: 0.7rem; max-width: var(--text); }
+.fig figcaption .fig-n::before { content: "Figure " counter(figure) ". "; font-family: var(--sans); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--ink); }
+.fig .takeaway { font-style: italic; color: var(--ink); }
+.graphic { position: relative; }
+.graphic svg { display: block; width: 100%; height: auto; overflow: visible; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; margin: 0 0 0.9rem; font-family: var(--sans); font-size: 0.875rem; color: var(--ink-2); }
+.control { display: inline-flex; align-items: center; gap: 0.55rem; }
+.control > .label { color: var(--ink-2); }
+.control > output, .readout { font-family: var(--sans); color: var(--ink); font-weight: 600; min-width: 3.2ch; }
+.btn { font: 500 0.875rem/1 var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.5rem 0.75rem; min-height: 2.125rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; }
+.btn:hover { border-color: var(--ink-2); }
+.btn:disabled { color: var(--ink-3); border-color: var(--rule); cursor: default; }
+input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; width: 9rem; height: 1.5rem; margin: 0; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--rule-2); }
+input[type="range"]::-moz-range-track { height: 2px; background: var(--rule-2); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+input[type="range"]:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.4rem 0.5rem; }
+.axis line, .axis path { stroke: var(--rule-2); stroke-width: 1; shape-rendering: crispEdges; }
+.grid line { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
+.tick text, .axis text { font-family: var(--sans); font-size: 11.5px; fill: var(--ink-3); }
+.axis-title { font-family: var(--sans); font-size: 12px; fill: var(--ink-2); }
+.label { font-family: var(--sans); font-size: 12.5px; fill: var(--ink); }
+.label.muted { fill: var(--ink-2); }
+.annot { font-family: var(--serif); font-style: italic; font-size: 13.5px; fill: var(--ink-2); }
+.topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
+.topbar-inner { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1.25rem; height: 2.75rem; }
+.topbar .home { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.topbar .home:hover { color: var(--ink); }
+.topbar .title { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.topbar nav { display: flex; gap: 1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; mask-image: linear-gradient(to right, #000 92%, transparent); }
+.topbar nav::-webkit-scrollbar { display: none; }
+.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0; }
+.topbar nav a:hover, .topbar nav a[aria-current="true"] { color: var(--ink); }
+.progress { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--ink); width: 0; }
+.colophon { margin-top: 5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
+@media (min-width: 62rem) {
+  .fig:not(.wide) { display: grid; grid-template-columns: var(--text) var(--margin); column-gap: var(--gap); max-width: none; align-items: end; }
+  .fig:not(.wide) > * { grid-column: 1; }
+  .fig:not(.wide) > figcaption { grid-column: 2; grid-row: 1 / span 3; align-self: end; margin: 0; }
+}
+@media (max-width: 61.99rem) {
+  .sidenote, .marginnote { float: none; display: block; width: auto; margin: 0.6rem 0 0.9rem; padding-left: 0.9rem; border-left: 1px solid var(--rule-2); }
+}
+@media (max-width: 40rem) {
+  body { font-size: 1.0625rem; line-height: 1.55; }
+  .page, .topbar-inner { padding-left: 1rem; padding-right: 1rem; }
+  h1 { margin-top: 3rem; }
+  .subtitle { font-size: 1.25rem; }
+  h2 { font-size: 1.6rem; margin-top: 3.5rem; }
+  .topbar .title { display: none; }
+  .btn { min-height: 2.5rem; }
+  input[type="range"] { width: 7.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* ===== page-specific ===== */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* Figure 1: date slider grows to fill the row; the model list can be long */
+#fig-frontier .date-control { flex: 1 1 18rem; }
+#fig-frontier .date-control input { flex: 1 1 auto; min-width: 7rem; width: auto; }
+#fig-frontier .date-control output { min-width: 6.6rem; }
+#model-picker { max-width: 17rem; }
+.dot { fill: var(--other); }
+.step { fill: none; stroke: var(--frontier); stroke-width: 1.5; stroke-linejoin: round; }
+.fdot { fill: var(--frontier); stroke: var(--paper); stroke-width: 1; }
+.ref-step { fill: none; stroke: var(--rule-2); stroke-width: 1; }
+.ring { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.link { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 3; }
+.leader { stroke: var(--ink-3); stroke-width: 0.75; }
+.halo { paint-order: stroke; stroke: var(--paper); stroke-width: 3.5px; stroke-linejoin: round; }
+.label.strong { font-weight: 600; }
+.hit { fill: transparent; cursor: default; }
+.hit.near { cursor: pointer; }
+.detail { font-family: var(--sans); font-size: 0.9375rem; line-height: 1.45; color: var(--ink-2); margin: 0.75rem 0 0; min-height: 2.9em; max-width: 48rem; }
+.detail strong { color: var(--ink); font-weight: 600; }
+/* Figure 2: small multiples */
+.multiples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.6rem 1.5rem; }
+.multiples h3 { font: 600 0.8125rem/1.3 var(--sans); font-style: normal; margin: 0; color: var(--ink); }
+.multiples .pm { font: 0.78rem/1.35 var(--sans); color: var(--ink-2); margin: 0.1rem 0 0.35rem; min-height: 2.7em; }
+.multiples .tick text { font-size: 11px; }
+@media (max-width: 40rem) {
+  .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.4rem 1rem; }
+  #model-picker { max-width: 100%; }
+  #fig-frontier .model-control { flex: 1 1 100%; min-width: 0; }
+  #fig-frontier .model-control select { flex: 1 1 0; width: 0; min-width: 0; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">Intelligence versus cost</span>
+    <nav aria-label="Sections">
+      <a href="#frontier">The frontier</a>
+      <a href="#history">Quarter by quarter</a>
+      <a href="#dates">What the dates mean</a>
+    </nav>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main class="page">
+  <h1>Intelligence versus cost</h1>
+  <p class="subtitle">Which language models give the highest benchmark score for what they cost to run, and how that set grew from 2025 to 2026</p>
+  <p class="lede">Artificial Analysis runs language models through one suite of benchmark tasks and records both the score and the cost of each run. Plot the two against each other and a few models stand out: for each of them, every cheaper model scores lower. Those models form the Pareto frontier. This page draws that frontier for 162 models measured in September 2026 and shows how it filled in as new models were released.</p>
+  <p class="meta">3 sections · about 7 minutes · data archived September 23, 2026</p>
+
+  <section id="frontier">
+    <h2>The models that no cheaper model matches</h2>
+    <p>Each dot in Figure 1 is one language model. Its height is the model’s score on the Artificial Analysis Intelligence Index, a weighted average of ten evaluations that cover agentic work, coding, scientific reasoning and general knowledge.<span class="sn-ref"></span><span class="sidenote">The weights are agents 30%, coding 20%, scientific reasoning 20% and general 30%. The ten evaluations include Terminal-Bench, SciCode and Humanity’s Last Exam; the full list is on the <a href="https://artificialanalysis.ai/methodology/intelligence-benchmarking">methodology page</a>, which described version 4.3.2 in September 2026.</span> Its horizontal position is the <strong>cost per Index task</strong>: the average billed cost of running one task from that suite, counting input, reasoning and answer tokens.<span class="sn-ref"></span><span class="sidenote">Definition from the <a href="https://llm-frontier.catalystneuro.com/methodology/">CatalystNeuro archive methodology</a>. The cost axis is logarithmic: each vertical gridline marks ten times the cost of the one to its left.</span></p>
+    <p>A model is on the <strong>Pareto frontier</strong> when every cheaper model scores lower. Every other model is beaten by some model that costs no more and scores at least as high. The most expensive model plotted, Claude Fable 5 at maximum effort, scores 49.6 for $8.75 per task. Claude Opus 5.5 at medium effort scores 51.2 for $1.34, so Fable 5 is off the frontier.</p>
+
+    <figure class="fig wide" id="fig-frontier">
+      <div class="controls">
+        <button class="btn" id="play" type="button">Play</button>
+        <button class="btn" id="reset" type="button" disabled>Reset</button>
+        <span class="control date-control">
+          <label class="label" for="scrub">Released by</label>
+          <input id="scrub" type="range" min="0" max="0" value="0" step="1">
+          <output id="date" for="scrub"></output>
+        </span>
+        <span class="control model-control">
+          <label class="label" for="model-picker">Model</label>
+          <select id="model-picker"><option value="">None selected</option></select>
+        </span>
+      </div>
+      <div class="graphic" id="chart"></div>
+      <p class="detail" id="model-detail" aria-live="polite"></p>
+      <figcaption><span class="fig-n"></span>Index score against cost per task for every model with both values, as measured in September 2026. Blue step line and dots: the Pareto frontier. Grey dots: all other models. Select a dot, or pick a model from the list, for its details. Play adds models in order of release, one week per step. <span class="takeaway">Up to $0.13 per task the frontier gains 25 points; the next 11 points cost 45 times as much.</span></figcaption>
+    </figure>
+
+    <p>Read the step line as a budget. At any cost on the horizontal axis, the height of the line is the highest score available at or below that cost. The line climbs quickly at the cheap end: GPT-6 Luna scores 20.9 for $0.0045 per task at low effort and 37.3 for $0.068 at maximum effort, and MiMo-V2.6-Pro reaches 46.3 for $0.13. Past that point it flattens. The top score, 57.6 from Claude Opus 5.5 at maximum effort, costs $5.98 per task.</p>
+    <p>Many frontier points are one model run at different reasoning-effort settings, labeled from (low) to (max). In this data, higher effort costs more per task and scores higher, so a single model can trace a run of the frontier. GPT-6 Luna supplies five of the 13 frontier points and Claude Opus 5.5 supplies four.</p>
+  </section>
+
+  <section id="history">
+    <h2>How the frontier moved, quarter by quarter</h2>
+    <p>Moving the date slider back removes models released after that date and recomputes the frontier from the ones that remain. Figure 2 does this for the last day of each quarter since December 2024, so the frontiers can be compared side by side.</p>
+
+    <figure class="fig wide" id="fig-quarters">
+      <div class="multiples" id="multiples"></div>
+      <figcaption><span class="fig-n"></span>The frontier among models released by each date, on the same axes as Figure 1 (cost per task on a log scale from $0.001 to $20, score from 0 to 65). Blue: the frontier at that date. Grey dots: other models released by then. Thin grey step: the September 23, 2026 frontier, repeated in every panel for reference. <span class="takeaway">The frontier rose and moved left: the top score went from 20.7 to 57.6 in the last year.</span></figcaption>
+    </figure>
+
+    <p>The frontier moved in two directions. It rose: the highest score among plotted models went from 8.5 (DeepSeek V3, December 2024) to 20.7 by September 2025 and 57.6 by September 2026. It also moved left. Measured in September 2026, the cheapest model released by September 30, 2025 that scored above 20 was Claude 4.5 Sonnet, at $0.56 per task. A year later GPT-6 Luna at low effort scored 20.9 for $0.0045, about 1/120 of the cost.</p>
+    <p>The last panel was redrawn within one week. Eleven of the 13 frontier models on September 23, 2026 were released on September 21 or 22; the other two are GPT-5.6 Luna settings released in July.</p>
+    <p>These panels show which models had been released by each date. They do not show what those models cost or scored at the time: every dot keeps its September 2026 position, and a model’s price can change after release.<span class="sn-ref"></span><span class="sidenote">The archive records frontier changes caused by either a release or a price change; see its <a href="https://llm-frontier.catalystneuro.com/methodology/">methodology</a>. This page shows only the effect of releases.</span> The early panels are also incomplete, for the reasons in the next section.</p>
+  </section>
+
+  <section id="dates">
+    <h2>What the dates mean, and which models are missing</h2>
+    <p>DeepSeek V3 appears first because it has the earliest release date among the models measured on the scoring method used here. It was not necessarily the highest-scoring model available in December 2024, and the early frontier is an incomplete view.</p>
+    <p><a href="https://artificialanalysis.ai/methodology/intelligence-benchmarking">Artificial Analysis revised its Intelligence Index</a> in September 2026, and scores from before and after the revision cannot be compared directly.<span class="sn-ref"></span><span class="sidenote">The archive dates the revision to September 5, 2026 (version 4.3): AutomationBench-AA joined the Index, τ³-Banking left it, and the live comparison set was cut. The <a href="https://llm-frontier.catalystneuro.com/methodology/">archive methodology</a> explains how it separates scoring periods.</span> This page therefore uses only measurements from September 5, 2026 onward. The archive holds 36 retired models with no measurement on that basis, including GPT-5 and GPT-5.1 from 2025. They are absent from every figure, and their absence is the main reason the early panels are sparse.</p>
+    <p>The live Artificial Analysis site has a separate gap: some models have an Index score but no reported cost per Index task. Its listings for <a href="https://artificialanalysis.ai/models/comparisons/claude-4-opus-vs-claude-4-opus-thinking">Claude 4 Opus</a> and <a href="https://artificialanalysis.ai/models/comparisons/gpt-5-2-medium-vs-claude-opus-4-5">GPT-5.2</a> are examples. These models are also outside the archived set.</p>
+    <p>The date slider and the quarterly panels reveal models by release date. Every plotted dot uses its September 2026 score and cost; neither figure reconstructs past scores or prices. The frontier on this page is the frontier of the plotted models only.</p>
+  </section>
+
+  <footer class="colophon">
+    <p>Data: <a href="https://artificialanalysis.ai/#intelligence-comparison-tabs">Artificial Analysis</a>, as preserved in the <a href="https://github.com/catalystneuro/llm-frontier">CatalystNeuro archive</a>. Snapshot of September 23, 2026; each model’s position is its last observation between September 5 and 23, 2026. <a href="pareto-front.gif">Animated GIF of Figure 1</a> (4.4 MB).</p>
+    <p>Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn/tree/main/pareto-front">GitHub</a>.</p>
+  </footer>
+</main>
+
+<script>
+const DATA = /*__DATA__*/;
+const NS = 'http://www.w3.org/2000/svg';
+const models = Object.fromEntries(DATA.models.map(m => [m.id, m]));
+const LAST = DATA.frames.length - 1;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const STEP_MS = reducedMotion ? 600 : 180;
+const $ = s => document.querySelector(s);
+const chart = $('#chart'), slider = $('#scrub'), play = $('#play'), reset = $('#reset'),
+      dateOut = $('#date'), picker = $('#model-picker'), detail = $('#model-detail');
+
+// Resting state: the latest date, nothing selected, nothing moving.
+const state = { index: LAST, selected: null, playing: false, timer: 0 };
+slider.max = LAST;
+
+/* ---------- helpers ---------- */
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function fmtDate(iso) {
+  return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+}
+function price(v) { return v >= 1 ? '$' + v.toFixed(2) : '$' + Number(v.toPrecision(2)); }
+function tickPrice(v) { return '$' + (v >= 1 ? v : Number(v.toPrecision(1))); }
+function baseName(name) { return name.replace(/ \([^)]*\)$/, ''); }
+function effort(name) { const m = name.match(/ \(([^)]*)\)$/); return m ? m[1] : name; }
+function releasedBy(date) { return DATA.models.filter(m => m.release <= date); }
+function frontierAt(i) { return DATA.frames[i].frontier.map(id => models[id]); }
+function scales(w, h, m) {
+  const [c0, c1] = DATA.axes.cost, [s0, s1] = DATA.axes.score;
+  const L = m.l, R = w - m.r, T = m.t, B = h - m.b;
+  const lc0 = Math.log10(c0), lspan = Math.log10(c1) - lc0;
+  return { L, R, T, B,
+    x: c => L + (Math.log10(c) - lc0) / lspan * (R - L),
+    y: s => B - (s - s0) / (s1 - s0) * (B - T) };
+}
+// The frontier as a staircase: at each cost, the best score available at or below it.
+function stepPoints(front, sc) {
+  const pts = [];
+  front.forEach((p, i) => {
+    const x = sc.x(p.cost), y = sc.y(p.score);
+    if (i) pts.push([x, pts[pts.length - 1][1]]);
+    pts.push([x, y]);
+  });
+  if (pts.length) pts.push([sc.R, pts[pts.length - 1][1]]);
+  return pts;
+}
+function pathD(pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(''); }
+function axes(svg, sc, { yTicks, xTicks, grid = true }) {
+  const g = el('g', { class: 'grid' }, svg), t = el('g', { class: 'tick' }, svg);
+  for (const s of yTicks) {
+    const y = sc.y(s);
+    if (grid) el('line', { x1: sc.L, x2: sc.R, y1: y, y2: y }, g);
+    el('text', { x: sc.L - 6, y: y + 4, 'text-anchor': 'end' }, t, String(s));
+  }
+  for (const c of xTicks) {
+    const x = sc.x(c);
+    if (grid) el('line', { x1: x, x2: x, y1: sc.T, y2: sc.B }, g);
+    el('text', { x, y: sc.B + 16, 'text-anchor': 'middle' }, t, tickPrice(c));
+  }
+}
+const overlaps = (a, b, pad = 2) => a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad;
+
+/* ---------- Figure 1: the frontier at one date ---------- */
+function dominator(id, front) {
+  // The cheapest frontier model that scores at least as high. It always costs no more.
+  const p = models[id];
+  return front.find(q => q.score >= p.score && q.id !== id) || null;
+}
+
+function drawMain() {
+  const w = chart.clientWidth;
+  if (!w) return;
+  const narrow = w < 560;
+  const h = narrow ? Math.round(w * 1.08) : Math.round(Math.max(420, Math.min(600, w * 0.56)));
+  const sc = scales(w, h, { l: 34, r: 12, t: 28, b: 50 });
+  const frame = DATA.frames[state.index];
+  const visible = releasedBy(frame.date);
+  const front = frontierAt(state.index);
+  const onFront = new Set(frame.frontier);
+
+  const svg = el('svg', { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: 'img',
+    'aria-label': `Scatter plot at ${fmtDate(frame.date)}: ${visible.length} models, ${front.length} on the Pareto frontier. ` +
+      `Cost per task on a log scale from $0.001 to $20; Index score from 0 to 65.` +
+      (front.length ? ` Frontier from ${front[0].name} (${front[0].score}, ${price(front[0].cost)}) to ${front[front.length - 1].name} (${front[front.length - 1].score}, ${price(front[front.length - 1].cost)}).` : '') });
+  chart.replaceChildren(svg); // attached first: label placement measures text with getBBox
+  axes(svg, sc, { yTicks: [0, 20, 40, 60], xTicks: [0.001, 0.01, 0.1, 1, 10] });
+  el('text', { class: 'axis-title', x: 0, y: 12 }, svg, 'Intelligence Index');
+  el('text', { class: 'axis-title', x: sc.R, y: h - 6, 'text-anchor': 'end' }, svg, 'Cost per Index task, US dollars (log scale)');
+
+  const dots = el('g', {}, svg);
+  for (const p of visible) if (!onFront.has(p.id)) el('circle', { class: 'dot', cx: sc.x(p.cost), cy: sc.y(p.score), r: 3 }, dots);
+  const steps = stepPoints(front, sc);
+  if (steps.length) el('path', { class: 'step', d: pathD(steps) }, svg);
+  for (const p of front) el('circle', { class: 'fdot', cx: sc.x(p.cost), cy: sc.y(p.score), r: 3.8 }, svg);
+
+  // Obstacles that labels must avoid: frontier dots, placed text, and the step line.
+  const blocked = front.map(p => ({ x: sc.x(p.cost) - 5, y: sc.y(p.score) - 5, w: 10, h: 10 }));
+  const lineBoxes = [];
+  for (let i = 1; i < steps.length; i++) {
+    const [a, b] = [steps[i - 1], steps[i]];
+    lineBoxes.push({ x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]) - 1, w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) + 2 });
+  }
+  const labels = el('g', {}, svg);
+  const leaders = el('g', {}, labels);
+  // Try positions beside the point first (left of a frontier point is empty space), then
+  // further up or at the plot's left edge, with a thin leader line back to the point.
+  const NEAR = [['end', -7, 4], ['end', -6, -8], ['end', -5, -21], ['end', -6, 17], ['start', 7, -8]];
+  const FAR = [['end', -5, -34], ['end', -5, -47], ['end', -5, -60],
+    ...[-21, -34, -47, -60, -73].map(dy => ['edge', 0, dy]), ['start', 7, 16], ['start', 7, 29]];
+  function place(p, text, cls, { extra = [], crossLines = false } = {}) {
+    const t = el('text', { class: 'label halo ' + cls }, labels, text);
+    const px = sc.x(p.cost), py = sc.y(p.score);
+    for (const [anchor, dx, dy] of [...NEAR, ...extra, ...FAR]) {
+      t.setAttribute('text-anchor', anchor === 'edge' ? 'start' : anchor);
+      t.setAttribute('x', anchor === 'edge' ? sc.L + 4 : px + dx);
+      t.setAttribute('y', py + dy);
+      const bb = t.getBBox(), box = { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+      if (box.x < sc.L + 2 || box.x + box.w > w || box.y < sc.T - 6 || box.y + box.h > sc.B) continue;
+      if (blocked.some(b => overlaps(box, b, 1.5))) continue;
+      if (!crossLines && lineBoxes.some(b => overlaps(box, b, 1.5))) continue;
+      blocked.push(box);
+      // A leader line when the label does not sit right beside its point.
+      const nx = Math.max(box.x, Math.min(px, box.x + box.w)), ny = Math.max(box.y + 3, Math.min(py, box.y + box.h - 3));
+      const dist = Math.hypot(nx - px, ny - py);
+      if (dist > 12) {
+        const ux = (nx - px) / dist, uy = (ny - py) / dist;
+        el('line', { class: 'leader', x1: px + ux * 5, y1: py + uy * 5, x2: nx - ux * 3, y2: ny - uy * 3 }, leaders);
+      }
+      return true;
+    }
+    t.remove();
+    return false;
+  }
+
+  // The selected model is labeled first, so the reader's choice always shows.
+  const sel = state.selected && visible.some(p => p.id === state.selected) ? models[state.selected] : null;
+  if (sel) {
+    const sx = sc.x(sel.cost), sy = sc.y(sel.score);
+    const dom = onFront.has(sel.id) ? null : dominator(sel.id, front);
+    if (dom) {
+      el('line', { class: 'link', x1: sx, y1: sy, x2: sc.x(dom.cost), y2: sc.y(dom.score) }, svg);
+      el('circle', { class: 'ring', cx: sc.x(dom.cost), cy: sc.y(dom.score), r: 7 }, svg);
+    }
+    el('circle', { class: 'ring', cx: sx, cy: sy, r: 7 }, svg);
+    blocked.push({ x: sx - 8, y: sy - 8, w: 16, h: 16 });
+    // The haloed label may cross the step line, so it can sit right beside the ring.
+    place(sel, sel.name, 'strong', { extra: [['end', -11, 4], ['start', 11, 4], ['middle', 0, -14], ['middle', 0, 23],
+      ['end', 4, 23], ['start', -4, 23], ['end', 4, 35], ['start', -4, 35]], crossLines: true });
+  }
+
+  // The region above and left of the step line is empty by definition; say so there.
+  const annot = el('text', { class: 'annot', x: sc.L + 8, y: sc.T + 14 }, svg);
+  const lines = narrow ? ['Empty above the line: no plotted', 'model is both cheaper and higher', 'scoring than a frontier model'] :
+    ['Empty above the line: no plotted model is both', 'cheaper and higher scoring than a frontier model'];
+  lines.forEach((line, i) => el('tspan', { x: sc.L + 8, dy: i ? 16 : 0 }, annot, line));
+  const ab = annot.getBBox();
+  const annotBox = { x: ab.x, y: ab.y, w: ab.width, h: ab.height };
+  if (blocked.some(b => overlaps(annotBox, b, 2))) annot.remove();
+  else blocked.push(annotBox);
+
+  // Direct labels on the frontier. A run of points from one model gets its full name once,
+  // then just the effort setting; on narrow charts each run gets one label, the model name.
+  // Labels are placed cheapest first, following the line.
+  const runs = [];
+  for (const p of front) {
+    const b = baseName(p.name), r = runs[runs.length - 1];
+    if (r && r.base === b && b !== p.name) r.pts.push(p); else runs.push({ base: b, pts: [p] });
+  }
+  const heads = [], members = [];
+  for (const r of runs) {
+    const [first, ...rest] = r.pts;
+    if (narrow) heads.push({ p: first, text: r.base });
+    else {
+      heads.push({ p: first, text: first.name });
+      for (const p of rest) members.push({ p, text: effort(p.name), head: first.id });
+    }
+  }
+  const placed = new Set();
+  for (const c of heads) if (c.p.id !== sel?.id && place(c.p, c.text, '')) placed.add(c.p.id);
+  if (sel && onFront.has(sel.id)) placed.add(sel.id);
+  for (const c of members) if (c.p.id !== sel?.id && placed.has(c.head)) place(c.p, c.text, 'muted');
+
+  // One transparent layer takes clicks and taps and finds the nearest dot.
+  const hit = el('rect', { class: 'hit', x: 0, y: 0, width: w, height: h }, svg);
+  const nearest = ev => {
+    const r = svg.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+    let best = null, d2 = 18 * 18;
+    for (const p of visible) {
+      const d = (sc.x(p.cost) - x) ** 2 + (sc.y(p.score) - y) ** 2;
+      if (d < d2) { d2 = d; best = p; }
+    }
+    return best;
+  };
+  hit.addEventListener('click', ev => { const p = nearest(ev); select(p ? p.id : null); });
+  hit.addEventListener('pointermove', ev => hit.classList.toggle('near', !!nearest(ev)));
+}
+
+function updateControls() {
+  const frame = DATA.frames[state.index];
+  slider.value = state.index;
+  dateOut.textContent = fmtDate(frame.date);
+  slider.setAttribute('aria-valuetext', `${fmtDate(frame.date)}, ${frame.count} models`);
+  play.textContent = state.playing ? 'Pause' : 'Play';
+  reset.disabled = !state.playing && state.index === LAST && !state.selected;
+
+  // The list offers the models visible at this date, for keyboard use and overlapping dots.
+  const visible = releasedBy(frame.date);
+  if (state.selected && !visible.some(p => p.id === state.selected)) state.selected = null;
+  if (picker.options.length !== visible.length + 1) {
+    const sorted = visible.slice().sort((a, b) => a.name.localeCompare(b.name));
+    picker.replaceChildren(new Option('None selected', ''), ...sorted.map(p => new Option(p.name, p.id)));
+  }
+  picker.value = state.selected || '';
+
+  if (!state.selected) {
+    detail.textContent = 'Select a dot or choose a model to see its score, cost and release date.';
+    return;
+  }
+  const p = models[state.selected];
+  const front = frontierAt(state.index);
+  const name = document.createElement('strong');
+  name.textContent = p.name;
+  let verdict;
+  if (frame.frontier.includes(p.id)) verdict = 'On the frontier: every cheaper model plotted at this date scores lower.';
+  else {
+    const d = dominator(p.id, front);
+    verdict = `Off the frontier: ${d.name} scores ${d.score} for ${price(d.cost)}.`;
+  }
+  detail.replaceChildren(name, ` (${p.creator}, released ${fmtDate(p.release)}) scores ${p.score} for ${price(p.cost)} per task. ${verdict}`);
+}
+
+function render() { updateControls(); drawMain(); }
+
+/* ---------- playback: button-started, one timer, always cancellable ---------- */
+function stop() { clearTimeout(state.timer); state.timer = 0; state.playing = false; }
+function tick() {
+  state.timer = 0;
+  if (!state.playing) return;
+  state.index += 1;
+  if (state.index >= LAST) { state.index = LAST; state.playing = false; }
+  else state.timer = setTimeout(tick, STEP_MS);
+  render();
+}
+play.addEventListener('click', () => {
+  if (state.playing) { stop(); render(); return; }
+  if (state.index >= LAST) state.index = 0;
+  state.playing = true;
+  clearTimeout(state.timer);
+  state.timer = setTimeout(tick, STEP_MS);
+  render();
+});
+reset.addEventListener('click', () => { stop(); state.index = LAST; state.selected = null; render(); });
+slider.addEventListener('input', () => { stop(); state.index = Number(slider.value); render(); });
+picker.addEventListener('change', () => select(picker.value || null));
+function select(id) { state.selected = id; render(); }
+
+/* ---------- Figure 2: small multiples, one per quarter ---------- */
+const multiples = $('#multiples');
+const finalFront = DATA.frames[LAST].frontier.map(id => models[id]);
+const panels = DATA.snapshots.map((snap, i) => {
+  const cell = document.createElement('div');
+  const front = snap.frontier.map(id => models[id]);
+  const top = front.reduce((a, b) => (b.score > a.score ? b : a), front[0]);
+  const h = document.createElement('h3');
+  h.textContent = fmtDate(snap.date) + (i === DATA.snapshots.length - 1 ? ' (latest)' : '');
+  const pm = document.createElement('p');
+  pm.className = 'pm';
+  pm.textContent = `${snap.count} ${snap.count === 1 ? 'model' : 'models'}, ${front.length} on the frontier. Top: ${baseName(top.name)}, ${top.score}`;
+  const g = document.createElement('div');
+  g.className = 'graphic';
+  cell.append(h, pm, g);
+  multiples.appendChild(cell);
+  return { snap, front, g };
+});
+function drawMultiples() {
+  for (const { snap, front, g } of panels) {
+    const w = g.clientWidth;
+    if (!w) continue;
+    const h = Math.round(w * 0.78);
+    const sc = scales(w, h, { l: 22, r: 4, t: 6, b: 20 });
+    const svg = el('svg', { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: 'img',
+      'aria-label': `${fmtDate(snap.date)}: ${snap.count} models released, ${front.length} on the frontier; top score ${Math.max(...front.map(p => p.score))}.` });
+    axes(svg, sc, { yTicks: [0, 20, 40, 60], xTicks: [0.01, 1] });
+    el('path', { class: 'ref-step', d: pathD(stepPoints(finalFront, sc)) }, svg);
+    const on = new Set(snap.frontier);
+    for (const p of releasedBy(snap.date)) if (!on.has(p.id)) el('circle', { class: 'dot', cx: sc.x(p.cost), cy: sc.y(p.score), r: 2 }, svg);
+    el('path', { class: 'step', d: pathD(stepPoints(front, sc)) }, svg);
+    for (const p of front) el('circle', { class: 'fdot', cx: sc.x(p.cost), cy: sc.y(p.score), r: 2.6 }, svg);
+    g.replaceChildren(svg);
+  }
+}
+
+/* ---------- top bar: current section and reading progress ---------- */
+const navLinks = [...document.querySelectorAll('.topbar nav a')];
+const sections = navLinks.map(a => document.querySelector(a.getAttribute('href')));
+function onScroll() {
+  const doc = document.documentElement;
+  const max = doc.scrollHeight - doc.clientHeight;
+  $('#progress').style.width = (max > 0 ? Math.min(1, doc.scrollTop / max) * 100 : 0) + '%';
+  let current = -1;
+  sections.forEach((s, i) => { if (s.getBoundingClientRect().top < 120) current = i; });
+  navLinks.forEach((a, i) => { if (i === current) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+
+/* ---------- sizing: charts are drawn in real CSS pixels ---------- */
+let lastWidth = 0;
+function redrawAll() { drawMain(); drawMultiples(); }
+new ResizeObserver(() => {
+  const w = chart.clientWidth;
+  if (w !== lastWidth) { lastWidth = w; redrawAll(); }
+}).observe(chart);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redrawAll);
+render();
+drawMultiples();
+onScroll();
+</script>
+</body>
+</html>
