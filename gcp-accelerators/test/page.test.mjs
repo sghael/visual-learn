@@ -1,7 +1,7 @@
 // Browser regression tests. Drives index.html in headless Chrome (the installed
 // Google Chrome via Playwright's "chrome" channel, falling back to Playwright's
 // own Chromium if that is unavailable). Run with `pnpm test`.
-// D3 loads from cdnjs, so the tests need network access.
+// The page has no runtime dependencies; web fonts are stubbed so a font outage cannot fail the run.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -18,9 +18,9 @@ before(async () => {
 });
 after(async () => { if (browser) await browser.close(); });
 
-/** Open the page; collect page errors and console errors. Web fonts are stubbed so font outages do not fail the run. */
-async function open({ width = 1440, reduced = true } = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+/** Open the page; collect page errors and console errors. */
+async function open({ width = 1440 } = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 } });
   await context.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   const page = await context.newPage();
   const errors = [];
@@ -31,30 +31,43 @@ async function open({ width = 1440, reduced = true } = {}) {
   return { page, context, errors };
 }
 
-/** Fraction of sampled pixels on a canvas that are not fully transparent. */
-const painted = (page, sel) => page.$eval(sel, (c) => {
-  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-  let n = 0, t = 0;
-  for (let i = 3; i < d.length; i += 4 * 37) { t++; if (d[i]) n++; }
-  return n / t;
-});
+/** Cells of the fit-table row whose first cell is `name`. Columns: chip, chips, $/hr, bar, memory, fast domain. */
+const fitRow = (page, name) => page.$$eval('#fit-table tbody tr', (trs, n) => {
+  const tr = trs.find((t) => t.children[0].textContent.trim() === n);
+  return [...tr.children].map((td) => td.textContent.trim());
+}, name);
 
 for (const width of [1440, 390]) {
-  test(`page renders every chapter without errors or horizontal overflow at ${width}px`, async () => {
+  test(`page renders every section and figure without errors or horizontal overflow at ${width}px`, async () => {
     const { page, context, errors } = await open({ width });
-    assert.equal(await page.$$eval('section.chapter', (els) => els.length), 8);
+    assert.equal(await page.$$eval('main > section', (els) => els.length), 7);
+    assert.equal(await page.$$eval('.topbar nav a', (els) => els.length), 7);
+    assert.equal(await page.$$eval('canvas', (els) => els.length), 0, 'no canvas animations remain');
+    // Figure 1: 132 SMs drawn, and a TensorCore with its MXUs
+    assert.ok(await page.$$eval('#anat-gpu rect', (els) => els.length) >= 132 + 8);
+    assert.ok(await page.$$eval('#anat-tpu rect', (els) => els.length) >= 5);
+    // Figure 2: busy-cell counts match the captions (cells with i + j <= t - 1 in a 6 × 6 array)
+    assert.deepEqual(await page.$$eval('#systolic > div', (ds) => ds.map((d) => [+d.dataset.cycle, d.querySelectorAll('rect.busy').length])), [[1, 1], [4, 10], [11, 36]]);
+    // Figure 3: one row per rentable chip, grouped by family; details start closed
+    assert.equal(await page.$$eval('#lineup-table tr.chip-row', (els) => els.length), 22);
+    assert.equal(await page.$$eval('#lineup-table tr.group', (els) => els.length), 6);
+    assert.equal(await page.$$eval('#lineup-table tr.detail:not([hidden])', (els) => els.length), 0);
+    assert.match(await page.locator('#lineup').innerText(), /TPU 8t[\s\S]*TPU 8i/, 'TPU 8t and 8i described as announced');
+    // Figures 4–6 are drawn
+    assert.equal(await page.$$eval('#roofsvg path.roof-line', (els) => els.length), 1);
     assert.equal(await page.$$eval('#scatter circle', (els) => els.length), 22, 'one dot per rentable chip');
-    assert.equal(await page.$$eval('.chip:not(.ghost)', (els) => els.length), 22, 'one card per rentable chip');
-    // every chip gets a hero tile, and every tile sits inside the canvas
-    const tiles = await page.$eval('#hero-canvas', (c) => ({ n: c.__tiles.length, w: c.getBoundingClientRect().width, h: c.getBoundingClientRect().height, out: c.__tiles.filter((t) => t.x < 0 || t.y < 0 || t.x + t.s > c.getBoundingClientRect().width || t.y + t.s > c.getBoundingClientRect().height).map((t) => t.ch.id) }));
-    assert.equal(tiles.n, 22);
-    assert.deepEqual(tiles.out, [], `hero tiles outside the ${tiles.w}x${tiles.h} canvas`);
-    assert.equal(await page.$$eval('.chip.ghost', (els) => els.length), 2, 'TPU 8t and 8i shown as announced');
-    for (const sel of ['#hero-canvas', '#anat-gpu', '#anat-tpu']) assert.ok((await painted(page, sel)) > 0.2, `${sel} is blank at rest`);
-    assert.equal(await page.$$eval('#topos canvas', (els) => els.length), 4);
-    // scroll through the page so lazy layout and the TOC observer run
-    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 25)); } });
-    await page.waitForTimeout(300);
+    assert.equal(await page.$$eval('#topos svg', (els) => els.filter((s) => s.childElementCount > 3).length), 4);
+    // chart text is never smaller than 11 CSS px, measured after scaling
+    const small = await page.$$eval('svg text', (ts) => ts.map((t) => {
+      const svg = t.ownerSVGElement, vb = svg.viewBox.baseVal;
+      const scale = vb && vb.width ? svg.getBoundingClientRect().width / vb.width : 1;
+      return [t.textContent, +(parseFloat(getComputedStyle(t).fontSize) * scale).toFixed(1)];
+    }).filter(([s, px]) => s.trim() && px < 11));
+    assert.deepEqual(small, [], 'chart text below 11px');
+    // scroll through the page so the top bar's section tracking runs
+    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 20)); } });
+    await page.waitForTimeout(200);
+    assert.equal(await page.$$eval('.topbar nav a[aria-current="true"]', (els) => els.length), 1);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.equal(overflow, 0, 'page scrolls horizontally');
     assert.deepEqual(errors, []);
@@ -62,54 +75,109 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('clicking a lineup card opens its spec sheet and clicking again closes it', async () => {
-  const { page, context, errors } = await open();
-  const card = page.locator('.chip[data-id="tpu7x"]');
-  await card.click();
-  assert.equal(await card.getAttribute('aria-pressed'), 'true');
-  assert.match(await page.locator('#detail h3').innerText(), /Ironwood/);
-  assert.equal(await page.$$eval('#detail-bars rect', (els) => els.length), 10, 'five bars, each with a track');
-  await card.click();
-  assert.ok(await page.$eval('#detail', (el) => el.hidden));
+test('roofline and scatter are drawn at the real width of their container', async () => {
+  const { page, context, errors } = await open({ width: 390 });
+  const roof = await page.evaluate(() => [document.querySelector('#roof-host').clientWidth, +document.querySelector('#roofsvg').getAttribute('width')]);
+  assert.equal(roof[1], roof[0]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(200);
+  const wide = await page.evaluate(() => [document.querySelector('#roof-host').clientWidth, +document.querySelector('#roofsvg').getAttribute('width')]);
+  assert.equal(wide[1], wide[0]);
+  assert.ok(wide[0] > roof[0]);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('scatter precision toggle relabels the axis and keeps every dot', async () => {
+test('selecting a chip name in the lineup opens its details and selecting it again closes them', async () => {
   const { page, context, errors } = await open();
-  await page.locator('[data-prec="bf16"]').click();
-  assert.equal(await page.locator('[data-prec="bf16"]').getAttribute('aria-pressed'), 'true');
-  assert.equal(await page.locator('[data-prec="fp8"]').getAttribute('aria-pressed'), 'false');
-  await page.waitForTimeout(600);
-  assert.match(await page.$eval('#scatter', (s) => s.textContent), /BF16/);
-  assert.equal(await page.$$eval('#scatter circle', (els) => els.filter((c) => +c.getAttribute('r') > 0).length), 22);
+  const btn = page.locator('.chip-row[data-id="tpu7x"] .namebtn');
+  await btn.click();
+  assert.equal(await btn.getAttribute('aria-expanded'), 'true');
+  assert.ok(await page.locator('#d-tpu7x').isVisible());
+  assert.match(await page.locator('#d-tpu7x').innerText(), /first TPU with native FP8[\s\S]*9,216 chips · 9,216-chip pod, 3D torus/);
+  await btn.press('Enter');
+  assert.equal(await btn.getAttribute('aria-expanded'), 'false');
+  assert.ok(await page.$eval('#d-tpu7x', (el) => el.hidden));
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('fit calculator: 70B at FP8 with 40% headroom needs 98 GB, two H100s, one H200; training multiplies by 16', async () => {
+test('lineup details say when Google publishes no host shape for a generation', async () => {
   const { page, context, errors } = await open();
-  const row = (name) => page.$$eval('#fit-table tbody tr', (trs, n) => { const tr = trs.find((t) => t.children[0].textContent.trim() === n); return [...tr.children].map((td) => td.textContent.trim()); }, name);
-  assert.equal(await page.locator('#fit-need').innerText(), '98 GB');
-  assert.equal((await row('H100 (High)'))[2], '2');
-  assert.equal((await row('H200'))[2], '1');
-  assert.equal((await row('T4'))[3].startsWith('no'), true, 'seven T4s exceed the four-GPU N1 limit');
-  assert.match((await row('B200'))[4], /\*$/, 'B200 price is marked indicative');
-  assert.doesNotMatch(await page.locator('#fit-cheap').innerText(), /B200|H200|GB200|GB300|Mega/, 'chips not sold on demand never win cheapest-on-demand');
-  await page.selectOption('#fit-mode', 'train');
-  assert.equal(await page.locator('#fit-need').innerText(), '1.57 TB');
-  assert.equal((await row('B200'))[2], '10');
+  await page.locator('.chip-row[data-id="v4"] .namebtn').click();
+  assert.match(await page.locator('#d-v4').innerText(), /not published for this generation/);
+  await page.locator('.chip-row[data-id="v5p"] .namebtn').click();
+  assert.match(await page.locator('#d-v5p').innerText(), /208 vCPU · 448 GB RAM · 200 Gbps host network/);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('lineup marks indicative and missing prices', async () => {
+  const { page, context, errors } = await open();
+  const price = (id) => page.$eval(`.chip-row[data-id="${id}"] td:nth-last-child(2)`, (td) => td.textContent.trim());
+  assert.equal(await price('b200'), '$16.11*');
+  assert.equal(await price('h100'), '$10.98');
+  assert.equal(await price('gb300'), 'not public');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
 test('roofline: the verdict follows the chip and the intensity slider', async () => {
   const { page, context, errors } = await open();
-  assert.match(await page.locator('#roof-verdict').innerText(), /H200.*memory-bound/s);
+  // resting state: H200 at batch-64 decode, memory-bound
+  assert.equal(await page.locator('#roof-ai-out').innerText(), '128');
+  assert.equal(await page.locator('#roof-presets [data-ai="128"]').getAttribute('aria-pressed'), 'true');
+  assert.match(await page.locator('#roof-verdict').innerText(), /H200.*memory-bound.*31% of peak/s);
   await page.locator('#roof-ai').fill('3.5'); // about 3,162 FLOP/byte
   assert.match(await page.locator('#roof-verdict').innerText(), /compute-bound/);
+  assert.equal(await page.$$eval('#roof-presets [aria-pressed="true"]', (els) => els.length), 0, 'no preset claims a custom intensity');
   await page.selectOption('#roof-chip', 'v5e');
   assert.match(await page.locator('#roof-verdict').innerText(), /TPU v5e.*ridge at about 480 FLOP\/byte/s);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('roofline presets compute what their labels say: 2 FLOP/byte per sequence with one-byte weights', async () => {
+  const { page, context, errors } = await open();
+  const cases = [['Decode, batch 1', 2], ['Decode, batch 64', 128], ['Prefill, 1,024 tokens', 2048]];
+  for (const [label, ai] of cases) {
+    await page.getByRole('button', { name: label }).click();
+    assert.equal(await page.getByRole('button', { name: label }).getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('#roof-ai-out').innerText(), ai.toLocaleString('en-US'));
+    // H200: 1,979 TFLOPS peak, 4.8 TB/s
+    const att = Math.min(1979, ai * 4.8), share = att / 1979 * 100, pct = share < 1 ? 'under 1%' : Math.round(share) + '%';
+    assert.match(await page.locator('#roof-verdict').innerText(), new RegExp(`At ${ai.toLocaleString('en-US')} FLOP/byte .*${ai < 412 ? 'memory' : 'compute'}-bound .*at most ${pct} of peak`, 's'));
+    const shown = att >= 10 ? Math.round(att).toLocaleString('en-US') : att.toFixed(1);
+    assert.equal(await page.locator('#roofsvg text', { hasText: '% of peak' }).textContent(), ai < 412 ? `${shown} TFLOPS, ${pct} of peak` : `${pct} of peak`);
+    assert.equal(await page.locator('#roof-ridge').textContent(), 'ridge 412');
+  }
+  // decode at batch 1 is memory-bound on every chip on the page
+  await page.getByRole('button', { name: 'Decode, batch 1' }).click();
+  for (const id of await page.$$eval('#roof-chip option', (os) => os.map((o) => o.value))) {
+    await page.selectOption('#roof-chip', id);
+    assert.match(await page.locator('#roof-verdict').innerText(), /memory-bound/, `${id} at batch 1`);
+  }
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('fit calculator: 70B at FP8 with 40% headroom needs 98 GB, two H100s, one H200; a full fine-tune uses 16 bytes per parameter', async () => {
+  const { page, context, errors } = await open();
+  assert.equal(await page.locator('#fit-need').innerText(), '98 GB');
+  assert.equal((await fitRow(page, 'H100 (High)'))[1], '2');
+  assert.equal((await fitRow(page, 'H200'))[1], '1');
+  assert.equal((await fitRow(page, 'T4'))[5].startsWith('no'), true, 'seven T4s exceed the four-GPU N1 limit');
+  assert.match((await fitRow(page, 'B200'))[2], /\*$/, 'B200 price is marked indicative');
+  assert.match(await page.locator('#fit-cheap').innerText(), /^L4 × 5, \$3\.50 per hour$/);
+  assert.doesNotMatch(await page.locator('#fit-cheap').innerText(), /B200|H200|GB200|GB300|Mega/, 'chips not sold on demand never win cheapest-on-demand');
+  await page.getByRole('button', { name: 'BF16' }).click();
+  assert.equal(await page.locator('#fit-need').innerText(), '196 GB');
+  await page.getByRole('button', { name: 'Full fine-tune' }).click();
+  assert.equal(await page.locator('#fit-need').innerText(), '1.57 TB');
+  assert.equal((await fitRow(page, 'B200'))[1], '10');
+  assert.ok(await page.getByRole('button', { name: 'BF16' }).isDisabled(), 'weight precision does not apply to a full fine-tune');
+  await page.getByRole('button', { name: 'Inference' }).click();
+  assert.equal(await page.locator('#fit-need').innerText(), '196 GB', 'returning to inference restores the chosen precision');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -117,11 +185,12 @@ test('roofline: the verdict follows the chip and the intensity slider', async ()
 test('fit calculator: a 1B model at FP8 fits one T4 and the low cost renders with cents', async () => {
   const { page, context, errors } = await open();
   await page.locator('#fit-params').fill('0');
+  assert.equal(await page.locator('#fit-params-out').innerText(), '1.0');
   assert.equal(await page.locator('#fit-need').innerText(), '1 GB');
-  const t4 = await page.$$eval('#fit-table tbody tr', (trs) => [...trs.find((t) => t.children[0].textContent.trim() === 'T4').children].map((td) => td.textContent.trim()));
-  assert.equal(t4[2], '1');
-  assert.equal(t4[4], '$0.35');
-  assert.match(await page.locator('#fit-cheap').innerText(), /^T4 /);
+  const t4 = await fitRow(page, 'T4');
+  assert.equal(t4[1], '1');
+  assert.equal(t4[2], '$0.35');
+  assert.match(await page.locator('#fit-cheap').innerText(), /^T4 × 1, /);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -155,17 +224,20 @@ test('data invariants: every chip record is complete and the host specs match th
   assert.deepEqual([by.v6e.vcpu, by.v6e.ram, by.v6e.net], [360, 1440, 200]);
   assert.deepEqual([by.tpu7x.vcpu, by.tpu7x.ram, by.tpu7x.net], [224, 960, 400]);
   for (const id of ['gb300', 'gb200', 'b200', 'h200', 'h100m']) assert.equal(by[id].onDemand, false, `${id} is not sold on demand`);
+  // nvidia.com/en-us/data-center/gb200-nvl72 (read 25 Sep 2026): 720 PFLOPS FP8 and 360 PFLOPS FP16/BF16 with sparsity for 72 GPUs
+  assert.deepEqual([by.gb200.fp8, by.gb200.bf16], [720e3 / 72 / 2, 360e3 / 72 / 2]);
+  // docs.cloud.google.com/tpu/docs/v5p (read 25 Sep 2026): 459 TFLOPS BF16 and FP8, 95 GiB, 2,765 GB/s
+  assert.deepEqual([by.v5p.fp8, by.v5p.bf16, by.v5p.mem, by.v5p.bw], [459, 459, 95, 2765]);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('spec sheet says when Google publishes no host shape for a generation', async () => {
+test('scatter names every chip, including those whose points coincide', async () => {
   const { page, context, errors } = await open();
-  await page.locator('.chip[data-id="v4"]').click();
-  assert.match(await page.locator('#detail').innerText(), /not published for this generation/);
-  await page.locator('.chip[data-id="v4"]').click();
-  await page.locator('.chip[data-id="v5p"]').click();
-  assert.match(await page.locator('#detail').innerText(), /208 vCPU · 448 GB RAM · 200 Gbps host network/);
+  const text = await page.$eval('#scatter', (s) => s.textContent);
+  for (const name of ['GB300', 'GB200', 'B200', 'Ironwood', 'H200', 'H100 High · Mega · Edge', 'RTX PRO 6000', 'TPU v6e', 'A100 80 GB', 'A100 40 GB', 'TPU v5p', 'TPU v5e', 'TPU v4', 'V100', 'TPU v3', 'L4', 'T4', 'TPU v2', 'P100', 'P4']) {
+    assert.ok(text.includes(name), `scatter label for ${name}`);
+  }
   assert.deepEqual(errors, []);
   await context.close();
 });

@@ -2,7 +2,7 @@
   "name": "accelerator-atlas",
   "private": true,
   "version": "1.0.0",
-  "description": "Interactive tour of every GPU and TPU on Google Cloud. The page itself has no dependencies beyond D3 from cdnjs; the dev dependency drives it in headless Chrome for the tests.",
+  "description": "Visual guide to the GPUs and TPUs on Google Cloud. The page has no runtime dependencies; the dev dependency drives it in headless Chrome for the tests.",
   "type": "module",
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",

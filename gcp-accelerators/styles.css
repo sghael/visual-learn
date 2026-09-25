@@ -1,0 +1,278 @@
+/* Visual Learn house style.
+   Copy this file's rules into an explainer (inline <style> or its own styles.css);
+   never import it across folders. Page-specific rules go after it. */
+
+:root {
+  color-scheme: light;
+
+  /* paper and ink */
+  --paper: #fcfbf7;
+  --wash: #f3f1ea;          /* the only fill for a region that must read as "a thing" */
+  --ink: #1c1b18;
+  --ink-2: #57544c;         /* secondary text, captions */
+  --ink-3: #8a867b;         /* tertiary: ticks, meta, disabled */
+  --rule: #e2ded3;          /* hairlines, gridlines */
+  --rule-2: #c9c4b6;        /* control borders, axis lines */
+  --link: #1f4e79;
+
+  /* data colors: muted, colorblind-checked (derived from Okabe-Ito).
+     Each page maps entities to these once and never reassigns them. */
+  --c-blue:   #2f6ea6;
+  --c-orange: #c8682a;
+  --c-green:  #2a8a6a;
+  --c-purple: #6a51a3;
+  --c-red:    #b8433a;
+  --c-gold:   #b8901f;
+  --c-sky:    #6ea8d6;
+  --c-grey:   #a8a396;      /* context data: everything not being discussed */
+
+  --serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* the grid: a reading column, a gutter, and a margin for notes */
+  --text: 37rem;
+  --gap: 2.5rem;
+  --margin: 15rem;
+  --page: calc(var(--text) + var(--gap) + var(--margin));
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 3.5rem; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: 1.1875rem; line-height: 1.58;
+  font-optical-sizing: auto; -webkit-font-smoothing: antialiased;
+  counter-reset: sidenote figure;
+}
+::selection { background: #e8dfc3; }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+/* ---------- page frame ---------- */
+.page { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem 6rem; }
+.page > :not(section), section > * { max-width: var(--text); }
+.page > .wide, section > .wide { max-width: none; }
+.page > h1 { max-width: 48rem; }
+
+/* ---------- type ---------- */
+h1, h2, h3 { font-weight: 400; color: var(--ink); text-wrap: balance; }
+h1 { font-size: clamp(2.5rem, 5.5vw, 3.6rem); line-height: 1.04; letter-spacing: -0.012em; margin: 4.5rem 0 0.6rem; }
+.subtitle { font-style: italic; font-size: 1.45rem; line-height: 1.35; color: var(--ink-2); margin: 0 0 2rem; }
+h2 { font-size: 1.95rem; line-height: 1.15; letter-spacing: -0.005em; margin: 4.5rem 0 1rem; }
+h3 { font-style: italic; font-size: 1.35rem; line-height: 1.25; margin: 2.5rem 0 0.6rem; }
+p, ul, ol { margin: 0 0 1.1rem; text-wrap: pretty; }
+ul, ol { padding-left: 1.3rem; }
+li { margin-bottom: 0.35rem; }
+li::marker { color: var(--ink-3); }
+strong, b { font-weight: 600; }
+em, i { font-style: italic; }
+.lede { font-size: 1.3rem; line-height: 1.5; }
+.meta { font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-3); letter-spacing: 0.01em; }
+.smallcaps { font-variant-caps: all-small-caps; letter-spacing: 0.04em; }
+a { color: var(--link); text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.16em; text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent); }
+a:hover { text-decoration-color: currentColor; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0; }
+
+code, kbd, samp { font-family: var(--mono); font-size: 0.84em; }
+pre { font-family: var(--mono); font-size: 0.82rem; line-height: 1.55; margin: 0 0 1.25rem; padding: 0.1rem 0 0.1rem 1rem; border-left: 1px solid var(--rule-2); overflow-x: auto; }
+.num, table, svg text, .controls { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ---------- sidenotes and margin notes ----------
+   <span class="sn-ref"></span><span class="sidenote">…</span>  numbered, inside the paragraph
+   <span class="marginnote">…</span>                              unnumbered
+   Wide screens: floated into the margin column. Narrow: an indented block. */
+.sidenote, .marginnote {
+  float: right; clear: right; width: var(--margin);
+  margin: 0.3rem calc(-1 * (var(--margin) + var(--gap))) 1rem 0;
+  font-size: 0.875rem; line-height: 1.45; color: var(--ink-2);
+  font-style: normal; font-weight: 400;
+}
+.sn-ref { counter-increment: sidenote; }
+.sn-ref::after { content: counter(sidenote); font-family: var(--sans); font-size: 0.66em; font-weight: 600; vertical-align: super; line-height: 0; margin-left: 0.08em; color: var(--ink-2); }
+.sidenote::before { content: counter(sidenote) "\2002"; font-family: var(--sans); font-size: 0.8em; font-weight: 600; }
+p, li, figure { position: relative; }
+
+/* ---------- figures ----------
+   <figure class="fig">          text-column width, caption in the margin on wide screens
+   <figure class="fig wide">     full page width, caption below
+   Inside: optional .controls, the graphic, then <figcaption>. No borders, no cards. */
+figure { margin: 2.25rem 0 2.5rem; padding: 0; }
+.fig { counter-increment: figure; }
+.fig figcaption { font-size: 0.875rem; line-height: 1.45; color: var(--ink-2); margin-top: 0.7rem; max-width: var(--text); }
+.fig figcaption .fig-n::before { content: "Figure " counter(figure) ". "; font-family: var(--sans); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--ink); }
+.fig .takeaway { font-style: italic; color: var(--ink); }
+.graphic { position: relative; }
+.graphic svg { display: block; width: 100%; height: auto; overflow: visible; }
+.scroll-x { overflow-x: auto; overscroll-behavior-x: contain; }
+.scroll-x > * { min-width: var(--min, 36rem); }
+
+/* ---------- controls: quiet, real, keyboard reachable ---------- */
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; margin: 0 0 0.9rem; font-family: var(--sans); font-size: 0.875rem; color: var(--ink-2); }
+.control { display: inline-flex; align-items: center; gap: 0.55rem; }
+.control > .label { color: var(--ink-2); }
+.control > output, .readout { font-family: var(--sans); color: var(--ink); font-weight: 600; min-width: 3.2ch; }
+.btn {
+  font: 500 0.875rem/1 var(--sans); color: var(--ink); background: transparent;
+  border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.5rem 0.75rem; min-height: 2.125rem;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn:hover { border-color: var(--ink-2); }
+.btn:disabled { color: var(--ink-3); border-color: var(--rule); cursor: default; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--rule-2); border-radius: 3px; overflow: hidden; }
+.seg > button { font: 500 0.875rem/1 var(--sans); color: var(--ink-2); background: transparent; border: 0; padding: 0.5rem 0.75rem; min-height: 2.125rem; cursor: pointer; }
+.seg > button + button { border-left: 1px solid var(--rule); }
+.seg > button:hover { color: var(--ink); }
+.seg > button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg > button:focus-visible { outline-offset: -3px; }
+
+input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; width: 9rem; height: 1.5rem; margin: 0; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--rule-2); }
+input[type="range"]::-moz-range-track { height: 2px; background: var(--rule-2); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+input[type="range"]:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.4rem 0.5rem; }
+
+/* ---------- tables: booktabs ---------- */
+table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: 0.9rem; line-height: 1.35; margin: 0 0 1.25rem; }
+thead th { font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--ink-2); text-align: left; border-bottom: 1px solid var(--ink); padding: 0.5rem 0.75rem 0.4rem 0; vertical-align: bottom; }
+tbody td, tbody th { padding: 0.45rem 0.75rem 0.45rem 0; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; font-weight: 400; }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 1px solid var(--ink); }
+td.n, th.n { text-align: right; }
+
+/* ---------- charts (SVG): data ink only ---------- */
+.axis line, .axis path { stroke: var(--rule-2); stroke-width: 1; shape-rendering: crispEdges; }
+.grid line { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
+.tick text, .axis text { font-family: var(--sans); font-size: 11.5px; fill: var(--ink-3); }
+.axis-title { font-family: var(--sans); font-size: 12px; fill: var(--ink-2); }
+.label { font-family: var(--sans); font-size: 12.5px; fill: var(--ink); }
+.label.muted { fill: var(--ink-2); }
+.annot { font-family: var(--serif); font-style: italic; font-size: 13.5px; fill: var(--ink-2); }
+
+/* ---------- top bar: back to the collection, sections, reading progress ---------- */
+.topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
+.topbar-inner { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1.25rem; height: 2.75rem; }
+.topbar .home { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.topbar .home:hover { color: var(--ink); }
+.topbar .title { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.topbar nav { display: flex; gap: 1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; mask-image: linear-gradient(to right, #000 92%, transparent); }
+.topbar nav::-webkit-scrollbar { display: none; }
+.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0; }
+.topbar nav a:hover, .topbar nav a[aria-current="true"] { color: var(--ink); }
+.progress { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--ink); width: 0; }
+
+/* ---------- colophon ---------- */
+.colophon { margin-top: 5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
+
+/* ---------- narrow screens: notes and captions fall into the column ---------- */
+@media (min-width: 62rem) {
+  /* minmax(min-content, auto) keeps a scrolling child (overflow-x: auto) from sizing its row to 0,
+     which would push the spanning caption's height into empty rows below the graphic */
+  .fig:not(.wide) { display: grid; grid-template-columns: var(--text) var(--margin); grid-auto-rows: minmax(min-content, auto); column-gap: var(--gap); max-width: none; align-items: end; }
+  .fig:not(.wide) > * { grid-column: 1; }
+  .fig:not(.wide) > figcaption { grid-column: 2; grid-row: 1 / span 6; align-self: end; margin: 0; }
+}
+@media (max-width: 61.99rem) {
+  .sidenote, .marginnote { float: none; display: block; width: auto; margin: 0.6rem 0 0.9rem; padding-left: 0.9rem; border-left: 1px solid var(--rule-2); }
+}
+@media (max-width: 40rem) {
+  body { font-size: 1.0625rem; line-height: 1.55; }
+  .page, .topbar-inner { padding-left: 1rem; padding-right: 1rem; }
+  h1 { margin-top: 3rem; }
+  .subtitle { font-size: 1.25rem; }
+  .lede { font-size: 1.125rem; }
+  h2 { font-size: 1.6rem; margin-top: 3.5rem; }
+  .topbar .title { display: none; }
+  .btn, .seg > button { min-height: 2.5rem; }
+  input[type="range"] { width: 7.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* =====================================================================
+   Page-specific rules: GPUs and TPUs on Google Cloud
+   Entity colors, fixed for the whole page:
+     NVIDIA GPU → --c-blue      Google TPU → --c-orange
+     the workload under discussion → --ink
+   ===================================================================== */
+:root { --gpu: var(--c-blue); --tpu: var(--c-orange); }
+
+h4 { font: 600 0.875rem/1.3 var(--sans); margin: 0 0 0.35rem; color: var(--ink); }
+.sans { font-family: var(--sans); }
+.gpu-ink { color: var(--gpu); } .tpu-ink { color: var(--tpu); }
+.scroll-x { position: relative; }  /* contains the absolutely positioned .sr-only labels inside wide tables */
+.fig.wide, .ref { clear: right; }  /* wide figures start below any sidenote still floating in the margin */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg .gpu-fill { fill: var(--gpu); } svg .tpu-fill { fill: var(--tpu); }
+
+/* side-by-side panels and small multiples */
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem 2.5rem; }
+.multiples { display: grid; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: 1.5rem; }
+.multiples .sub, .pair .sub { font: 0.8125rem/1.4 var(--sans); color: var(--ink-2); margin: 0.4rem 0 0; }
+.multiples svg, .pair svg { display: block; width: 100%; height: auto; overflow: visible; }
+@media (max-width: 40rem) {
+  .pair { grid-template-columns: 1fr; }
+  .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 1rem; }
+}
+
+/* the lineup table */
+.lineup { font-size: 0.84rem; margin: 0; }
+.lineup th, .lineup td { white-space: nowrap; }
+.lineup thead th { white-space: normal; }
+.lineup td.bar { padding-right: 1.25rem; width: 5.5rem; }
+.lineup td.bar span { display: block; height: 0.5rem; margin-top: 0.35rem; background: var(--c); }
+.lineup .basis, .lineup .aside { font-size: 0.72rem; color: var(--ink-3); margin-left: 0.3rem; }
+.lineup .basis { display: inline-block; width: 2.3em; text-align: left; }
+.lineup td.series { padding-left: 1rem; }
+.lineup .ast, .fit .ast { display: inline-block; width: 0.6em; text-align: left; }
+svg text.topo { font-size: 15px; }
+.lineup tr.group th { padding: 1.3rem 0 0.35rem; border-bottom: 1px solid var(--rule-2); white-space: normal; font-weight: 400; }
+.lineup tbody tr.group:first-child th { padding-top: 0.6rem; }
+.sticky-cell { position: sticky; left: 0; display: block; max-width: min(40rem, calc(100vw - 2rem)); }
+.lineup tr.group .fam { font-weight: 600; color: var(--ink); margin-right: 0.5rem; }
+.lineup tr.group .blurb { color: var(--ink-2); font-size: 0.8rem; }
+.namebtn { font: inherit; color: var(--ink); background: none; border: 0; padding: 0.1rem 0; margin: 0; cursor: pointer; text-align: left; display: inline-flex; align-items: baseline; gap: 0.3rem; }
+.namebtn::before { content: "+"; font-weight: 600; color: var(--ink-3); width: 0.7em; display: inline-block; }
+.namebtn[aria-expanded="true"]::before { content: "\2212"; }
+.namebtn:hover .nm { text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 0.15em; }
+.lineup tr.detail td { padding: 0.4rem 0 1rem 1.05rem; white-space: normal; }
+.lineup tr.detail p { font-family: var(--serif); font-size: 0.95rem; line-height: 1.5; margin: 0 0 0.6rem; color: var(--ink); max-width: 36rem; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 1rem; margin: 0; font-size: 0.82rem; }
+.kv dt { color: var(--ink-3); } .kv dd { margin: 0; color: var(--ink); white-space: normal; }
+.tablenote { font: 0.8125rem/1.45 var(--sans); color: var(--ink-2); margin: 0.6rem 0 0; max-width: var(--text); }
+
+/* roofline and scatter */
+.readout-line { font-family: var(--sans); font-size: 0.9rem; line-height: 1.45; color: var(--ink); margin: 0.5rem 0 0; min-height: 2.9em; }
+.readout-line b { font-weight: 600; }
+.roof-line { fill: none; stroke-width: 2; }
+.ridge-line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.drop-line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 1 3; }
+.iso line { stroke: var(--rule-2); stroke-width: 1; }
+.dot-gpu { fill: var(--gpu); } .dot-tpu { fill: var(--tpu); }
+
+/* the sizing calculator */
+.result { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0.2rem 2.5rem; margin: 0.2rem 0 1rem; }
+.result dt { font: 0.78rem var(--sans); color: var(--ink-2); grid-row: 1; }
+.result dd { margin: 0; font-size: 1.3rem; line-height: 1.25; grid-row: 2; }
+@media (max-width: 40rem) {
+  .result { grid-template-columns: 1fr; gap: 0.1rem; }
+  .result dt, .result dd { grid-row: auto; }
+  .result dd { margin-bottom: 0.5rem; }
+}
+.fit { font-size: 0.84rem; margin: 0; }
+.fit td, .fit th { white-space: nowrap; }
+.fit tr.no td { color: var(--ink-3); }
+.fit td.cost-bar { width: 7rem; padding-right: 1.5rem; }
+.fit td.cost-bar span { display: block; height: 0.5rem; margin-top: 0.35rem; background: var(--c); }
+.seg > button:disabled { color: var(--ink-3); cursor: default; }
+
+/* reference tables and glossary */
+.ref td, .ref th { font-size: 0.84rem; }
+.ref td.mono { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; }
+dl.gloss { margin: 0; }
+dl.gloss dt { font-weight: 600; margin-top: 0.9rem; }
+dl.gloss dd { margin: 0.1rem 0 0; }
+.colophon ul { padding-left: 1.1rem; }
+.colophon li { font-size: 0.875rem; }

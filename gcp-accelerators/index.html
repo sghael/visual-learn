@@ -1,790 +1,260 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a3aa7'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Google Cloud Accelerators</title>
-<meta name="description" content="An interactive technical guide to GPUs and TPUs available on Google Cloud in September 2026, including memory, compute, interconnects, capacity estimates, and purchasing options.">
+<title>GPUs and TPUs on Google Cloud · Visual Learn</title>
+<meta name="description" content="How the GPUs and TPUs that Google Cloud rents compare on memory, bandwidth, compute, interconnect and price, with a roofline model and a chip-count estimate. Data checked 11 September 2026.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%231c1b18'/%3E%3Cpath d='M14 46h36M14 46L30 22h20' fill='none' stroke='%23fcfbf7' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
-<style>
-/* ---------- tokens ---------- */
-:root {
-  color-scheme: light;
-  --bg: #f3f5f8;          /* cool paper */
-  --bg-2: #ffffff;
-  --bg-3: #e8ecf2;
-  --ink: #101825;
-  --ink-2: #4b5666;
-  --ink-3: #7b8696;
-  --line: #d5dbe4;
-  --line-2: #c0c8d4;
-  --gpu: #2a78d6;          /* categorical slot 1 */
-  --tpu: #eb6834;          /* categorical slot 2 */
-  --s3: #1baf7a;
-  --s4: #eda100;
-  --s5: #e87ba4;
-  --s6: #4a3aa7;
-  --gpu-soft: #dbe8f8;
-  --tpu-soft: #fbe3d7;
-  --good: #008300;
-  --warn: #b26a00;
-  --crit: #c62828;
-  --shadow: 0 1px 2px rgba(16,24,37,.06), 0 8px 24px rgba(16,24,37,.06);
-  --radius: 6px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #12161c; --bg-2: #1a1f27; --bg-3: #232a34;
-    --ink: #eef1f5; --ink-2: #b4bcc8; --ink-3: #7f8a99;
-    --line: #2d3540; --line-2: #3a4450;
-    --gpu: #3987e5; --tpu: #e6673a; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9;
-    --gpu-soft: #1d2e45; --tpu-soft: #3d2519;
-    --good: #4caf50; --warn: #e0a030; --crit: #ef6b6b;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #12161c; --bg-2: #1a1f27; --bg-3: #232a34;
-  --ink: #eef1f5; --ink-2: #b4bcc8; --ink-3: #7f8a99;
-  --line: #2d3540; --line-2: #3a4450;
-  --gpu: #3987e5; --tpu: #e6673a; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9;
-  --gpu-soft: #1d2e45; --tpu-soft: #3d2519;
-  --good: #4caf50; --warn: #e0a030; --crit: #ef6b6b;
-  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
-}
-
-/* ---------- base ---------- */
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font-family: "Public Sans", "Segoe UI", system-ui, sans-serif;
-  font-size: 16px; line-height: 1.6;
-}
-h1, h2, h3, h4 { font-family: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif; text-wrap: balance; line-height: 1.12; margin: 0; letter-spacing: -0.01em; }
-h1 { font-size: clamp(2.4rem, 6vw, 4.6rem); font-weight: 700; }
-h2 { font-size: clamp(1.7rem, 3.2vw, 2.4rem); font-weight: 700; }
-h3 { font-size: 1.2rem; font-weight: 600; }
-p { margin: 0 0 1em; max-width: 68ch; }
-a { color: var(--gpu); }
-code, .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: .86em; }
-.num { font-variant-numeric: tabular-nums; }
-.context-line { font-size: .82rem; color: var(--ink-3); margin-bottom: 6px; }
-.small { font-size: .84rem; color: var(--ink-2); }
-button, select, input { font: inherit; color: inherit; }
-button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--gpu); outline-offset: 2px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-
-/* ---------- layout ---------- */
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
-.layout { display: grid; grid-template-columns: 200px 1fr; gap: 48px; }
-nav.toc { position: sticky; top: 24px; align-self: start; font-size: .84rem; padding-top: 6px; }
-nav.toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
-nav.toc li a { display: block; padding: 6px 0 6px 14px; color: var(--ink-3); text-decoration: none; border-left: 2px solid transparent; margin-left: -1px; }
-nav.toc li a.active, nav.toc li a:hover { color: var(--ink); border-left-color: var(--ink); }
-main { min-width: 0; }
-section.chapter { padding: 64px 0 24px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
-section.chapter:first-of-type { border-top: 0; padding-top: 16px; }
-.lede { font-size: 1.12rem; color: var(--ink-2); max-width: 62ch; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { display: none; } .two { grid-template-columns: 1fr; } }
-
-/* ---------- header / hero ---------- */
-header.hero { padding: 56px 0 40px; }
-.hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
-@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
-.hero .sub { font-size: 1.15rem; color: var(--ink-2); max-width: 54ch; margin-top: 18px; }
-.hero .meta { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 22px; }
-.tag { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--ink-2); }
-.tag i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
-.tag i.gpu { background: var(--gpu); } .tag i.tpu { background: var(--tpu); }
-#hero-canvas { width: 100%; height: 320px; display: block; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); }
-.hero-cap { font-size: .8rem; color: var(--ink-3); margin-top: 8px; }
-
-/* ---------- figure / panel ---------- */
-.fig { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin: 20px 0; box-shadow: var(--shadow); }
-.fig .fig-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-.fig .fig-title { font-family: "Familjen Grotesk", sans-serif; font-weight: 600; font-size: 1.05rem; }
-.fig .fig-note { font-size: .8rem; color: var(--ink-3); margin-top: 10px; }
-.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 999px; overflow: hidden; }
-.seg button { background: transparent; border: 0; padding: 5px 12px; font-size: .82rem; cursor: pointer; color: var(--ink-2); }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-select { background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 8px; font-size: .86rem; }
-input[type=range] { accent-color: var(--ink); width: 100%; }
-.chip-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--ink-2); }
-.chip-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--c); vertical-align: -1px; }
-svg text { fill: var(--ink-2); font-family: "Public Sans", system-ui, sans-serif; font-size: 12px; }
-svg .axis line, svg .axis path { stroke: var(--line-2); }
-svg .grid line { stroke: var(--line); }
-.tooltip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); padding: 8px 10px; border-radius: 4px; font-size: .78rem; line-height: 1.4; max-width: 260px; box-shadow: var(--shadow); opacity: 0; transition: opacity .12s; }
-.tooltip b { display: block; font-size: .86rem; margin-bottom: 2px; }
-
-/* ---------- anatomy ---------- */
-.anat { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-@media (max-width: 720px) { .anat { grid-template-columns: 1fr; } }
-.anat .card { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: var(--bg-2); }
-.anat .card h3 { display: flex; align-items: center; gap: 10px; }
-.anat .card h3 i { width: 14px; height: 14px; border-radius: 3px; }
-.anat canvas { width: 100%; height: 190px; display: block; margin: 12px 0; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); }
-.anat ul { margin: 0; padding-left: 18px; font-size: .9rem; color: var(--ink-2); }
-.anat li { margin-bottom: 4px; }
-
-/* ---------- lineup cards ---------- */
-.family-row { margin: 26px 0; }
-.family-row .fam-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; }
-.family-row .fam-head .bar { width: 28px; height: 6px; border-radius: 3px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
-.chip { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 14px 14px 12px; cursor: pointer; text-align: left; position: relative; transition: transform .12s, box-shadow .12s; display: flex; flex-direction: column; gap: 6px; }
-.chip:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.chip[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink) inset; }
-.chip .name { font-family: "Familjen Grotesk", sans-serif; font-weight: 700; font-size: 1.1rem; line-height: 1.1; }
-.chip .series { font-family: "JetBrains Mono", monospace; font-size: .72rem; color: var(--ink-3); }
-.chip .stat { display: grid; grid-template-columns: 1fr auto; font-size: .8rem; color: var(--ink-2); }
-.chip .stat b { color: var(--ink); font-weight: 500; }
-.chip .membar { height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; margin-top: 4px; }
-.chip .membar i { display: block; height: 100%; background: var(--c); }
-.chip .pill { position: absolute; top: 10px; right: 10px; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-3); }
-.chip .pill.new { border-color: var(--good); color: var(--good); }
-.chip .pill.sunset { border-color: var(--warn); color: var(--warn); }
-.chip .pill.soon { border-color: var(--ink-3); color: var(--ink-3); border-style: dashed; }
-.chip.ghost { border-style: dashed; background: transparent; cursor: default; }
-.chip.ghost:hover { transform: none; box-shadow: none; }
-
-/* detail drawer */
-.detail[hidden] { display: none; }
-.detail { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 18px 20px; margin-top: 16px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
-@media (max-width: 800px) { .detail { grid-template-columns: 1fr; } }
-.detail h3 { font-size: 1.5rem; }
-.detail .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: .88rem; margin-top: 10px; }
-.detail .kv dt { color: var(--ink-3); } .detail .kv dd { margin: 0; color: var(--ink); }
-.detail .good-for { font-size: .9rem; color: var(--ink-2); }
-
-/* ---------- roofline ---------- */
-.roof-ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 10px; }
-@media (max-width: 720px) { .roof-ctl { grid-template-columns: 1fr; } }
-.roof-ctl label { font-size: .82rem; color: var(--ink-2); display: block; }
-.roof-ctl output { font-family: "JetBrains Mono", monospace; font-size: .8rem; color: var(--ink); }
-.verdict { padding: 10px 12px; border-radius: 4px; background: var(--bg-3); font-size: .88rem; margin-top: 8px; }
-.verdict b { font-weight: 600; }
-
-/* ---------- topology ---------- */
-.topo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-.topo { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 12px; }
-.topo h4 { font-size: .95rem; margin-bottom: 4px; }
-.topo canvas { width: 100%; height: 170px; display: block; background: var(--bg); border-radius: 4px; border: 1px solid var(--line); }
-.topo .small { margin-top: 6px; display: block; }
-
-/* ---------- fit calculator ---------- */
-.fit-ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
-.fit-ctl label { font-size: .82rem; color: var(--ink-2); display: block; }
-.fit-ctl output { font-family: "JetBrains Mono", monospace; font-size: .8rem; color: var(--ink); }
-.fit-summary { display: flex; gap: 22px; flex-wrap: wrap; margin: 14px 0 6px; }
-.fit-summary .k { font-size: .74rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; }
-.fit-summary .v { font-family: "Familjen Grotesk", sans-serif; font-size: 1.6rem; font-weight: 700; line-height: 1; }
-table.data { width: 100%; border-collapse: collapse; font-size: .84rem; }
-table.data th, table.data td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-table.data th { font-weight: 600; color: var(--ink-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .06em; }
-table.data td.n, table.data th.n { text-align: right; font-variant-numeric: tabular-nums; }
-table.data .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
-table.data tr.dim td { color: var(--ink-3); }
-.table-scroll { overflow-x: auto; }
-.fitbar { display: inline-block; height: 8px; border-radius: 4px; background: var(--c); vertical-align: middle; }
-
-/* ---------- buying ---------- */
-.buy { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-.buy .opt { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: var(--bg-2); }
-.buy .opt h4 { margin-bottom: 6px; }
-.buy .opt p { font-size: .86rem; color: var(--ink-2); margin: 0; }
-.buy .opt .who { font-size: .76rem; color: var(--ink-3); margin-top: 8px; font-family: "JetBrains Mono", monospace; }
-
-/* ---------- glossary ---------- */
-dl.gloss { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; font-size: .9rem; }
-dl.gloss dt { font-weight: 600; white-space: nowrap; } dl.gloss dd { margin: 0; color: var(--ink-2); }
-footer { padding: 40px 0 60px; color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--line); margin-top: 40px; }
-footer ul { padding-left: 18px; }
-details summary { cursor: pointer; color: var(--ink-2); font-size: .9rem; }
-</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="tooltip" id="tip" role="status" aria-live="polite"></div>
-
-<div class="wrap">
-<header class="hero">
-  <div class="hero-grid">
-    <div>
-      <div class="context-line">Google Cloud · checked 11 September 2026</div>
-      <h1>Google Cloud Accelerators</h1>
-      <p class="sub">A technical guide to the GPUs and TPUs listed by Google Cloud. Compare architecture, memory, peak throughput, interconnects, capacity estimates, prices, and purchasing options.</p>
-      <div class="meta">
-        <span class="tag"><i class="gpu"></i>NVIDIA GPUs · 13 models · 10 machine series</span>
-        <span class="tag"><i class="tpu"></i>Google TPUs · 7 generations rentable · 2 announced</span>
-      </div>
-    </div>
-    <div>
-      <canvas id="hero-canvas" aria-label="Animated field of chips, one square per accelerator model, sized by memory"></canvas>
-      <div class="hero-cap">Each tile represents one accelerator model. Tile area scales with memory per chip.</div>
-    </div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">GPUs and TPUs on Google Cloud</span>
+    <nav aria-label="Sections">
+      <a href="#compute">Compute</a>
+      <a href="#lineup">Lineup</a>
+      <a href="#roofline">Roofline</a>
+      <a href="#scale">Interconnects</a>
+      <a href="#fit">Sizing</a>
+      <a href="#buy">Buying</a>
+      <a href="#glossary">Glossary</a>
+    </nav>
   </div>
+  <div class="progress" id="progress"></div>
 </header>
 
-<div class="layout">
-<nav class="toc" aria-label="Chapters">
-  <ol>
-    <li><a href="#two-ways">GPU and TPU compute</a></li>
-    <li><a href="#lineup">Available accelerators</a></li>
-    <li><a href="#chart">Memory and compute</a></li>
-    <li><a href="#roofline">Roofline model</a></li>
-    <li><a href="#scale">Interconnects</a></li>
-    <li><a href="#fit">Memory estimate</a></li>
-    <li><a href="#buy">Purchasing options</a></li>
-    <li><a href="#glossary">Glossary</a></li>
-  </ol>
-</nav>
+<main class="page">
+  <h1>GPUs and TPUs on Google Cloud</h1>
+  <p class="subtitle">What each accelerator offers, which of its numbers limits your workload, and how many chips a model needs</p>
+  <p class="lede">Google Cloud rents 13 NVIDIA GPU models and seven generations of its own TPUs. Across that lineup, peak compute per chip differs by more than 200 times, memory per chip by 35 times, and list prices run from $0.35 to about $16 per chip-hour. This page explains how the two kinds of chip do their arithmetic, which specification matters for which workload, and how to estimate the number of chips a model needs.</p>
+  <p class="meta">7 sections · about 15 minutes · specifications and prices checked 11 September 2026</p>
 
-<main>
+  <!-- ===================================================== 1 -->
+  <section id="compute">
+    <h2>How GPUs and TPUs multiply matrices</h2>
+    <p>Matrix multiplication dominates the cost of many transformer layers. GPUs and TPUs both accelerate it, but they organize the hardware differently and run different software stacks.</p>
+    <p>A GPU is divided into <strong>streaming multiprocessors</strong> (SMs); an H100 has 132 of them. Each SM contains arithmetic units, registers, shared memory, and <em>Tensor Cores</em>, which are small fixed-function matrix units. The SM runs <em>warps</em>, groups of 32 threads that execute in lockstep. A CUDA kernel launches many blocks of threads. When one warp stalls waiting for data from memory, the SM's scheduler issues instructions from another warp that is ready, which keeps the arithmetic units working while memory requests are outstanding.</p>
+    <p>A TPU chip has one or two <strong>TensorCores</strong>. Each TensorCore contains one or more matrix-multiply units (MXUs), a vector unit for operations such as activations and softmax, and a scalar unit for control flow and memory addresses.<span class="sn-ref"></span><span class="sidenote">Google, <a href="https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm">TPU system architecture</a>. v5p and TPU7x also have four SparseCores per chip for embedding lookups and other gather-scatter work; v6e has two.</span> XLA, the compiler behind JAX and PyTorch/XLA, compiles and partitions the program for the TPU before it runs. Performance depends on tensor shapes, sharding, memory movement, and compiler support for the operations used.</p>
 
-<!-- =============== 1. TWO WAYS =============== -->
-<section class="chapter" id="two-ways">
-  <h2>GPU and TPU compute</h2>
-  <p class="lede">Matrix multiplication dominates the cost of many transformer layers. GPUs and TPUs both accelerate it, but their execution models and software stacks differ.</p>
+    <figure class="fig wide" id="fig-anatomy">
+      <div class="pair">
+        <div>
+          <h4><span class="gpu-ink">GPU</span> · NVIDIA H100</h4>
+          <svg id="anat-gpu" viewBox="0 0 400 262" role="img" aria-label="Schematic of an H100: a grid of 132 streaming multiprocessors above HBM; one SM enlarged, showing eight warps, two of them issuing instructions and six waiting for memory, then registers, arithmetic units, Tensor Cores and shared memory."></svg>
+        </div>
+        <div>
+          <h4><span class="tpu-ink">TPU</span> · one TPU v4 TensorCore</h4>
+          <svg id="anat-tpu" viewBox="0 0 400 262" role="img" aria-label="Schematic of one TPU v4 TensorCore: four matrix-multiply units, each a 128 by 128 grid of multiply-accumulate cells, above a vector unit and a scalar unit, connected to HBM."></svg>
+        </div>
+      </div>
+      <figcaption><span class="fig-n"></span>Simplified schematics, not to scale. Left: the H100's 132 SMs, one enlarged. Blue warps are issuing instructions this cycle; grey warps wait for memory. Right: a TPU v4 chip has two TensorCores like this one, each with four MXUs. <span class="takeaway">A GPU keeps many small units busy by switching between threads at run time; a TPU feeds a few large matrix units from a program compiled in advance for fixed tensor shapes.</span></figcaption>
+    </figure>
 
-  <div class="anat">
-    <div class="card">
-      <h3><i style="background:var(--gpu)"></i>GPU: scheduled thread groups and Tensor Cores</h3>
-      <canvas id="anat-gpu" aria-label="Animation of GPU streaming multiprocessors executing warps"></canvas>
-      <ul>
-        <li>A GPU is divided into <b>streaming multiprocessors (SMs)</b>. Each SM schedules thread groups and contains arithmetic units, registers, shared memory, and Tensor Cores.</li>
-        <li>Each SM runs <b>warps</b> of 32 threads in lockstep and contains <b>Tensor Cores</b>, small fixed-function matrix units.</li>
-        <li>CUDA kernels launch many thread blocks. Hardware schedulers keep ready warps running while others wait for data.</li>
-        <li>Cloud accelerator memory varies by model: HBM2 through HBM3e on datacenter parts, and GDDR on L4 and RTX PRO 6000.</li>
-      </ul>
-    </div>
-    <div class="card">
-      <h3><i style="background:var(--tpu)"></i>TPU: systolic matrix units</h3>
-      <canvas id="anat-tpu" aria-label="Animation of a systolic array with data flowing through a grid of multiply-accumulate units"></canvas>
-      <ul>
-        <li>Each TPU TensorCore contains one or more <b>matrix-multiply units (MXUs)</b>. MXUs use 128×128 arrays before v6e and 256×256 arrays in v6e and TPU7x.</li>
-        <li>Operands enter the array in a regular pattern and partial sums accumulate as data moves through it. This keeps matrix operations local and highly parallel.</li>
-        <li>XLA compiles and partitions the program for the TPU. Performance depends on tensor shapes, sharding, memory movement, and compiler support for the operations used.</li>
-        <li>TensorCores also include vector and scalar units. v5p and TPU7x add four SparseCores per chip; v6e adds two.</li>
-      </ul>
-    </div>
-  </div>
-  <p class="small">Simplified diagrams. The GPU animation represents warps scheduled across SMs. The TPU animation represents a wavefront moving through one MXU. The number of blocks and cells is illustrative.</p>
-</section>
+    <p>An MXU is a <strong>systolic array</strong>: a square grid of multiply-accumulate cells, 128 × 128 before v6e and 256 × 256 in v6e and TPU7x. Operands enter at the edges in a regular pattern. On every clock cycle each cell multiplies the values it receives, adds the product to a running sum, and passes values on to its neighbors, so partial sums accumulate as data moves through the array without returning to memory in between.</p>
+    <p>The array works at full rate only once operands reach every cell. Each row starts one cycle after the row above it, so the array fills along a diagonal. When it is full, every cell completes one multiply-accumulate per cycle: 16,384 per cycle for a 128 × 128 MXU.<span class="sn-ref"></span><span class="sidenote">Google: “Each MXU is capable of performing 16K multiply-accumulate operations per cycle.” Multiplies take bfloat16 inputs; accumulation is in FP32.</span></p>
 
-<!-- =============== 2. LINEUP =============== -->
-<section class="chapter" id="lineup">
-  <h2>Available accelerators</h2>
-  <p class="lede">Google Cloud offers GPUs through machine series such as A4, A3, and G2, and TPUs by generation. Select a chip for its machine shape and specifications. Memory bars share one scale. Throughput and bandwidth are approximate vendor peaks. Prices are dated estimates and the interface marks rates that are not on-demand list prices.</p>
-  <div id="families"></div>
-  <div class="detail" id="detail" hidden></div>
-</section>
+    <figure class="fig wide" id="fig-systolic">
+      <div class="multiples" id="systolic" style="--cols: 3"></div>
+      <figcaption><span class="fig-n"></span>A 6 × 6 systolic array at three moments, simplified; real MXUs have 128 × 128 or 256 × 256 cells. Orange cells do a multiply-accumulate this cycle. Dots to the left are operands still waiting to enter their row. <span class="takeaway">After 11 cycles of filling, all 36 cells work on every cycle, for as long as operands keep arriving.</span></figcaption>
+    </figure>
 
-<!-- =============== 3. CHART =============== -->
-<section class="chapter" id="chart">
-  <h2>Memory and peak compute</h2>
-  <p class="lede">This chart compares memory capacity with low-precision or BF16 peak throughput. The logarithmic axes make small and large accelerators visible together.</p>
-  <div class="fig">
-    <div class="fig-head">
-      <div class="fig-title">Peak dense throughput against memory per chip (vendor peaks, approximate)</div>
+    <p>A matrix too small to cover the array leaves cells idle. XLA pads it with zeros to fit, which wastes both arithmetic and on-chip memory.<span class="sn-ref"></span><span class="sidenote">Google, <a href="https://docs.cloud.google.com/tpu/docs/intro-to-tpu">Introduction to Cloud TPU</a>: “When a matrix computation cannot occupy an entire MXU, the compiler pads tensors with zeros.”</span> The same guide recommends batch and feature dimensions that are multiples of 8, with one of them a multiple of 128, and warns that a program dominated by non-matrix operations such as reshapes and concatenations will likely not keep the MXUs busy.</p>
+  </section>
+
+  <!-- ===================================================== 2 -->
+  <section id="lineup">
+    <h2>Every accelerator Google Cloud rents</h2>
+    <p>Google Cloud sells GPUs as part of machine series, such as A4 for the B200 or G2 for the L4, and sells TPUs by generation. Figure 3 lists every model offered on 11 September 2026, grouped by architecture.</p>
+    <p>Each column answers a different question. <strong>Memory</strong> per chip decides whether the weights, activations and KV cache fit. Datacenter parts use HBM, stacked DRAM placed beside the die; the L4, RTX PRO 6000, T4 and P4 use GDDR. <strong>Bandwidth</strong> is how fast the chip can read that memory, and bounds any step that moves more bytes than it computes on. <strong>Dense peak</strong> is the vendor's maximum matrix throughput, which bounds compute-heavy kernels.<span class="sn-ref"></span><span class="sidenote">“Dense” means without 2:1 structured sparsity. NVIDIA quotes sparse peaks that are twice the dense figure; this page divides them by two. All throughput and bandwidth figures are vendor peaks and approximate; real kernels reach a fraction of them.</span> The <strong>fast domain</strong> is the largest group of chips joined by the accelerator's own interconnect, such as NVLink or ICI; traffic beyond it crosses the slower datacenter network.</p>
+    <p>The peak column uses FP8 where the chip has it, otherwise INT8 (A100, T4, P4, v4, v5e, v6e), FP16 (V100, P100) or BF16 (v2, v3, which have no faster mode). The small label beside each number names its precision.</p>
+
+    <figure class="fig wide" id="fig-lineup">
+      <div class="scroll-x" style="--min: 50rem">
+        <table class="lineup" id="lineup-table">
+          <thead><tr>
+            <th scope="col">Chip</th>
+            <th scope="col" class="n">Memory, GB</th>
+            <th scope="col"><span class="sr-only">Memory bar</span></th>
+            <th scope="col" class="n">Bandwidth, TB/s</th>
+            <th scope="col" class="n">Dense peak, TFLOPS</th>
+            <th scope="col" class="n">BF16 or FP16, TFLOPS</th>
+            <th scope="col" class="n">Fast domain, chips</th>
+            <th scope="col" class="n">$ per chip-hour</th>
+            <th scope="col">Machine series</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <figcaption><span class="fig-n"></span>The lineup, checked 11 September 2026. Select a chip's name for its machine type, host shape and notes. Bars show memory per chip on one scale; blue for NVIDIA GPUs, orange for Google TPUs. Throughput and bandwidth are approximate vendor peaks. Prices are list per chip-hour in us-central1 or the first region Google lists; VM prices are divided by the number of GPUs. <span class="takeaway">* marks an indicative rate: A3 Ultra, A3 Mega, A4, A4X and A4X Max are not sold on demand, and GB300 and GB200 have no public price.</span></figcaption>
+    </figure>
+
+    <p>Two more TPUs are announced but not yet rentable.<span class="sn-ref"></span><span class="sidenote">Google, <a href="https://cloud.google.com/blog/products/compute/tpu-8t-and-tpu-8i-technical-deep-dive">TPU 8t and TPU 8i technical deep dive</a>, Cloud Next, April 2026.</span> <em>TPU 8t</em> is a training system: 9,600 chips, about 2 PB of aggregate HBM, and 19.2 Tb/s of ICI bandwidth per chip. <em>TPU 8i</em> is an inference system with 384 MB of on-chip SRAM, a Collectives Acceleration Engine, and a Boardfly interconnect. Google says Cloud availability for both is forthcoming.</p>
+  </section>
+
+  <!-- ===================================================== 3 -->
+  <section id="roofline">
+    <h2>Two speed limits: compute and memory bandwidth</h2>
+    <p>A chip has two speed limits: how fast it can compute, and how fast it can read bytes from memory. Which one a workload hits depends on its <strong>arithmetic intensity</strong>, the number of floating-point operations it performs per byte it reads. The roofline model draws both limits on one chart.</p>
+    <p>Attainable throughput is the smaller of two numbers: peak compute, and bandwidth multiplied by intensity. The two meet at the <em>ridge point</em>, peak compute divided by bandwidth. For an H200, about 1,979 TFLOPS ÷ 4.8 TB/s puts the ridge at about 412 FLOP per byte. Work to the left of the ridge is memory-bound; work to the right is compute-bound.</p>
+    <p>Generating a token multiplies every weight by an activation: one multiply and one add, 2 FLOP per weight. With one-byte FP8 weights, decoding one sequence at a time performs about 2 FLOP per byte read. A batch of 64 sequences reuses each weight 64 times, about 128 FLOP per byte, and a 1,024-token prefill about 2,048.<span class="sn-ref"></span><span class="sidenote">Simplified: these figures count weight traffic only. Reading the KV cache lowers the intensity of long-context decoding, while cache reuse and kernel fusion raise the intensity of real kernels.</span> The presets in Figure 4 use these three values.</p>
+
+    <figure class="fig" id="fig-roof">
       <div class="controls">
-        <div class="seg" role="group" aria-label="Precision">
-          <button data-prec="fp8" aria-pressed="true">Low precision</button>
-          <button data-prec="bf16" aria-pressed="false">BF16</button>
-        </div>
-        <div class="seg" role="group" aria-label="Size encoding">
-          <button data-size="none" aria-pressed="true">Equal dots</button>
-          <button data-size="price" aria-pressed="false">Size by $/hr</button>
-        </div>
+        <label class="control"><span class="label">Chip</span> <select id="roof-chip"></select></label>
+        <span class="control"><span class="label">Workload</span>
+          <span class="seg" role="group" aria-label="Workload preset" id="roof-presets">
+            <button type="button" data-ai="2" aria-pressed="false">Decode, batch 1</button><button type="button" data-ai="128" aria-pressed="true">Decode, batch 64</button><button type="button" data-ai="2048" aria-pressed="false">Prefill, 1,024 tokens</button>
+          </span>
+        </span>
+        <label class="control"><span class="label">Intensity</span> <input type="range" id="roof-ai" min="0" max="4" step="0.02" value="2.1" aria-describedby="roof-ai-unit"> <output id="roof-ai-out" for="roof-ai">128</output><span id="roof-ai-unit">FLOP/byte</span></label>
       </div>
-    </div>
-    <div class="chip-legend" id="legend"></div>
-    <svg id="scatter" width="100%" height="480" viewBox="0 0 900 480" role="img" aria-labelledby="scatter-title"><title id="scatter-title">Scatter plot of accelerator memory per chip against peak throughput</title></svg>
-    <div class="fig-note">Both axes are logarithmic. Throughput is NVIDIA's or Google's published peak <em>dense</em> figure (no 2:1 sparsity), approximate and rarely reached in practice. "Low precision" means FP8 where the chip has it, otherwise INT8 (A100, T4, P4, v5e, v6e, v4), FP16 (V100, P100) or BF16 (v2, v3, which have no faster mode); the tooltip names the basis for each dot.</div>
-  </div>
-  <p><b>How to read it.</b> Moving right adds memory capacity. Moving up adds theoretical matrix throughput at the selected precision. Those properties answer different questions: capacity limits model weights, activations, and KV cache; throughput bounds compute-heavy kernels. Memory bandwidth and interconnects still determine much of real training and inference performance.</p>
-</section>
+      <div class="graphic" id="roof-host"><svg id="roofsvg" role="img" aria-label="Roofline chart for the selected chip"></svg></div>
+      <p class="readout-line" id="roof-verdict" aria-live="polite"></p>
+      <figcaption><span class="fig-n"></span>Simplified roofline: the roof is the dense low-precision vendor peak and the slope is peak memory bandwidth. Real kernels reach a fraction of both. Both axes use log scales. <span class="takeaway">At batch 1, every chip on this page is memory-bound: decode speed follows bandwidth, not peak FLOPS.</span></figcaption>
+    </figure>
 
-<!-- =============== 4. ROOFLINE =============== -->
-<section class="chapter" id="roofline">
-  <h2>Roofline model</h2>
-  <div class="context-line" style="margin-top:4px">Simplified model · approximate vendor peaks</div>
-  <p class="lede">A chip has two speed limits: how fast it can compute, and how fast it can pull bytes from memory. Which one you hit depends on your workload's <b>arithmetic intensity</b>, the number of floating-point operations per byte loaded. The roofline model draws both limits on one chart.</p>
-  <div class="fig">
-    <div class="roof-ctl">
-      <div>
-        <label for="roof-chip">Chip</label>
-        <select id="roof-chip"></select>
-      </div>
-      <div>
-        <label for="roof-ai">Your workload's arithmetic intensity: <output id="roof-ai-out">64</output> FLOP/byte</label>
-        <input type="range" id="roof-ai" min="0" max="4" step="0.02" value="1.8">
-        <div class="small" id="roof-preset">Move left for less computation per byte moved; move right for more.</div>
-      </div>
-    </div>
-    <svg id="roofsvg" width="100%" height="380" viewBox="0 0 900 380" role="img" aria-labelledby="roof-title"><title id="roof-title">Roofline chart for the selected chip</title></svg>
-    <div class="verdict" id="roof-verdict"></div>
-    <div class="fig-note">This simplified roofline divides dense low-precision peak throughput by peak memory bandwidth. Real kernels reach a fraction of both values. The ridge point is peak operations per second ÷ bytes per second. Work to the left is bandwidth-bound; work to the right is compute-bound. Small-batch LLM decoding usually has low arithmetic intensity because it reads many weights for few tokens. Weight precision, cache reuse, batching, and kernel fusion change the actual intensity.</div>
-  </div>
-</section>
+    <p>Every chip has its own ridge point. Figure 5 plots peak compute against bandwidth for the whole lineup, so the diagonal lines are lines of equal ridge point. A chip above the 1,000 line, such as the TPU v6e, needs more than 1,000 FLOP per byte of reuse to reach its peak. Chips near the 100 line, such as the V100 and TPU v3, reach theirs with far less reuse, but their peak is lower.</p>
 
-<!-- =============== 5. SCALE =============== -->
-<section class="chapter" id="scale">
-  <h2>Interconnects</h2>
-  <p class="lede">Distributed models exchange activations, gradients, parameters, and routing traffic. The fast-interconnect domain constrains which parallel layouts avoid the slower datacenter network.</p>
-  <div class="topo-grid" id="topos"></div>
-  <p style="margin-top:18px"><b>NVIDIA systems.</b> A3 and A4 eight-GPU VMs use NVSwitch within the VM, with 900 GB/s bidirectional NVLink bandwidth per Hopper GPU or 1.8 TB/s per Blackwell GPU. Larger jobs use the VM network: up to 3.6 Tbps GPUDirect RDMA on A3 Ultra and A4, and up to 1.8 Tbps on A3 Mega. A4X and A4X Max connect 18 four-GPU instances as one 72-GPU NVLink domain.</p>
-  <p><b>TPU systems.</b> TPU v2, v3, v5e, and v6e use 2D torus topologies. v5p and TPU7x use 3D tori. TPU v4 has a 3D mesh that can form a torus for supported slice shapes. Optical circuit switches configure links between cubes and can route around some ICI faults. Slice shapes have generation-specific constraints, and parallelism performs best when it maps cleanly onto the physical topology.</p>
-</section>
+    <figure class="fig wide" id="fig-scatter">
+      <div class="scroll-x" id="scatter-host" style="--min: 36rem"><svg id="scatter" role="img" aria-label="Scatter plot of dense peak throughput against memory bandwidth for every chip, with diagonal lines of equal ridge point at 100, 300 and 1,000 FLOP per byte"></svg></div>
+      <figcaption><span class="fig-n"></span>Dense low-precision peak against peak memory bandwidth, both log scale; blue for NVIDIA GPUs, orange for Google TPUs. Vendor peaks, approximate. Some points coincide: GB300 and GB200; the three H100 machine types; V100 and TPU v3 almost. <span class="takeaway">Newer chips tend to add compute faster than bandwidth, so their ridge points sit higher and they need more reuse per byte to run at peak.</span></figcaption>
+    </figure>
 
-<!-- =============== 6. FIT =============== -->
-<section class="chapter" id="fit">
-  <h2>Memory estimate</h2>
-  <p class="lede">Set a parameter count, weight precision, and memory allowance. The table estimates the chip count needed for capacity and whether it fits inside one fast-interconnect domain.</p>
-  <div class="fig">
-    <div class="fit-ctl">
-      <div>
-        <label for="fit-params">Parameters: <output id="fit-params-out">70</output> B</label>
-        <input type="range" id="fit-params" min="0" max="3" step="0.005" value="1.845">
+    <p>Capacity, bandwidth and compute answer different questions. Capacity limits the model weights, activations and KV cache a chip can hold. Throughput bounds compute-heavy kernels. Bandwidth, and the interconnect between chips, still determine much of real training and inference performance. The usual remedies for a memory-bound workload are bigger batches, quantized weights, or a chip with more bandwidth per FLOP.</p>
+  </section>
+
+  <!-- ===================================================== 4 -->
+  <section id="scale">
+    <h2>Fast domains: how chips connect</h2>
+    <p>A model spread over many chips exchanges activations, gradients, parameters and routing traffic between them. The fast-interconnect domain constrains which parallel layouts can keep that traffic off the slower datacenter network.</p>
+    <p>On NVIDIA systems, the A3 and A4 eight-GPU VMs connect their GPUs through NVSwitch, with 900 GB/s of bidirectional NVLink bandwidth per Hopper GPU or 1.8 TB/s per Blackwell GPU. Larger jobs use the VM network: up to 3.6 Tbps of GPUDirect RDMA on A3 Ultra and A4, and up to 1.8 Tbps on A3 Mega. A4X and A4X Max connect 18 four-GPU instances as one 72-GPU NVLink domain.</p>
+    <p>TPUs link chips directly to their neighbors over ICI, Google's inter-chip interconnect. TPU v2, v3, v5e and v6e use 2D torus topologies; v5p and TPU7x use 3D tori. TPU v4 has a 3D mesh that can form a torus for supported slice shapes. Optical circuit switches configure the links between 4 × 4 × 4 cubes of chips and can route around some ICI faults.<span class="sn-ref"></span><span class="sidenote">Google defines a <em>cube</em> as “a 4x4x4 topology of interconnected TPU chips,” used from TPU v4 on. A <em>slice</em> is the block of a pod rented as one unit; slice shapes have generation-specific constraints.</span> Parallelism performs best when it maps cleanly onto the physical topology.</p>
+
+    <figure class="fig wide" id="fig-topo">
+      <div class="multiples" id="topos">
+        <div><h4>8 GPUs · NVSwitch</h4><svg viewBox="0 0 220 132" role="img" aria-label="Eight GPUs, each linked to one NVSwitch"></svg><p class="sub">A3 and A4: eight GPUs per VM, all joined through NVSwitch.</p></div>
+        <div><h4>72 GPUs · NVL72 rack</h4><svg viewBox="0 0 220 132" role="img" aria-label="Eighteen columns of four GPUs, each column one VM, all linked to the rack's NVLink switches"></svg><p class="sub">A4X and A4X Max: 18 VMs of four GPUs share one NVLink domain.</p></div>
+        <div><h4>2D torus · v5e, v6e</h4><svg viewBox="0 0 220 132" role="img" aria-label="A four by four grid of TPU chips, each linked to four neighbors, with wraparound links joining the ends of every row and column"></svg><p class="sub">Four neighbors per chip; rows and columns wrap around. A pod is 16 × 16 = 256 chips; 4 × 4 shown.</p></div>
+        <div><h4>3D torus · v5p, TPU7x</h4><svg viewBox="0 0 220 132" role="img" aria-label="A four by four by four cube of TPU chips with links along three axes and one wraparound link highlighted"></svg><p class="sub">Six neighbors per chip. One 4 × 4 × 4 cube (64 chips) shown, with one wraparound link. A TPU7x pod holds up to 9,216 chips.</p></div>
       </div>
-      <div>
-        <label for="fit-prec">Weight precision</label>
-        <select id="fit-prec">
-          <option value="2">BF16 (2 bytes)</option>
-          <option value="1" selected>FP8 / INT8 (1 byte)</option>
-          <option value="0.5">FP4 / INT4 (0.5 byte)</option>
-        </select>
+      <figcaption><span class="fig-n"></span>The four fast-domain shapes on Google Cloud, simplified; lines are links, not their bandwidth. <span class="takeaway">An NVIDIA fast domain stops at 8, 16 or 72 GPUs; a TPU pod keeps hundreds or thousands of chips on one interconnect.</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================================================== 5 -->
+  <section id="fit">
+    <h2>How many chips a model needs</h2>
+    <p>The first question for any deployment is whether the model fits. Weights need <em>parameters × bytes per parameter</em>: a 70-billion-parameter model in FP8 takes about 70 GB. Serving also needs room for the KV cache and activations, which the calculator adds as a percentage allowance rather than computing it. A mixed-precision full fine-tune with the Adam optimizer often needs about 16 bytes per parameter before activation memory.<span class="sn-ref"></span><span class="sidenote">2 bytes of BF16 weights, 2 of BF16 gradients, and 12 of FP32 optimizer state (a master copy of the weights plus Adam's two moment estimates): the accounting in <a href="https://arxiv.org/abs/1910.02054">Rajbhandari et al., “ZeRO” (2019)</a>.</span></p>
+    <p>The calculator treats 90% of each chip's memory as usable, rounds the chip count up, and checks whether that many chips fit inside one fast domain. A “fits” result is a capacity estimate, not a performance recommendation.</p>
+
+    <figure class="fig wide" id="fig-fit">
+      <div class="controls">
+        <label class="control"><span class="label">Parameters</span> <input type="range" id="fit-params" min="0" max="3" step="0.005" value="1.845"> <output id="fit-params-out" for="fit-params">70</output> B</label>
+        <span class="control"><span class="label">Weights</span>
+          <span class="seg" role="group" aria-label="Weight precision" id="fit-prec">
+            <button type="button" data-bytes="2" aria-pressed="false">BF16</button><button type="button" data-bytes="1" aria-pressed="true">FP8 / INT8</button><button type="button" data-bytes="0.5" aria-pressed="false">FP4 / INT4</button>
+          </span>
+        </span>
+        <label class="control"><span class="label">KV cache and activations</span> <input type="range" id="fit-kv" min="0" max="200" step="5" value="40"> <output id="fit-kv-out" for="fit-kv">+40%</output></label>
+        <span class="control"><span class="label">Mode</span>
+          <span class="seg" role="group" aria-label="Mode" id="fit-mode">
+            <button type="button" data-mode="infer" aria-pressed="true">Inference</button><button type="button" data-mode="train" aria-pressed="false">Full fine-tune</button>
+          </span>
+        </span>
       </div>
-      <div>
-        <label for="fit-kv">KV cache and activations headroom: <output id="fit-kv-out">40</output>%</label>
-        <input type="range" id="fit-kv" min="0" max="200" step="5" value="40">
+      <dl class="result" aria-live="polite">
+        <dt>Memory needed</dt><dd class="num" id="fit-need">–</dd>
+        <dt>Cheapest on demand that fits</dt><dd id="fit-cheap">–</dd>
+        <dt>Fewest chips</dt><dd id="fit-fewest">–</dd>
+      </dl>
+      <div class="scroll-x" style="--min: 40rem">
+        <table class="fit" id="fit-table">
+          <thead><tr><th scope="col">Chip</th><th scope="col" class="n">Chips</th><th scope="col" class="n">≈ $ per hour</th><th scope="col"><span class="sr-only">Cost bar</span></th><th scope="col" class="n">Memory per chip</th><th scope="col">In one fast domain?</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
-      <div>
-        <label for="fit-mode">Mode</label>
-        <select id="fit-mode">
-          <option value="infer" selected>Inference (weights + KV)</option>
-          <option value="train">Full fine-tune (≈16 bytes/param)</option>
-        </select>
-      </div>
-    </div>
-    <div class="fit-summary">
-      <div><div class="k">Memory needed</div><div class="v num" id="fit-need">–</div></div>
-      <div><div class="k">Cheapest that fits, on demand</div><div class="v" id="fit-cheap">–</div></div>
-      <div><div class="k">Fewest chips</div><div class="v" id="fit-fewest">–</div></div>
-    </div>
-    <div class="table-scroll">
-      <table class="data" id="fit-table">
-        <thead><tr><th>Chip</th><th class="n">Mem/chip</th><th class="n">Chips</th><th>Fits in one fast domain?</th><th class="n">≈ $/hr, list</th><th>Relative cost</th></tr></thead>
-        <tbody></tbody>
+      <figcaption><span class="fig-n"></span>Capacity estimate, simplified: parameters × bytes (or 16 bytes per parameter for a full fine-tune) plus the allowance, divided by 90% of each chip's memory. Rows are sorted by hourly cost; grey rows need more chips than one fast domain holds. * marks an indicative rate from a purchasing model other than on demand; “cheapest on demand” considers only published on-demand rates. Prices as in Figure 3. <span class="takeaway">For a 70B model in FP8, several GPUs with less memory can cost less per hour than one large chip; whether they are fast enough is a separate question.</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================================================== 6 -->
+  <section id="buy">
+    <h2>Buying capacity and finding it</h2>
+    <p>Price and capacity depend on the provisioning model, region, duration and machine series. The newest GPU series are not sold on demand at all. Check the current pricing and availability pages before budgeting a workload.</p>
+
+    <table class="ref">
+      <thead><tr><th scope="col">Purchasing model</th><th scope="col">What you get</th><th scope="col">Applies to</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">On demand</th><td>Start and stop without a term commitment. Availability varies by accelerator and zone.</td><td>Chips with a published on-demand rate in Figure 3</td></tr>
+        <tr><th scope="row">Spot</th><td>Discounted, interruptible capacity. Use checkpointing and make the workload tolerant of preemption.</td><td>Supported GPU and TPU configurations vary</td></tr>
+        <tr><th scope="row">Dynamic Workload Scheduler</th><td><em>Flex-start</em> queues a job and runs it for up to 7 days when capacity frees, at a discount. <em>Calendar mode</em> books a future block of 1 to 90 days.</td><td>A3, A4, A4X; TPUs through GKE or managed instance groups</td></tr>
+        <tr><th scope="row">Reservations and commitments</th><td>Reserve capacity or commit to a usage term when a workload needs predictable access. Terms, discounts and eligible machines differ.</td><td>A4X Max, A4X, A4, A3 Ultra, A3 Mega, pod-scale TPUs</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Where each chip is offered</h3>
+    <p>New accelerators are available in fewer locations than mature GPU series.<span class="sn-ref"></span><span class="sidenote">Approximate zone counts from Google's <a href="https://docs.cloud.google.com/compute/docs/gpus/gpu-regions-zones">GPU regions and zones</a> page on 11 September 2026. Availability and quota change; verify the machine shape in the target zone before planning a deployment.</span></p>
+    <div class="scroll-x" style="--min: 36rem">
+      <table class="ref" id="region-table">
+        <thead><tr><th scope="col">Chip</th><th scope="col">Series</th><th scope="col" class="n">Zones, approx.</th><th scope="col">Footprint</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><td>GB300</td><td class="mono">A4X Max</td><td class="n">1</td><td>US only</td><td>us-central1-b; reservation only</td></tr>
+          <tr><td>GB200</td><td class="mono">A4X</td><td class="n">2</td><td>US and EU</td><td>us-central1, europe-west4</td></tr>
+          <tr><td>B200</td><td class="mono">A4</td><td class="n">1–3</td><td>Selective</td><td>Spot, Flex-start or reservation</td></tr>
+          <tr><td>H200</td><td class="mono">A3 Ultra</td><td class="n">3</td><td>Mostly Asia-Pacific</td><td>asia-south1, asia-southeast1</td></tr>
+          <tr><td>H100 Mega</td><td class="mono">A3 Mega</td><td class="n">6–8</td><td>US, EU, APAC, Australia</td><td></td></tr>
+          <tr><td>H100 High and Edge</td><td class="mono">A3 High, A3 Edge</td><td class="n">8–10</td><td>US, EU, APAC</td><td>The only H100 shapes sold on demand</td></tr>
+          <tr><td>A100 80 GB</td><td class="mono">A2 Ultra</td><td class="n">4–5</td><td>US, EU, APAC</td><td></td></tr>
+          <tr><td>A100 40 GB</td><td class="mono">A2 Standard</td><td class="n">15+</td><td>Global</td><td></td></tr>
+          <tr><td>RTX PRO 6000</td><td class="mono">G4</td><td class="n">20+</td><td>Global</td><td>Includes a vWS variant</td></tr>
+          <tr><td>L4</td><td class="mono">G2</td><td class="n">15+</td><td>Global</td><td>Includes a vWS variant</td></tr>
+          <tr><td>T4</td><td class="mono">N1</td><td class="n">30+</td><td>Most zones</td><td>Includes a vWS variant</td></tr>
+          <tr><td>V100, P100, P4</td><td class="mono">N1</td><td class="n">8–10 each</td><td>US, EU, APAC</td><td>P100 support ends September 2026</td></tr>
+          <tr><td>TPU v5e, v6e</td><td class="mono">ct5lp, ct6e</td><td class="n">several</td><td>US, EU, APAC</td><td>AI zones added April 2026</td></tr>
+          <tr><td>TPU v5p, TPU7x</td><td class="mono">ct5p, tpu7x</td><td class="n">few</td><td>Mostly US</td><td>Pod slices through reservation</td></tr>
+          <tr><td>TPU v4</td><td class="mono">tpu-v4-podslice</td><td class="n">1</td><td>us-central2 only</td><td>Still on demand at $3.22 per chip-hour</td></tr>
+          <tr><td>TPU v2, v3</td><td class="mono">v2-8 … v3-2048</td><td class="n">3–5</td><td>US and EU, one APAC</td><td>Legacy; v2 only through the Cloud TPU API</td></tr>
+        </tbody>
       </table>
     </div>
-    <div class="fig-note">* indicative rate from a non-on-demand purchasing model. The "cheapest on demand" result considers only published on-demand rates. Capacity rules of thumb: weights = parameters × bytes; a mixed-precision Adam full fine-tune often requires about 16 bytes per parameter before activation memory. Prices are approximate per-chip-hour figures for us-central1, or the first listed region, checked 11 September 2026. VM prices are divided by GPU count. GB300 and GB200 have no public list price here.</div>
-  </div>
-</section>
+  </section>
 
-<!-- =============== 7. BUY =============== -->
-<section class="chapter" id="buy">
-  <h2>Purchasing options</h2>
-  <p class="lede">Price and capacity depend on the provisioning model, region, duration, and machine series. Check the current pricing and availability pages before budgeting a workload.</p>
-  <div class="buy">
-    <div class="opt"><h4>On demand</h4><p>Start and stop without a term commitment. Availability varies by accelerator and zone, and the newest GPU series may require another purchasing model.</p><div class="who">published on-demand rates are marked in the table above</div></div>
-    <div class="opt"><h4>Spot</h4><p>Discounted, interruptible capacity. Use checkpointing and make the workload tolerant of preemption.</p><div class="who">supported GPU and TPU configurations vary</div></div>
-    <div class="opt"><h4>Dynamic Workload Scheduler</h4><p><b>Flex-start</b> queues your job and runs it for up to 7 days when capacity frees, at a discount. <b>Calendar mode</b> books a future block of 1 to 90 days.</p><div class="who">A3 · A4 · A4X · TPUs via GKE or MIGs</div></div>
-    <div class="opt"><h4>Reservations and commitments</h4><p>Reserve capacity or commit to a usage term when a workload needs predictable access. Terms, discounts, and eligible machines differ.</p><div class="who">A4X Max · A4X · A4 · A3 Ultra · A3 Mega · pod-scale TPU</div></div>
-  </div>
-  <div class="fig">
-    <div class="fig-head"><div class="fig-title">Where each chip lives</div></div>
-    <div class="table-scroll">
-      <table class="data" id="region-table">
-        <thead><tr><th>Chip</th><th>Series</th><th>Zones (approx.)</th><th>Footprint</th><th>Notes</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="fig-note">Approximate zone counts from Google's regions pages on 11 September 2026. New accelerators are available in fewer locations than mature GPU series. Availability and quota change; verify the required machine shape in the target zone before planning a deployment.</div>
-  </div>
-</section>
+  <!-- ===================================================== 7 -->
+  <section id="glossary">
+    <h2>Glossary</h2>
+    <dl class="gloss">
+      <dt>Arithmetic intensity</dt><dd>Floating-point operations per byte moved from memory. Often low for small-batch decoding and higher for training, prefill and large batches.</dd>
+      <dt>Dense and sparse FLOPS</dt><dd>NVIDIA quotes peaks with 2:1 structured sparsity that are double the dense figure. This page uses dense figures throughout.</dd>
+      <dt>HBM</dt><dd>High Bandwidth Memory: stacked DRAM placed beside the accelerator die. Capacity limits what fits; bandwidth sets the speed of memory-bound kernels.</dd>
+      <dt>ICI</dt><dd>Inter-Chip Interconnect, Google's TPU-to-TPU links. Topology and optical reconfiguration depend on the TPU generation.</dd>
+      <dt>MXU</dt><dd>Matrix-multiply unit: the systolic array at the core of a TPU TensorCore.</dd>
+      <dt>Multislice</dt><dd>Running one job across several TPU slices joined over the datacenter network.</dd>
+      <dt>NVLink and NVSwitch</dt><dd>NVIDIA's GPU-to-GPU fabric inside a server (8 GPUs) or, with NVL72, a rack (72 GPUs).</dd>
+      <dt>RoCE and GPUDirect</dt><dd>RDMA over Ethernet between VMs. On A3 Ultra, A4 and A4X it runs on Google's Titanium offload NICs.</dd>
+      <dt>Slice</dt><dd>A rectangular block of a TPU pod rented as one unit, for example 4 × 4 × 4 = 64 TPU7x chips.</dd>
+      <dt>SparseCore</dt><dd>A TPU co-processor for embedding lookups and other gather-scatter work: four per chip on v5p and TPU7x, two on v6e.</dd>
+      <dt>vWS</dt><dd>The virtual-workstation license variant of a GPU (L4, RTX PRO 6000, T4, P4) for remote graphics.</dd>
+    </dl>
+  </section>
 
-<!-- =============== 8. GLOSSARY =============== -->
-<section class="chapter" id="glossary">
-  <h2>Glossary</h2>
-  <dl class="gloss">
-    <dt>HBM</dt><dd>High Bandwidth Memory, stacked DRAM placed near the accelerator die. Capacity limits what fits; bandwidth strongly affects memory-bound kernels.</dd>
-    <dt>NVLink / NVSwitch</dt><dd>NVIDIA's GPU-to-GPU fabric inside a server (8 GPUs) or, with NVL72, a rack (72 GPUs).</dd>
-    <dt>ICI</dt><dd>Inter-Chip Interconnect, Google's TPU-to-TPU links. Topology and optical reconfiguration depend on the TPU generation.</dd>
-    <dt>RoCE / GPUDirect</dt><dd>RDMA over Ethernet between VMs. On A3 Ultra, A4 and A4X it runs on Google's Titanium offload NICs.</dd>
-    <dt>Dense vs. sparse FLOPS</dt><dd>NVIDIA quotes 2:1 structured-sparsity peaks that double the dense number. This atlas uses dense everywhere.</dd>
-    <dt>MXU</dt><dd>Matrix Multiply Unit, the systolic array at the core of a TPU TensorCore.</dd>
-    <dt>SparseCore</dt><dd>A TPU co-processor for embedding lookups and other gather-scatter work; four per chip on v5p and Ironwood.</dd>
-    <dt>Slice</dt><dd>A rectangular sub-block of a TPU pod (for example 4×4×4 = 64 Ironwood chips) rented as one unit.</dd>
-    <dt>Multislice</dt><dd>Running one job across several slices joined over the data-center network.</dd>
-    <dt>vWS</dt><dd>Virtual workstation licence variant of a GPU (L4, RTX PRO 6000, T4, P4) for remote graphics.</dd>
-    <dt>Arithmetic intensity</dt><dd>Operations per byte moved. It is often low for small-batch decoding and higher for training, prefill, and large batches.</dd>
-  </dl>
-</section>
-
-<footer>
-  <p><b>Sources</b> (all read 11 Sep 2026)</p>
-  <ul>
-    <li>Compute Engine: <a href="https://docs.cloud.google.com/compute/docs/gpus">GPU machine types</a>, <a href="https://docs.cloud.google.com/compute/docs/accelerator-optimized-machines">accelerator-optimized machine family</a>, <a href="https://docs.cloud.google.com/compute/docs/gpus/gpu-regions-zones">GPU regions and zones</a>, <a href="https://docs.cloud.google.com/ai-hypercomputer/docs/gpu">AI Hypercomputer GPU guide</a>.</li>
-    <li>Cloud TPU: <a href="https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm">system architecture</a>, <a href="https://docs.cloud.google.com/tpu/docs/v5e">v5e</a>, <a href="https://docs.cloud.google.com/tpu/docs/v5p">v5p</a>, <a href="https://docs.cloud.google.com/tpu/docs/v6e">v6e</a>, <a href="https://docs.cloud.google.com/tpu/docs/tpu7x">TPU7x</a>, <a href="https://docs.cloud.google.com/tpu/docs/release-notes">release notes</a>, <a href="https://cloud.google.com/blog/products/compute/tpu-8t-and-tpu-8i-technical-deep-dive">TPU 8t and 8i deep dive</a>.</li>
-    <li>Pricing: <a href="https://cloud.google.com/tpu/pricing">Cloud TPU pricing</a>, <a href="https://cloud.google.com/spot-vms/pricing">Spot VM pricing</a>, and <a href="https://www.thundercompute.com/blog/google-cloud-gpu-instances">Thunder Compute's Google Cloud GPU survey</a>. Figures were checked 11 Sep 2026.</li>
-    <li>NVIDIA specifications: <a href="https://www.nvidia.com/en-us/data-center/gb300-nvl72/">GB300 NVL72</a>, <a href="https://www.nvidia.com/en-us/data-center/h200/">H200</a>, and <a href="https://www.nvidia.com/en-us/data-center/rtx-pro-6000-blackwell-server-edition/">RTX PRO 6000</a>. Published sparse Tensor Core figures are divided by two where the chart labels a dense peak.</li>
-  </ul>
-  <p>Inspired by the <a href="https://poloclub.github.io">Polo Club of Data Science</a> explainers. Built as a standalone page; no data leaves your browser.</p>
-</footer>
+  <footer class="colophon">
+    <p><strong>Sources</strong>, all read 11 September 2026 unless noted.</p>
+    <ul>
+      <li>Compute Engine: <a href="https://docs.cloud.google.com/compute/docs/gpus">GPU machine types</a>, <a href="https://docs.cloud.google.com/compute/docs/accelerator-optimized-machines">accelerator-optimized machine family</a>, <a href="https://docs.cloud.google.com/compute/docs/gpus/gpu-regions-zones">GPU regions and zones</a>, <a href="https://docs.cloud.google.com/ai-hypercomputer/docs/gpu">AI Hypercomputer GPU guide</a>.</li>
+      <li>Cloud TPU: <a href="https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm">system architecture</a>, <a href="https://docs.cloud.google.com/tpu/docs/intro-to-tpu">introduction to Cloud TPU</a> (read 25 September 2026), <a href="https://docs.cloud.google.com/tpu/docs/v5e">v5e</a>, <a href="https://docs.cloud.google.com/tpu/docs/v5p">v5p</a>, <a href="https://docs.cloud.google.com/tpu/docs/v6e">v6e</a>, <a href="https://docs.cloud.google.com/tpu/docs/tpu7x">TPU7x</a>, <a href="https://docs.cloud.google.com/tpu/docs/release-notes">release notes</a>, <a href="https://cloud.google.com/blog/products/compute/tpu-8t-and-tpu-8i-technical-deep-dive">TPU 8t and 8i deep dive</a>.</li>
+      <li>Pricing: <a href="https://cloud.google.com/tpu/pricing">Cloud TPU pricing</a>, <a href="https://cloud.google.com/spot-vms/pricing">Spot VM pricing</a>, and <a href="https://www.thundercompute.com/blog/google-cloud-gpu-instances">Thunder Compute's Google Cloud GPU survey</a>.</li>
+      <li>NVIDIA specifications: <a href="https://www.nvidia.com/en-us/data-center/gb300-nvl72/">GB300 NVL72</a>, <a href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/">GB200 NVL72</a> (read 25 September 2026), <a href="https://www.nvidia.com/en-us/data-center/h200/">H200</a>, and <a href="https://www.nvidia.com/en-us/data-center/rtx-pro-6000-blackwell-server-edition/">RTX PRO 6000</a>. Published sparse Tensor Core figures are divided by two where the page shows a dense peak.</li>
+      <li>Optimizer memory: <a href="https://arxiv.org/abs/1910.02054">Rajbhandari et al., “ZeRO: Memory optimizations toward training trillion parameter models”</a>.</li>
+    </ul>
+    <p>Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn/tree/main/gcp-accelerators">GitHub</a>. Inspired by the <a href="https://poloclub.github.io">Polo Club of Data Science</a> explainers. A standalone page with no dependencies; no data leaves your browser.</p>
+  </footer>
 </main>
-</div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script>
-/* =========================================================
-   DATA — one record per accelerator model available on GCP
-   ========================================================= */
-const FAM = {
-  blackwell: { name: "NVIDIA Blackwell", color: "var(--gpu)", hex: "#2a78d6", kind: "gpu", blurb: "2024–26. Blackwell GPUs add FP4 Tensor Core modes and up to 1.8 TB/s of bidirectional NVLink bandwidth per GPU." },
-  hopper:    { name: "NVIDIA Hopper",    color: "var(--s6)",  hex: "#4a3aa7", kind: "gpu", blurb: "2022–24. The H100 introduced FP8 and the Transformer Engine; the H200 keeps the same die with 141 GB of HBM3e." },
-  ampere:    { name: "NVIDIA Ampere",    color: "var(--s3)",  hex: "#1baf7a", kind: "gpu", blurb: "2020. A100 supports TF32, BF16, FP16, and INT8 Tensor Core modes, but not FP8." },
-  pro:       { name: "NVIDIA graphics-class", color: "var(--s4)", hex: "#eda100", kind: "gpu", blurb: "L4 and RTX PRO 6000 use GDDR memory and PCIe. Google Cloud does not provide NVLink between these GPUs." },
-  legacy:    { name: "NVIDIA legacy on N1", color: "var(--s5)", hex: "#e87ba4", kind: "gpu", blurb: "Older accelerators attached to N1 VMs. P100 support ends in September 2026." },
-  tpu:       { name: "Google TPU",       color: "var(--tpu)", hex: "#eb6834", kind: "tpu", blurb: "Google's own systolic-array chips, rented as VMs or pod slices. JAX and PyTorch/XLA; no CUDA." },
-};
-
-// mem GB per chip · bw GB/s · fp8 = dense low-precision peak TFLOPS at the precision named in peakBasis (FP8, INT8 or FP16) · bf16 = dense BF16/FP16 TFLOPS
-// vcpu / ram / net = largest documented VM shape: vCPUs, host RAM GB, host NIC Gbps (TPU: per-VM NIC, not per-chip DCN); null = Google does not publish it
-// price = $/chip-hr list in us-central1 (null = not public) · onDemand = sold on demand at that price; otherwise price is indicative and priceBasis says how it is sold
-// All throughput and bandwidth figures are vendor peaks and approximate.
-// domain = chips in one fast fabric · perVM = chips per VM options
-const CHIPS = [
-  { id:"gb300", name:"GB300 (B300)", short:"GB300", fam:"blackwell", series:"A4X Max · a4x-maxgpu-4g-metal", mem:279, memType:"HBM3e", bw:8000, fp8:5000, bf16:2500, price:null, onDemand:false, priceBasis:"reservation only", peakBasis:"FP8", domain:72, domainName:"NVL72 rack", perVM:"4 (bare metal)", vcpu:144, ram:960, net:3600, tag:"new", year:2026,
-    notes:"Grace Blackwell Ultra superchips, bare-metal only. 18 instances form one 72-GPU NVLink domain with about 20 TB of HBM. Reservation only." },
-  { id:"gb200", name:"GB200", short:"GB200", fam:"blackwell", series:"A4X · a4x-highgpu-4g", mem:186, memType:"HBM3e", bw:8000, fp8:4500, bf16:2250, price:null, onDemand:false, priceBasis:"reservation or DWS", peakBasis:"FP8", domain:72, domainName:"NVL72 rack", perVM:"4", vcpu:140, ram:884, net:2000, tag:"new", year:2025,
-    notes:"Two Grace CPUs (Arm) plus four B200s per VM joined by NVLink-C2C. Multi-VM NVLink to 72 GPUs. Sold via reservations and DWS; no on-demand list price." },
-  { id:"b200", name:"B200", short:"B200", fam:"blackwell", series:"A4 · a4-highgpu-8g", mem:180, memType:"HBM3e", bw:8000, fp8:4500, bf16:2250, price:16.11, onDemand:false, priceBasis:"indicative: Spot, Flex-start or reservation", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:3968, net:3600, tag:"", year:2025,
-    notes:"Eight B200 GPUs, an x86 host with 3.9 TB of RAM, and up to 3.6 Tbps of GPUDirect RDMA network bandwidth." },
-  { id:"h200", name:"H200", short:"H200", fam:"hopper", series:"A3 Ultra · a3-ultragpu-8g", mem:141, memType:"HBM3e", bw:4800, fp8:1979, bf16:989, price:10.85, onDemand:false, priceBasis:"indicative: Spot, Flex-start or reservation", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:224, ram:2952, net:3600, tag:"", year:2024,
-    notes:"Uses the Hopper architecture with 141 GB of HBM3e and 4.8 TB/s peak memory bandwidth per GPU. This increases capacity and bandwidth over H100." },
-  { id:"h100m", name:"H100 (Mega)", short:"H100 Mega", fam:"hopper", series:"A3 Mega · a3-megagpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:11.0, onDemand:false, priceBasis:"indicative: Spot, Flex-start or reservation", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:208, ram:1872, net:1800, tag:"", year:2024,
-    notes:"H100 with 1.8 Tbps of GPUDirect-TCPXO between VMs, built for multi-node training. Sold through Spot, Flex-start and reservations." },
-  { id:"h100", name:"H100 (High)", short:"H100", fam:"hopper", series:"A3 High · a3-highgpu-1g…8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4 (Spot/Flex) or 8", vcpu:208, ram:1872, net:1000, tag:"", year:2023,
-    notes:"The only 8×H100 shape with a plain on-demand price. Smaller 1/2/4-GPU shapes exist for Spot and Flex-start." },
-  { id:"h100e", name:"H100 (Edge)", short:"H100 Edge", fam:"hopper", series:"A3 Edge · a3-edgegpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:208, ram:1872, net:400, tag:"", year:2024,
-    notes:"H100s with a smaller network (400 Gbps, 600 in two regions), placed in more regions for latency-sensitive inference." },
-  { id:"a100_80", name:"A100 80 GB", short:"A100 80", fam:"ampere", series:"A2 Ultra · a2-ultragpu-1g…8g", mem:80, memType:"HBM2e", bw:2039, fp8:624, bf16:312, price:5.03, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4, 8", vcpu:96, ram:1360, net:960, tag:"", year:2021,
-    notes:"Supports INT8 Tensor Core throughput but not FP8. An 80 GB card can hold roughly 80 billion one-byte weights before runtime and cache overhead." },
-  { id:"a100_40", name:"A100 40 GB", short:"A100 40", fam:"ampere", series:"A2 Standard · a2-highgpu-1g…16g", mem:40, memType:"HBM2", bw:1555, fp8:624, bf16:312, price:3.67, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:16, domainName:"16-GPU NVSwitch (a2-megagpu)", perVM:"1, 2, 4, 8, 16", vcpu:96, ram:1360, net:384, tag:"", year:2020,
-    notes:"The a2-megagpu-16g is the only 16-GPU NVLink shape on GCP. Broadly available, on demand." },
-  { id:"rtx6000", name:"RTX PRO 6000", short:"RTX PRO 6000", fam:"pro", series:"G4 · g4-standard-48…384", mem:96, memType:"GDDR7", bw:1600, fp8:1000, bf16:500, price:4.50, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:384, ram:1440, net:400, tag:"new", year:2025,
-    notes:"Workstation-class Blackwell GPU with 96 GB of GDDR7, FP4 support, and ray-tracing hardware. Multiple cards communicate over PCIe, without NVLink." },
-  { id:"l4", name:"L4", short:"L4", fam:"pro", series:"G2 · g2-standard-4…96", mem:24, memType:"GDDR6", bw:300, fp8:242, bf16:121, price:0.70, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:96, ram:384, net:100, tag:"", year:2023,
-    notes:"Ada Lovelace GPU with 24 GB of GDDR6 and a 72 W power limit. Designed for inference, graphics, and video workloads." },
-  { id:"t4", name:"T4", short:"T4", fam:"legacy", series:"N1 + nvidia-tesla-t4", mem:16, memType:"GDDR6", bw:320, fp8:130, bf16:65, price:0.35, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"", year:2018,
-    notes:"Turing GPU with 16 GB of GDDR6. It has the lowest on-demand GPU price in this dated table and broad regional availability." },
-  { id:"v100", name:"V100", short:"V100", fam:"legacy", series:"N1 + nvidia-tesla-v100", mem:16, memType:"HBM2", bw:900, fp8:125, bf16:125, price:2.48, onDemand:true, priceBasis:"on demand", peakBasis:"FP16", domain:8, domainName:"NVLink (P2P)", perVM:"1, 2, 4, 8", vcpu:96, ram:624, net:100, tag:"", year:2017,
-    notes:"Volta was NVIDIA's first Tensor Core architecture. Current accelerators provide more memory and newer low-precision modes." },
-  { id:"p100", name:"P100", short:"P100", fam:"legacy", series:"N1 + nvidia-tesla-p100", mem:16, memType:"HBM2", bw:732, fp8:21, bf16:21, price:1.46, onDemand:true, priceBasis:"on demand", peakBasis:"FP16", domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"sunset", year:2016,
-    notes:"Pascal. No Tensor Cores. Reaches end of support in September 2026; do not start new work on it." },
-  { id:"p4", name:"P4", short:"P4", fam:"legacy", series:"N1 + nvidia-tesla-p4", mem:8, memType:"GDDR5", bw:192, fp8:22, bf16:5.5, price:0.60, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4, domainName:"PCIe", perVM:"1, 2, 4", vcpu:96, ram:624, net:100, tag:"", year:2016,
-    notes:"Pascal inference card with INT8 only. Mostly used as a virtual-workstation GPU today." },
-
-  { id:"v2", name:"TPU v2", short:"v2", fam:"tpu", series:"v2-8 … v2-512", mem:16, memType:"HBM", bw:700, fp8:45, bf16:45, price:1.50, onDemand:true, priceBasis:"on demand (pod rate)", peakBasis:"BF16", domain:512, domainName:"512-chip pod, 2D torus", perVM:"4 (v2-8) or slices", vcpu:null, ram:null, net:null, tag:"legacy", year:2017,
-    notes:"The 2017 generation has two TensorCores and 16 GB of HBM per chip. A v2-8 device contains eight TensorCores across four chips. The Cloud TPU API is no longer under active development." },
-  { id:"v3", name:"TPU v3", short:"v3", fam:"tpu", series:"v3-8 … v3-2048", mem:32, memType:"HBM2", bw:900, fp8:123, bf16:123, price:2.00, onDemand:true, priceBasis:"on demand (pod rate)", peakBasis:"BF16", domain:1024, domainName:"1,024-chip pod, 2D torus", perVM:"4 (v3-8) or slices", vcpu:null, ram:null, net:null, tag:"legacy", year:2018,
-    notes:"Liquid-cooled successor to v2 with twice the HBM. Still rentable in us-central1 and europe-west4 for legacy JAX and TensorFlow jobs." },
-  { id:"v4", name:"TPU v4", short:"v4", fam:"tpu", series:"v4-8 … v4-4096", mem:32, memType:"HBM2", bw:1200, fp8:275, bf16:275, price:3.22, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4096, domainName:"4,096-chip pod, 3D mesh (torus per qualifying slice)", perVM:"4", vcpu:null, ram:null, net:null, tag:"", year:2022,
-    notes:"First TPU with optical circuit switches: the pod is a 3D mesh, and slices of qualifying shapes can be wired as a 3D torus (or twisted torus). Two TensorCores with four MXUs each. Only in us-central2." },
-  { id:"v5e", name:"TPU v5e", short:"v5e", fam:"tpu", series:"ct5lp-hightpu-1t…8t", mem:16, memType:"HBM2", bw:819, fp8:393, bf16:197, price:1.20, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:224, ram:384, net:200, tag:"", year:2023,
-    notes:"One TensorCore per chip, 400 GB/s bidirectional ICI, and configurations from one to 256 chips." },
-  { id:"v5p", name:"TPU v5p", short:"v5p", fam:"tpu", series:"ct5p-hightpu-4t", mem:95, memType:"HBM2e", bw:2765, fp8:459, bf16:459, price:4.20, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8960, domainName:"8,960-chip pod, 3D torus", perVM:"4", vcpu:208, ram:448, net:200, tag:"", year:2023,
-    notes:"Two TensorCores, four SparseCores, and 1.2 TB/s bidirectional ICI per chip. The largest schedulable job is 6,144 chips." },
-  { id:"v6e", name:"TPU v6e Trillium", short:"Trillium", fam:"tpu", series:"ct6e-standard-1t…8t", mem:32, memType:"HBM3", bw:1638, fp8:1836, bf16:918, price:2.70, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:360, ram:1440, net:200, tag:"", year:2024,
-    notes:"One TensorCore with 256×256 MXUs and two SparseCores. The 256-chip pod uses a 2D torus." },
-  { id:"tpu7x", name:"TPU7x Ironwood", short:"Ironwood", fam:"tpu", series:"tpu7x-standard-4t", mem:192, memType:"HBM3e", bw:7380, fp8:4614, bf16:2307, price:12.00, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:9216, domainName:"9,216-chip pod, 3D torus", perVM:"4", vcpu:224, ram:960, net:400, tag:"new", year:2026,
-    notes:"GA since 31 Mar 2026. Two TensorCores plus four SparseCores; the first TPU with native FP8. A full pod holds 1.77 PB of HBM in one fabric." },
-];
-const ANNOUNCED = [
-  { name:"TPU 8t", note:"Training system announced in April 2026: 9,600 chips, about 2 PB of aggregate HBM, and 19.2 Tb/s ICI per chip. Google says Cloud availability is forthcoming." },
-  { name:"TPU 8i", note:"Inference system announced in April 2026: 384 MB of on-chip SRAM, a Collectives Acceleration Engine, and a Boardfly interconnect. Cloud availability is forthcoming." },
-];
-const REGIONS = [
-  ["GB300","A4X Max","1","US only","us-central1-b; reservation only"],
-  ["GB200","A4X","2","US + EU","us-central1, europe-west4"],
-  ["B200","A4","1–3","Selective","Spot / Flex-start / reservation"],
-  ["H200","A3 Ultra","3","APAC-heavy","asia-south1, asia-southeast1"],
-  ["H100 Mega","A3 Mega","6–8","US, EU, APAC, AU",""],
-  ["H100 High / Edge","A3 High / Edge","8–10","US, EU, APAC","Only H100 shape with on-demand"],
-  ["A100 80 GB","A2 Ultra","4–5","US, EU, APAC",""],
-  ["A100 40 GB","A2 Standard","15+","Global",""],
-  ["RTX PRO 6000","G4","20+","Global","Includes vWS variant"],
-  ["L4","G2","15+","Global","Includes vWS variant"],
-  ["T4","N1","30+","Most zones","Includes vWS variant"],
-  ["V100 / P100 / P4","N1","8–10 each","US, EU, APAC","P100 end of support Sep 2026"],
-  ["v5e / v6e","ct5lp / ct6e","several","US, EU, APAC","AI zones added Apr 2026"],
-  ["v5p / Ironwood","ct5p / tpu7x","few","US-centred","Pod slices via reservation"],
-  ["v4","tpu-v4-podslice","1","us-central2 only","Still on demand at $3.22/chip-hr"],
-  ["v2 / v3","v2-8 … v3-2048","3–5","US + EU, one APAC","Legacy; v2 via Cloud TPU API only"],
-];
-
-/* =========================================================
-   helpers
-   ========================================================= */
-const $ = s => document.querySelector(s);
-const tip = $("#tip");
-function showTip(html, x, y) { tip.innerHTML = html; tip.style.opacity = 1; const w = tip.offsetWidth, h = tip.offsetHeight; tip.style.left = Math.min(x + 14, innerWidth - w - 8) + "px"; tip.style.top = Math.max(8, Math.min(y + 14, innerHeight - h - 8)) + "px"; }
-function hideTip() { tip.style.opacity = 0; }
-const fmtTF = v => v >= 1000 ? (v/1000).toFixed(v >= 10000 ? 0 : 1) + " PF" : v + " TF";
-const fmtBW = v => v >= 1000 ? (v/1000).toFixed(v % 1000 ? 2 : 1) + " TB/s" : v + " GB/s";
-const fmtMem = v => v >= 1000 ? (v/1000).toFixed(1) + " TB" : v + " GB";
-const fmt$ = v => v == null ? "n/a" : "$" + v.toFixed(2);
-const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-function fitCanvas(c) { const r = c.getBoundingClientRect(); const dpr = devicePixelRatio || 1; c.width = r.width * dpr; c.height = r.height * dpr; const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w: r.width, h: r.height }; }
-
-/* =========================================================
-   HERO — chip field
-   ========================================================= */
-(function hero() {
-  const c = $("#hero-canvas"); let st = fitCanvas(c); let tiles = []; let hover = null;
-  function layout() {
-    st = fitCanvas(c); tiles = [];
-    const pad = 14, W = st.w - pad * 2, Hh = st.h - pad * 2; const sorted = [...CHIPS].sort((a, b) => b.mem - a.mem);
-    // pack rows left-to-right; if the packed height overflows, shrink the scale and try again
-    let scale = Math.sqrt(W * Hh / 2600);
-    for (let tries = 0; tries < 40; tries++) {
-      tiles = []; let x = pad, y = pad, rowH = 0;
-      sorted.forEach(ch => { const s = Math.max(12, Math.sqrt(ch.mem) * scale); if (x + s > st.w - pad) { x = pad; y += rowH + 6; rowH = 0; } tiles.push({ ch, x, y, s, ph: Math.random() * 6.28 }); x += s + 6; rowH = Math.max(rowH, s); });
-      if (y + rowH <= st.h - pad) break; scale *= 0.94;
-    }
-    c.__tiles = tiles;
-  }
-  layout();
-  function draw(t) {
-    const { ctx, w, h } = st; ctx.clearRect(0, 0, w, h);
-    tiles.forEach(tl => { const f = FAM[tl.ch.fam]; const pulse = reduced ? 0 : Math.sin(t / 900 + tl.ph) * 0.06; ctx.globalAlpha = 0.75 + pulse * 2; ctx.fillStyle = f.hex; ctx.fillRect(tl.x, tl.y, tl.s, tl.s); ctx.globalAlpha = 1;
-      if (tl.s > 40) { ctx.fillStyle = "#fff"; ctx.font = "600 11px 'JetBrains Mono', monospace"; const label = ctx.measureText(tl.ch.short).width <= tl.s - 10 ? tl.ch.short : tl.ch.short.split(" ")[0]; if (ctx.measureText(label).width <= tl.s - 10) ctx.fillText(label, tl.x + 6, tl.y + 15); }
-      if (hover === tl) { ctx.strokeStyle = cssVar("--ink"); ctx.lineWidth = 2; ctx.strokeRect(tl.x + 1, tl.y + 1, tl.s - 2, tl.s - 2); } });
-    if (!reduced) requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-  c.addEventListener("mousemove", e => { const r = c.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top; hover = tiles.find(tl => mx >= tl.x && mx <= tl.x + tl.s && my >= tl.y && my <= tl.y + tl.s) || null; if (hover) showTip(`<b>${hover.ch.name}</b>${FAM[hover.ch.fam].name}<br>${fmtMem(hover.ch.mem)} ${hover.ch.memType} · ≈${fmtTF(hover.ch.fp8)} ${hover.ch.peakBasis}`, e.clientX, e.clientY); else hideTip(); if (reduced) draw(0); });
-  c.addEventListener("mouseleave", () => { hover = null; hideTip(); if (reduced) draw(0); });
-  addEventListener("resize", () => { layout(); if (reduced) draw(0); });
-})();
-
-/* =========================================================
-   ANATOMY animations
-   ========================================================= */
-(function anatomy() {
-  const g = $("#anat-gpu"), tcv = $("#anat-tpu");
-  let gs = fitCanvas(g), ts = fitCanvas(tcv);
-  addEventListener("resize", () => { gs = fitCanvas(g); ts = fitCanvas(tcv); if (reduced) { drawGPU(0); drawTPU(0); } });
-  // GPU: grid of SMs; warps (small bars) land on random free SMs and drain.
-  const SMS = 48; const sm = Array.from({ length: SMS }, () => ({ busy: Math.random() < 0.35 ? Math.random() * 1.2 : 0, hue: 0 }));
-  function drawGPU(t) {
-    const { ctx, w, h } = gs; ctx.clearRect(0, 0, w, h);
-    const cols = 12, rows = 4, cw = (w - 20) / cols, chh = (h - 20) / rows;
-    if (!reduced) for (let k = 0; k < 2; k++) { const i = Math.floor(Math.random() * SMS); if (sm[i].busy <= 0 && Math.random() < 0.5) { sm[i].busy = 0.5 + Math.random() * 1.2; sm[i].hue = Math.random(); } }
-    sm.forEach((s, i) => { const x = 10 + (i % cols) * cw, y = 10 + Math.floor(i / cols) * chh; ctx.fillStyle = cssVar("--bg-3"); ctx.fillRect(x + 2, y + 2, cw - 4, chh - 4);
-      if (s.busy > 0) { ctx.fillStyle = cssVar("--gpu"); ctx.globalAlpha = 0.35 + 0.6 * Math.min(1, s.busy); ctx.fillRect(x + 2, y + 2, (cw - 4) * Math.min(1, s.busy), chh - 4); ctx.globalAlpha = 1; s.busy -= 0.02; }
-      ctx.strokeStyle = cssVar("--line-2"); ctx.strokeRect(x + 2.5, y + 2.5, cw - 5, chh - 5); });
-    ctx.fillStyle = cssVar("--ink-3"); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillText("48 of 132 SMs · warps arriving at random", 12, h - 4);
-  }
-  // TPU: NxN systolic array, diagonal wavefront of activity.
-  const N = 16;
-  function drawTPU(t) {
-    const { ctx, w, h } = ts; ctx.clearRect(0, 0, w, h);
-    const size = Math.min((w - 60) / N, (h - 40) / N); const ox = 40, oy = 14; const wave = reduced ? N : ((t / 60) % (N * 2.2));
-    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const d = i + j; const a = Math.max(0, 1 - Math.abs(d - wave) / 3); ctx.fillStyle = cssVar("--bg-3"); ctx.fillRect(ox + j * size + 1, oy + i * size + 1, size - 2, size - 2); if (a > 0) { ctx.fillStyle = cssVar("--tpu"); ctx.globalAlpha = a; ctx.fillRect(ox + j * size + 1, oy + i * size + 1, size - 2, size - 2); ctx.globalAlpha = 1; } }
-    // input arrows
-    ctx.fillStyle = cssVar("--ink-3"); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.save(); ctx.translate(12, oy + N * size / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("weights ▶", -28, 0); ctx.restore(); ctx.fillText("activations ▼", ox, oy + N * size + 14); ctx.fillText("16×16 slice of a 256×256 MXU", ox + 110, oy + N * size + 14);
-  }
-  function loop(t) { drawGPU(t); drawTPU(t); if (!reduced) requestAnimationFrame(loop); }
-  drawGPU(0); drawTPU(0); requestAnimationFrame(loop);
-})();
-
-/* =========================================================
-   LINEUP cards + detail
-   ========================================================= */
-(function lineup() {
-  const root = $("#families"); const maxMem = d3.max(CHIPS, d => d.mem); let selected = null;
-  const order = ["blackwell", "hopper", "ampere", "pro", "legacy", "tpu"];
-  order.forEach(fk => {
-    const f = FAM[fk]; const row = document.createElement("div"); row.className = "family-row";
-    row.innerHTML = `<div class="fam-head"><span class="bar" style="background:${f.color}"></span><h3>${f.name}</h3><span class="small">${f.blurb}</span></div><div class="cards"></div>`;
-    const cards = row.querySelector(".cards");
-    CHIPS.filter(c => c.fam === fk).forEach(ch => {
-      const b = document.createElement("button"); b.className = "chip"; b.style.setProperty("--c", f.color); b.setAttribute("aria-pressed", "false"); b.dataset.id = ch.id;
-      const pill = ch.tag === "new" ? `<span class="pill new">2025–26</span>` : ch.tag === "sunset" ? `<span class="pill sunset">EOS Sep 2026</span>` : ch.tag === "legacy" ? `<span class="pill sunset">legacy</span>` : "";
-      b.innerHTML = `${pill}<div class="name">${ch.name}</div><div class="series">${ch.series.split(" · ")[0]}</div>
-        <div class="stat"><span>Memory</span><b class="num">${fmtMem(ch.mem)} ${ch.memType}</b></div>
-        <div class="membar"><i style="width:${(ch.mem / maxMem) * 100}%"></i></div>
-        <div class="stat"><span>Dense ${ch.peakBasis} peak</span><b class="num">≈ ${fmtTF(ch.fp8)}</b></div>
-        <div class="stat"><span>${ch.price == null ? "Price" : ch.onDemand ? "On demand" : "Indicative"}</span><b class="num">${ch.price == null ? "reservation only" : fmt$(ch.price) + "/hr"}</b></div>`;
-      b.addEventListener("click", () => select(ch, b)); cards.appendChild(b);
-    });
-    if (fk === "tpu") ANNOUNCED.forEach(a => { const d = document.createElement("div"); d.className = "chip ghost"; d.innerHTML = `<span class="pill soon">announced</span><div class="name">${a.name}</div><div class="series">not yet rentable</div><div class="small" style="margin-top:4px">${a.note}</div>`; cards.appendChild(d); });
-    root.appendChild(row);
-  });
-  const det = $("#detail");
-  function select(ch, btn) {
-    document.querySelectorAll(".chip[aria-pressed]").forEach(x => x.setAttribute("aria-pressed", "false"));
-    if (selected === ch.id) { selected = null; det.hidden = true; return; }
-    selected = ch.id; btn.setAttribute("aria-pressed", "true"); const f = FAM[ch.fam];
-    det.hidden = false; det.innerHTML = `
-      <div><div class="context-line" style="color:${f.color}">${f.name}</div><h3>${ch.name}</h3><p class="good-for">${ch.notes}</p>
-        <dl class="kv"><dt>Machine series</dt><dd class="mono">${ch.series}</dd><dt>Chips per VM</dt><dd>${ch.perVM}</dd><dt>Fast domain</dt><dd>${ch.domain.toLocaleString()} chips · ${ch.domainName}</dd><dt>Host (largest shape)</dt><dd>${ch.vcpu == null ? "not published for this generation" : `${ch.vcpu} vCPU · ${fmtMem(ch.ram)} RAM · ${ch.net >= 1000 ? (ch.net/1000) + " Tbps" : ch.net + " Gbps"} host network`}</dd><dt>Pricing</dt><dd>${ch.price == null ? "no public price; " : fmt$(ch.price) + " per chip-hour, "}${ch.priceBasis}</dd><dt>First on GCP</dt><dd>${ch.year}</dd></dl>
-        <p class="small" style="margin-top:8px">Throughput and bandwidth are vendor peaks, approximate; dense, no sparsity.</p></div>
-      <div><svg id="detail-bars" width="100%" height="200" viewBox="0 0 380 200" role="img" aria-label="Bars comparing this chip's memory, bandwidth and throughput to the lineup maximum"></svg><div class="small">Filled bar = this chip; hairline = highest in the lineup.</div></div>`;
-    const svg = d3.select("#detail-bars"); const rows = [["Memory / chip", ch.mem, d3.max(CHIPS, d => d.mem), fmtMem], ["Memory bandwidth", ch.bw, d3.max(CHIPS, d => d.bw), fmtBW], ["Dense " + ch.peakBasis + " peak", ch.fp8, d3.max(CHIPS, d => d.fp8), fmtTF], ["Dense BF16", ch.bf16, d3.max(CHIPS, d => d.bf16), fmtTF], ["$ / chip-hour", ch.price || 0, d3.max(CHIPS, d => d.price), v => ch.price == null ? "not public" : fmt$(v)]];
-    const x = d3.scaleLinear().domain([0, 1]).range([130, 370]);
-    const g = svg.selectAll("g").data(rows).join("g").attr("transform", (d, i) => `translate(0,${18 + i * 38})`);
-    g.append("text").attr("x", 0).attr("y", 12).text(d => d[0]);
-    g.append("rect").attr("x", x(0)).attr("y", 2).attr("width", x(1) - x(0)).attr("height", 12).attr("fill", "none").attr("stroke", cssVar("--line-2"));
-    g.append("rect").attr("x", x(0)).attr("y", 2).attr("width", 0).attr("height", 12).attr("fill", f.hex).transition().duration(reduced ? 0 : 400).attr("width", d => x(d[1] / d[2]) - x(0));
-    g.append("text").attr("x", x(0)).attr("y", 28).attr("fill", cssVar("--ink")).style("font-family", "'JetBrains Mono', monospace").style("font-size", "11px").text(d => d[3](d[1]));
-    det.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "nearest" });
-  }
-})();
-
-/* =========================================================
-   SCATTER — memory vs compute
-   ========================================================= */
-(function scatter() {
-  const svg = d3.select("#scatter"); const W = 900, H = 480, m = { t: 20, r: 30, b: 50, l: 70 };
-  let prec = "fp8", sizeBy = "none";
-  const x = d3.scaleLog().domain([6, 400]).range([m.l, W - m.r]);
-  const y = d3.scaleLog().range([H - m.b, m.t]);
-  const legend = $("#legend"); ["blackwell", "hopper", "ampere", "pro", "legacy", "tpu"].forEach(k => { const s = document.createElement("span"); s.style.setProperty("--c", FAM[k].color); s.textContent = FAM[k].name; legend.appendChild(s); });
-  const gGrid = svg.append("g").attr("class", "grid"), gX = svg.append("g").attr("class", "axis"), gY = svg.append("g").attr("class", "axis"), gPts = svg.append("g"), gLab = svg.append("g");
-  svg.append("text").attr("x", (m.l + W - m.r) / 2).attr("y", H - 10).attr("text-anchor", "middle").text("Memory per chip (GB, log)");
-  const yl = svg.append("text").attr("transform", `translate(16,${(m.t + H - m.b) / 2}) rotate(-90)`).attr("text-anchor", "middle");
-  const r = d => sizeBy === "price" ? (d.price == null ? 6 : 4 + Math.sqrt(d.price) * 3.2) : 7;
-  // label offsets to avoid collisions
-  const off = { gb300: [8, -8], gb200: [-42, -8], b200: [8, 14], h200: [8, 2], h100m: [-74, 2], h100: [8, -8], h100e: [8, 14], a100_80: [8, -8], a100_40: [8, 2], rtx6000: [8, 2], l4: [8, 2], t4: [8, -7], v100: [-42, 5], p100: [8, 2], p4: [8, 2], v5e: [-36, -8], v5p: [8, 12], v6e: [8, -6], tpu7x: [8, 2], v4: [8, 10], v3: [8, 4], v2: [8, 10] };
-  function render() {
-    const key = prec; y.domain([4, 8000]);
-    gGrid.selectAll("line").data(y.ticks(6)).join("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
-    gX.attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([8, 16, 32, 64, 128, 256]).tickFormat(d => d));
-    gY.attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([10, 100, 1000, 5000]).tickFormat(d => d >= 1000 ? d / 1000 + " PF" : d + " TF"));
-    yl.text(prec === "fp8" ? "Peak dense low-precision throughput, FP8 / INT8 / FP16 / BF16 as marked (log, approx.)" : "Peak dense BF16 / FP16 throughput (log, approx.)");
-    const pts = gPts.selectAll("circle").data(CHIPS, d => d.id).join(enter => enter.append("circle").attr("cx", d => x(d.mem)).attr("cy", d => y(d[key])).attr("r", 0));
-    pts.attr("fill", d => FAM[d.fam].hex).attr("stroke", cssVar("--bg-2")).attr("stroke-width", 2).style("cursor", "pointer")
-      .on("mousemove", (e, d) => showTip(`<b>${d.name}</b>${FAM[d.fam].name} · ${d.series.split(" · ")[0]}<br>${fmtMem(d.mem)} ${d.memType} · ${fmtBW(d.bw)}<br>≈${fmtTF(d.fp8)} ${d.peakBasis} · ≈${fmtTF(d.bf16)} BF16<br>${d.price == null ? "reservation only" : fmt$(d.price) + " / chip-hr, " + d.priceBasis}`, e.clientX, e.clientY)).on("mouseleave", hideTip)
-      .transition().duration(reduced ? 0 : 500).attr("cx", d => x(d.mem)).attr("cy", d => y(d[key])).attr("r", r);
-    gLab.selectAll("text").data(CHIPS, d => d.id).join("text").attr("font-size", 11).attr("fill", cssVar("--ink-2")).text(d => d.short)
-      .transition().duration(reduced ? 0 : 500).attr("x", d => x(d.mem) + off[d.id][0]).attr("y", d => y(d[key]) + off[d.id][1] + 4);
-  }
-  render();
-  document.querySelectorAll("[data-prec]").forEach(b => b.addEventListener("click", () => { prec = b.dataset.prec; document.querySelectorAll("[data-prec]").forEach(o => o.setAttribute("aria-pressed", o === b)); render(); }));
-  document.querySelectorAll("[data-size]").forEach(b => b.addEventListener("click", () => { sizeBy = b.dataset.size; document.querySelectorAll("[data-size]").forEach(o => o.setAttribute("aria-pressed", o === b)); render(); }));
-})();
-
-/* =========================================================
-   ROOFLINE
-   ========================================================= */
-(function roofline() {
-  const sel = $("#roof-chip"); CHIPS.forEach(c => { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.appendChild(o); }); sel.value = "h200";
-  const ai = $("#roof-ai"), aiOut = $("#roof-ai-out"), verdict = $("#roof-verdict"), preset = $("#roof-preset");
-  const svg = d3.select("#roofsvg"); const W = 900, H = 380, m = { t: 20, r: 30, b: 50, l: 70 };
-  const x = d3.scaleLog().domain([1, 10000]).range([m.l, W - m.r]); const y = d3.scaleLog().domain([1, 10000]).range([H - m.b, m.t]);
-  svg.append("g").attr("class", "grid").selectAll("line").data([10, 100, 1000]).join("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([1, 10, 100, 1000, 10000]).tickFormat(d3.format("~s")));
-  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([1, 10, 100, 1000, 10000]).tickFormat(d => d >= 1000 ? d / 1000 + " PF" : d + " TF"));
-  svg.append("text").attr("x", (m.l + W - m.r) / 2).attr("y", H - 10).attr("text-anchor", "middle").text("Arithmetic intensity (FLOP per byte, log)");
-  svg.append("text").attr("transform", `translate(16,${(m.t + H - m.b) / 2}) rotate(-90)`).attr("text-anchor", "middle").text("Attainable throughput (log)");
-  const roof = svg.append("path").attr("fill", "none").attr("stroke-width", 2.5), ridge = svg.append("line").attr("stroke-dasharray", "3 4"), ridgeT = svg.append("text").attr("font-size", 11), zoneL = svg.append("text").attr("font-size", 11).attr("fill", cssVar("--ink-3")), zoneR = svg.append("text").attr("font-size", 11).attr("fill", cssVar("--ink-3"));
-  const dropL = svg.append("line").attr("stroke-dasharray", "2 3"), dot = svg.append("circle").attr("r", 7).attr("stroke-width", 2), dotT = svg.append("text").attr("font-size", 12).attr("font-weight", 600);
-  // decode workload markers
-  const marks = [[2, "decode, batch 1"], [64, "decode, batch 64"], [1500, "training / prefill"]];
-  svg.append("g").selectAll("text").data(marks).join("text").attr("x", d => x(d[0])).attr("y", H - m.b + 32).attr("text-anchor", "middle").attr("font-size", 10).attr("fill", cssVar("--ink-3")).text(d => d[1]);
-  svg.append("g").selectAll("line").data(marks).join("line").attr("x1", d => x(d[0])).attr("x2", d => x(d[0])).attr("y1", H - m.b).attr("y2", H - m.b + 20).attr("stroke", cssVar("--line-2"));
-  function render() {
-    const c = CHIPS.find(d => d.id === sel.value); const f = FAM[c.fam]; const peak = c.fp8; const bwTB = c.bw / 1000; // TFLOPS, TB/s
-    const rp = peak / bwTB; const I = Math.pow(10, +ai.value); aiOut.textContent = I >= 100 ? Math.round(I) : I.toFixed(1);
-    const yAt = i => Math.min(peak, i * bwTB);
-    roof.attr("stroke", f.hex).attr("d", d3.line()([[x(1), y(Math.max(1, yAt(1)))], [x(rp), y(peak)], [x(10000), y(peak)]]));
-    ridge.attr("x1", x(rp)).attr("x2", x(rp)).attr("y1", y(peak)).attr("y2", H - m.b).attr("stroke", cssVar("--ink-3"));
-    ridgeT.attr("x", x(rp) + 5).attr("y", y(peak) - 6).attr("fill", cssVar("--ink-2")).text(`ridge ≈ ${Math.round(rp)} FLOP/B`);
-    zoneL.attr("x", x(rp) - 6).attr("y", m.t + 14).attr("text-anchor", "end").text("memory-bound ◀");
-    zoneR.attr("x", x(rp) + 6).attr("y", m.t + 14).text("▶ compute-bound");
-    const att = yAt(I); dot.attr("cx", x(I)).attr("cy", y(Math.max(1, att))).attr("fill", cssVar("--ink")).attr("stroke", cssVar("--bg-2"));
-    dropL.attr("x1", x(I)).attr("x2", x(I)).attr("y1", y(Math.max(1, att))).attr("y2", H - m.b).attr("stroke", cssVar("--ink-3"));
-    dotT.attr("x", x(I) + 12).attr("y", y(Math.max(1, att)) + 4).attr("fill", cssVar("--ink")).text(`${fmtTF(Math.round(att))} attainable`);
-    const pct = Math.round(att / peak * 100); const bound = I < rp ? "memory" : "compute";
-    verdict.innerHTML = `<b>${c.name}</b>: about ${fmtTF(peak)} dense ${c.peakBasis} over ${fmtBW(c.bw)} gives a ridge at about <b>${Math.round(rp)} FLOP/byte</b>. At ${aiOut.textContent} FLOP/byte your workload is <b>${bound}-bound</b> and can use at most <b>${pct}%</b> of the chip's peak${bound === "memory" ? ". Bigger batches, quantised weights or a chip with more bandwidth per FLOP would help." : ". Higher compute throughput can raise this bound."}`;
-    preset.textContent = I < 8 ? "Typical of low-batch decoding: many weight bytes moved per generated token." : I < 300 ? "Moderate arithmetic intensity: batching and cache reuse can move a workload into this range." : "High arithmetic intensity: compute-heavy training, prefill, or large-batch kernels can reach this range.";
-  }
-  sel.addEventListener("change", render); ai.addEventListener("input", render); render();
-})();
-
-/* =========================================================
-   TOPOLOGY diagrams
-   ========================================================= */
-(function topology() {
-  const specs = [
-    { title: "8-GPU NVSwitch domain", sub: "A3 and A4 connect eight GPUs through NVSwitch. Larger jobs also use the VM network.", draw: drawSwitch, n: 8, color: "--gpu" },
-    { title: "NVL72 rack (A4X, A4X Max)", sub: "18 instances × 4 GPUs form one 72-GPU NVLink domain.", draw: drawNVL72, color: "--gpu" },
-    { title: "2D torus pod (v5e, v6e)", sub: "16×16 = 256 chips. Each chip links to four neighbours; edges wrap around.", draw: draw2D, color: "--tpu" },
-    { title: "3D torus pod (v5p, Ironwood)", sub: "TPU7x pods contain up to 9,216 chips. Supported slices use six-neighbor 3D torus links.", draw: draw3D, color: "--tpu" },
-  ];
-  const root = $("#topos"); const items = [];
-  specs.forEach(s => { const d = document.createElement("div"); d.className = "topo"; d.innerHTML = `<h4>${s.title}</h4><canvas aria-label="${s.title} diagram"></canvas><span class="small">${s.sub}</span>`; root.appendChild(d); items.push({ s, c: d.querySelector("canvas") }); });
-  function drawSwitch(ctx, w, h, col, t) { const cx = w / 2, cy = h / 2, R = Math.min(w, h) * .36; ctx.fillStyle = cssVar("--bg-3"); ctx.fillRect(cx - 26, cy - 10, 52, 20); ctx.fillStyle = cssVar("--ink-3"); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.fillText("NVSwitch", cx, cy + 3);
-    for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R; ctx.strokeStyle = col; ctx.globalAlpha = .35 + .35 * Math.sin(t / 400 + i); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.fillRect(x - 8, y - 8, 16, 16); } ctx.textAlign = "left"; }
-  function drawNVL72(ctx, w, h, col, t) { const cols = 18, rows = 4, cw = (w - 30) / cols, rh = (h - 44) / rows; ctx.strokeStyle = cssVar("--line-2"); ctx.strokeRect(10.5, 10.5, w - 21, h - 40); for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const x = 15 + c * cw, y = 14 + r * rh; ctx.fillStyle = col; ctx.globalAlpha = .55 + .35 * Math.sin(t / 500 + c * .4); ctx.fillRect(x, y, cw - 3, rh - 3); ctx.globalAlpha = 1; }
-    ctx.fillStyle = cssVar("--ink-3"); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillText("one column = one VM (4 GPUs) · 18 columns = 72 GPUs on NVLink", 12, h - 8); }
-  function draw2D(ctx, w, h, col, t) { const n = 12, s = Math.min((w - 40) / n, (h - 40) / n), ox = (w - n * s) / 2 + s / 2, oy = 16 + s / 2; ctx.strokeStyle = cssVar("--line-2"); ctx.lineWidth = 1;
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const x = ox + j * s, y = oy + i * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (j < n - 1 ? s : 0), y); ctx.moveTo(x, y); ctx.lineTo(x, y + (i < n - 1 ? s : 0)); ctx.stroke(); }
-    // wraparound arcs
-    ctx.strokeStyle = col; ctx.globalAlpha = .5; for (let i = 0; i < n; i += 3) { const y = oy + i * s; ctx.beginPath(); ctx.moveTo(ox, y); ctx.bezierCurveTo(ox - 14, y - 8, ox + (n - 1) * s + 14, y - 8, ox + (n - 1) * s, y); ctx.stroke(); } ctx.globalAlpha = 1;
-    const wave = (t / 500) % (n * 2); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const a = Math.max(0, 1 - Math.abs(i + j - wave) / 2.5); ctx.fillStyle = col; ctx.globalAlpha = .35 + .65 * a; ctx.beginPath(); ctx.arc(ox + j * s, oy + i * s, 3, 0, 6.283); ctx.fill(); } ctx.globalAlpha = 1; }
-  function draw3D(ctx, w, h, col, t) { const n = 5, s = Math.min(w, h) / (n * 1.9); const cx = w / 2, cy = h / 2 + 8; const ang = reduced ? .6 : t / 4000; const pts = []; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) for (let k = 0; k < n; k++) { const X = (i - (n - 1) / 2) * s, Y = (j - (n - 1) / 2) * s, Z = (k - (n - 1) / 2) * s; const xr = X * Math.cos(ang) - Z * Math.sin(ang), zr = X * Math.sin(ang) + Z * Math.cos(ang); const yr = Y * .85 - zr * .35; pts.push({ x: cx + xr, y: cy + yr, z: zr, i, j, k }); }
-    ctx.strokeStyle = cssVar("--line-2"); ctx.lineWidth = .6; const idx = (i, j, k) => (i * n + j) * n + k; pts.forEach(p => { if (p.i < n - 1) { const q = pts[idx(p.i + 1, p.j, p.k)]; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); } if (p.j < n - 1) { const q = pts[idx(p.i, p.j + 1, p.k)]; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); } if (p.k < n - 1) { const q = pts[idx(p.i, p.j, p.k + 1)]; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); } });
-    pts.sort((a, b) => a.z - b.z).forEach(p => { ctx.fillStyle = col; ctx.globalAlpha = .45 + .55 * (p.z + n * s / 2) / (n * s); ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, 6.283); ctx.fill(); }); ctx.globalAlpha = 1;
-    ctx.fillStyle = cssVar("--ink-3"); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillText("5×5×5 = 125 of 9,216 chips; wraparound links omitted", 8, h - 6); }
-  function loop(t) { items.forEach(it => { const st = fitCanvas(it.c); it.s.draw(st.ctx, st.w, st.h, cssVar(it.s.color), reduced ? 0 : t); }); if (!reduced) requestAnimationFrame(loop); }
-  requestAnimationFrame(loop);
-})();
-
-/* =========================================================
-   FIT calculator
-   ========================================================= */
-(function fit() {
-  const P = $("#fit-params"), Po = $("#fit-params-out"), prec = $("#fit-prec"), kv = $("#fit-kv"), kvo = $("#fit-kv-out"), mode = $("#fit-mode"), tb = $("#fit-table tbody");
-  function render() {
-    const params = Math.pow(10, +P.value); Po.textContent = params >= 100 ? Math.round(params) : params.toFixed(1); kvo.textContent = kv.value;
-    const bytes = mode.value === "train" ? 16 : +prec.value; const need = params * bytes * (1 + kv.value / 100); // GB (1e9 params × bytes)
-    $("#fit-need").textContent = need >= 1000 ? (need / 1000).toFixed(2) + " TB" : Math.round(need) + " GB";
-    const rows = CHIPS.map(c => { const n = Math.ceil(need / (c.mem * 0.9)); const fits = n <= c.domain; const cost = c.price == null ? null : n * c.price; return { c, n, fits, cost }; });
-    const priced = rows.filter(r => r.cost != null && r.fits).sort((a, b) => a.cost - b.cost); const cheap = priced.find(r => r.c.onDemand); const fewest = rows.filter(r => r.fits).sort((a, b) => a.n - b.n)[0];
-    $("#fit-cheap").innerHTML = cheap ? `${cheap.c.name} <span class="small">· ${cheap.n} chip${cheap.n > 1 ? "s" : ""} · ${fmt$(cheap.cost)}/hr</span>` : "nothing in one fast domain";
-    $("#fit-fewest").innerHTML = fewest ? `${fewest.n} × ${fewest.c.name}` : "–";
-    const maxCost = d3.max(priced, r => r.cost) || 1;
-    tb.innerHTML = rows.sort((a, b) => (a.cost ?? 1e9) - (b.cost ?? 1e9)).map(r => `<tr class="${r.fits ? "" : "dim"}"><td><span class="sw" style="background:${FAM[r.c.fam].hex}"></span>${r.c.name}</td><td class="n">${fmtMem(r.c.mem)}</td><td class="n">${r.n.toLocaleString()}</td><td>${r.fits ? (r.n === 1 ? "yes, one chip" : "yes, " + r.c.domainName) : "no: needs " + r.n.toLocaleString() + " > " + r.c.domain.toLocaleString() + " in " + r.c.domainName}</td><td class="n">${r.cost == null ? "n/a" : fmt$(r.cost) + (r.c.onDemand ? "" : " *")}</td><td>${r.cost == null || !r.fits ? "" : `<span class="fitbar" style="--c:${FAM[r.c.fam].hex};width:${Math.max(3, r.cost / maxCost * 160)}px"></span>`}</td></tr>`).join("");
-  }
-  [P, prec, kv, mode].forEach(el => el.addEventListener("input", render)); render();
-})();
-
-/* =========================================================
-   REGION table
-   ========================================================= */
-$("#region-table tbody").innerHTML = REGIONS.map(r => `<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="small">${r[4]}</td></tr>`).join("");
-
-/* =========================================================
-   TOC active state
-   ========================================================= */
-(function toc() {
-  const links = [...document.querySelectorAll("nav.toc a")]; const secs = links.map(a => document.querySelector(a.getAttribute("href")));
-  const io = new IntersectionObserver(es => { es.forEach(e => { if (e.isIntersecting) { links.forEach(l => l.classList.toggle("active", l.getAttribute("href") === "#" + e.target.id)); } }); }, { rootMargin: "-30% 0px -60% 0px" });
-  secs.forEach(s => io.observe(s));
-})();
-</script>
+<script src="app.js"></script>
 </body>
 </html>
