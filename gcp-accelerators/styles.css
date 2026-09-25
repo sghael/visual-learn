@@ -149,6 +149,8 @@ td.n, th.n { text-align: right; }
 .label { font-family: var(--sans); font-size: 12.5px; fill: var(--ink); }
 .label.muted { fill: var(--ink-2); }
 .annot { font-family: var(--serif); font-style: italic; font-size: 13.5px; fill: var(--ink-2); }
+/* a paper-colored outline keeps a label legible where it crosses a gridline or guide */
+.halo { paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
 
 /* ---------- top bar: back to the collection, sections, reading progress ---------- */
 .topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }

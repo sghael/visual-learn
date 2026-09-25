@@ -319,12 +319,12 @@ function seg(group, onPick) {
     if (bound === "memory") {
       // right of the dot sits under the slope; if there is no room, go above-left of the dot, over the slope
       const lbl = `${fmtT(att)} TFLOPS, ${pct} of peak`, room = W - m.r - px > lbl.length * 6.9 + 12;
-      S(svg, "text", { class: "label", "font-weight": 600, x: room ? px + 10 : px - 8, y: room ? py + 4 : py - 10, "text-anchor": room ? "start" : "end" }, lbl);
+      S(svg, "text", { class: "label halo", "font-weight": 600, x: room ? px + 10 : px - 8, y: room ? py + 16 : py - 10, "text-anchor": room ? "start" : "end" }, lbl);
     } else {
       // on the flat roof: centered under the dot, kept right of the ridge
       const lbl = `${pct} of peak`, w = lbl.length * 6.9;
       const cx = Math.max(x(rp) + 6 + w / 2, Math.min(px, W - m.r - w / 2));
-      S(svg, "text", { class: "label", "font-weight": 600, x: cx, y: py + 20, "text-anchor": "middle" }, lbl);
+      S(svg, "text", { class: "label halo", "font-weight": 600, x: cx, y: py + 20, "text-anchor": "middle" }, lbl);
     }
 
     out.textContent = fmtI(I);
