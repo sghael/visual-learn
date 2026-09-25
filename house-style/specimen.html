@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>House style specimen · Visual Learn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
+<style>
+  /* page-specific */
+  .swatch { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 1px; vertical-align: baseline; margin-right: 0.25em; }
+  .multiples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; }
+  .multiples h4 { font: 600 0.8125rem var(--sans); margin: 0 0 0.3rem; }
+  @media (max-width: 40rem) { .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">House style specimen</span>
+    <nav aria-label="Sections">
+      <a href="#memory" aria-current="true">Weight memory</a>
+      <a href="#grid">The grid</a>
+      <a href="#ste">Surrogate gradients</a>
+      <a href="#lab">Training lab</a>
+      <a href="#recipes">Published recipes</a>
+    </nav>
+  </div>
+  <div class="progress" style="width: 32%"></div>
+</header>
+
+<main class="page">
+  <h1>Quantization-aware training</h1>
+  <p class="subtitle">How a network learns to live on a coarse grid of numbers</p>
+  <p class="lede">A 70-billion-parameter model needs about 140 GB for its weights in 16-bit form and about 35 GB at 4 bits. Rounding the weights after training loses accuracy. Quantization-aware training rounds them during training, so the optimizer can compensate.</p>
+  <p class="meta">A specimen of every pattern in <code>base.css</code>. The text is sample content from the quantization explainer.</p>
+
+  <section id="memory">
+    <h2>Weight memory</h2>
+    <p>A bf16 weight takes two bytes. A packed 4-bit weight takes half a byte, plus a small overhead for the scales that map integers back to real values.<span class="sn-ref"></span><span class="sidenote">With one bf16 scale per group of 128 weights the overhead is 16 bits / 128 = 0.125 bits per weight, so “4-bit” storage is about 4.13 bits in practice.</span> The weights are not the whole bill: activations, the KV cache and the runtime also need memory.</p>
+
+    <figure class="fig" id="fig-mem">
+      <div class="controls">
+        <span class="control"><span class="label">Model size</span>
+          <span class="seg" role="group" aria-label="Model size">
+            <button type="button" aria-pressed="false">8B</button><button type="button" aria-pressed="false">27B</button><button type="button" aria-pressed="true">70B</button><button type="button" aria-pressed="false">405B</button>
+          </span>
+        </span>
+      </div>
+      <div class="graphic">
+        <svg viewBox="0 0 592 170" role="img" aria-label="Weight memory for a 70B model: 140 GB in bf16, 70 GB in int8, 35 GB in int4">
+          <g class="grid"><line x1="360" x2="360" y1="8" y2="150"/></g>
+          <text class="annot" x="364" y="18">80 GB H100</text>
+          <g>
+            <text class="label" x="0" y="38">bf16</text><rect x="70" y="24" width="508" height="20" fill="var(--c-grey)"/><text class="label" x="574" y="38" text-anchor="end" fill="#fff" style="fill:#fff">140 GB</text>
+            <text class="label" x="0" y="84">int8</text><rect x="70" y="70" width="254" height="20" fill="var(--c-grey)"/><text class="label" x="330" y="84">70 GB</text>
+            <text class="label" x="0" y="130">int4</text><rect x="70" y="116" width="127" height="20" fill="var(--c-blue)"/><text class="label" x="203" y="130">35 GB</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption><span class="fig-n"></span>Weight storage only. <span class="takeaway">At 4 bits a 70B model fits on one 80 GB accelerator with room for the KV cache; at bf16 it needs two.</span></figcaption>
+    </figure>
+
+    <p>Packed weights also reduce memory traffic, which is what limits speed when a model generates one token at a time. That speed-up needs kernels that unpack the format efficiently; without them the savings are only in storage.</p>
+  </section>
+
+  <section id="grid">
+    <h2>Rounding onto a grid</h2>
+    <p>A symmetric uniform quantizer picks a clipping range <code>[−α, α]</code>, divides it into evenly spaced levels, and replaces each value with the nearest level. The spacing between levels is the <em>scale</em>, <code>s = α / q<sub>max</sub></code>.<span class="marginnote">This page uses the signed range −q<sub>max</sub> … q<sub>max</sub>, which leaves one 4-bit code unused. Many libraries use the full range.</span></p>
+<pre>q  = clamp(round(x / s), −q_max, q_max)
+x̂ = s · q</pre>
+
+    <figure class="fig wide">
+      <div class="multiples">
+        <div><h4>2 bits</h4><svg viewBox="0 0 160 60"><line x1="0" x2="160" y1="40" y2="40" stroke="var(--rule-2)"/><g fill="var(--ink)"><circle cx="20" cy="40" r="2.5"/><circle cx="80" cy="40" r="2.5"/><circle cx="140" cy="40" r="2.5"/></g><text class="tick" x="80" y="56" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-3)">3 levels</text></svg></div>
+        <div><h4>3 bits</h4><svg viewBox="0 0 160 60"><line x1="0" x2="160" y1="40" y2="40" stroke="var(--rule-2)"/><g fill="var(--ink)"><circle cx="20" cy="40" r="2.5"/><circle cx="40" cy="40" r="2.5"/><circle cx="60" cy="40" r="2.5"/><circle cx="80" cy="40" r="2.5"/><circle cx="100" cy="40" r="2.5"/><circle cx="120" cy="40" r="2.5"/><circle cx="140" cy="40" r="2.5"/></g><text x="80" y="56" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-3)">7 levels</text></svg></div>
+        <div><h4>4 bits</h4><svg viewBox="0 0 160 60"><line x1="0" x2="160" y1="40" y2="40" stroke="var(--rule-2)"/><g fill="var(--c-blue)" id="l4"></g><text x="80" y="56" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-3)">15 levels</text></svg></div>
+        <div><h4>8 bits</h4><svg viewBox="0 0 160 60"><line x1="0" x2="160" y1="40" y2="40" stroke="var(--rule-2)"/><g fill="var(--ink)" id="l8"></g><text x="80" y="56" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-3)">255 levels</text></svg></div>
+      </div>
+      <figcaption><span class="fig-n"></span>The same clipping range at four bit widths. Each extra bit roughly halves the spacing, and with it the worst-case rounding error.</figcaption>
+    </figure>
+
+    <h3>What the error looks like</h3>
+    <p>Rounding error is bounded by half a step inside the range. Outside it, clipping error grows without bound, which is why the choice of α trades one error against the other.</p>
+
+    <table>
+      <thead><tr><th>Format</th><th class="n">Bytes / weight</th><th class="n">70B weights</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr><td>bf16</td><td class="n">2</td><td class="n">140 GB</td><td>training, reference inference</td></tr>
+        <tr><td>int8</td><td class="n">1</td><td class="n">70 GB</td><td>weight-only or weight-and-activation inference</td></tr>
+        <tr><td>int4</td><td class="n">0.5</td><td class="n">35 GB</td><td>weight-only inference, on-device models</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="colophon">
+    <p>Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn">GitHub</a>.</p>
+  </footer>
+</main>
+<script>
+  const mk = (id, n) => { const g = document.getElementById(id); for (let i = 0; i < n; i++) { const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); c.setAttribute('cx', 20 + i * 120 / (n - 1)); c.setAttribute('cy', 40); c.setAttribute('r', n > 20 ? 0.6 : 2.2); g.appendChild(c); } };
+  mk('l4', 15); mk('l8', 255);
+</script>
+</body>
+</html>

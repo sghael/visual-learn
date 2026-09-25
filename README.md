@@ -10,12 +10,12 @@ Live site: https://sghael.github.io/visual-learn/
 | Folder | Explainer | What it covers |
 |---|---|---|
 | [`jax-vs-pytorch/`](jax-vs-pytorch/) | [JAX and PyTorch](https://sghael.github.io/visual-learn/jax-vs-pytorch/) | How JAX, XLA and TPUs run your code, side by side with PyTorch and CUDA |
-| [`qat-explainer/`](qat-explainer/) | [Quantization-Aware Training](https://sghael.github.io/visual-learn/qat-explainer/) | Training with low-precision weights: fake quantization, the straight-through estimator, and a live PTQ vs QAT lab |
-| [`gcp-accelerators/`](gcp-accelerators/) | [Google Cloud Accelerators](https://sghael.github.io/visual-learn/gcp-accelerators/) | GPU and TPU hardware on Google Cloud: anatomy, lineup, roofline, interconnects, and a model-fit calculator |
-| [`register-tokens/`](register-tokens/) | [Register Tokens Explainer](https://sghael.github.io/visual-learn/register-tokens/) | High-norm patch tokens in vision transformers and the effect of adding register tokens |
-| [`rl-agentic-llms/`](rl-agentic-llms/) | [Reinforcement Learning for LLM Agents](https://sghael.github.io/visual-learn/rl-agentic-llms/) | Policy gradients, preference learning, verifiable rewards, and tool-use training |
-| [`k2-horizon/`](k2-horizon/) | [K2 Horizon](https://sghael.github.io/visual-learn/k2-horizon/) | Model sizes, mixture-of-experts layers, attention, diffusion decoding, and reported benchmarks |
-| [`pareto-front/`](pareto-front/) | [Intelligence versus cost](https://sghael.github.io/visual-learn/pareto-front/) | Model release dates and the plotted Intelligence Index versus task cost frontier |
+| [`qat-explainer/`](qat-explainer/) | [Quantization-aware training](https://sghael.github.io/visual-learn/qat-explainer/) | Training with low-precision weights: rounding and clipping error, the straight-through estimator, and a PTQ versus QAT lab that trains in the browser |
+| [`gcp-accelerators/`](gcp-accelerators/) | [Google Cloud accelerators](https://sghael.github.io/visual-learn/gcp-accelerators/) | GPUs and TPUs on Google Cloud: how they multiply matrices, the lineup, the roofline, interconnects, and a chip-count estimate |
+| [`register-tokens/`](register-tokens/) | [Register tokens](https://sghael.github.io/visual-learn/register-tokens/) | High-norm patch tokens in vision transformers and the effect of adding register tokens |
+| [`rl-agentic-llms/`](rl-agentic-llms/) | [Reinforcement learning for LLM agents](https://sghael.github.io/visual-learn/rl-agentic-llms/) | Policy gradients, GRPO, reward models and KL penalties, verifiable rewards, tool-use training, and reward hacking |
+| [`k2-horizon/`](k2-horizon/) | [K2 Horizon](https://sghael.github.io/visual-learn/k2-horizon/) | Model configs, mixture-of-experts and MoVA layers, Uno diffusion drafting, training stages, and reported benchmarks |
+| [`pareto-front/`](pareto-front/) | [Intelligence versus cost](https://sghael.github.io/visual-learn/pareto-front/) | The Pareto frontier of Intelligence Index score against cost per task, and how it filled in quarter by quarter |
 
 ## How the repo works
 
@@ -23,6 +23,9 @@ Live site: https://sghael.github.io/visual-learn/
   `index.html`, CSS and JS, no build step, no framework, no code shared between
   folders. Open any folder from disk or serve it locally.
 - The root `index.html` is the landing page that links the explainers.
+- Every explainer follows the [house style](house-style/): Tufte-style
+  figures, sidenotes, one shared stylesheet copied into each folder, and plain
+  writing.
 - Pushing to `main` publishes the whole repo through GitHub Pages, so a folder
   named `foo/` is live at `https://sghael.github.io/visual-learn/foo/` with no
   per-folder deploy step.

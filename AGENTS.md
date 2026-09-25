@@ -36,18 +36,19 @@ minute after it lands. There is no per-folder deploy step and no site build.
 ## Quality bar, checked before opening a PR
 
 - **Renders clean at two widths.** Headless Chrome at 1440 px and 390 px:
-  zero console errors, zero page errors, zero horizontal page overflow. Wide
-  diagrams scroll inside their own container (`overflow-x: auto`); the page
-  body never scrolls sideways. Look at your own screenshots before asking
-  for review.
+  zero console errors, zero page errors, zero horizontal page overflow, and
+  chart text at least 11 px. Wide diagrams scroll inside their own container
+  (`overflow-x: auto`); the page body never scrolls sideways. Look at your own
+  screenshots before asking for review. Capture tall pages in viewport-sized
+  chunks: Chrome garbles a single full-page capture above 16,384 px.
 - **Controls are real controls.** Buttons are `<button>`, sliders are
   `<input type="range">`, all keyboard reachable with a visible focus state.
-  Animations respect `prefers-reduced-motion` and start from a visible
-  resting state, never from `opacity: 0`.
-- **Color is never the only channel.** Label what you color. Use a
-  categorical palette validated for colorblind safety and keep entity colors
-  fixed across the page (in `jax-vs-pytorch`, JAX is always violet, PyTorch
-  always orange, "active" always green).
+  Animations start on a button press, respect `prefers-reduced-motion`, and
+  begin from a visible, labeled resting state.
+- **Color is never the only channel.** Label what you color. Use the
+  `--c-*` palette in `house-style/base.css` and keep entity colors fixed
+  across the page (in `jax-vs-pytorch`, JAX is always violet, PyTorch always
+  orange, "active" always green).
 - **Claims are sourced.** Framework behavior names the version it describes;
   hardware numbers are vendor peaks marked approximate; simplified models
   say "simplified" on the page itself, not only in the README.
@@ -58,7 +59,9 @@ minute after it lands. There is no per-folder deploy step and no site build.
   `packageManager` to pnpm and commit `pnpm-lock.yaml`. Test what has bitten
   before: switching examples mid-animation, reset during a run, preset
   labels versus what they compute. `jax-vs-pytorch/test/` is the reference,
-  including a fake-clock test for animation races.
+  including a fake-clock test for animation races. Web fonts are stubbed in
+  the tests, so assert layout by containment, not by exact fit: fallback fonts
+  differ between macOS and the Linux CI runner.
 - **CI is automatic.** `.github/workflows/test.yml` discovers every root
   folder that has a `package.json` and runs its `pnpm test`. Nothing at the
   root needs editing when you add a folder.
@@ -70,19 +73,15 @@ minute after it lands. There is no per-folder deploy step and no site build.
   paths behave differently on the subpath than from disk; the live page is
   the one readers get.
 
-## Conventions that keep the collection coherent
+## House style
 
-These are defaults, not rules. Diverge when the subject calls for it.
+Every explainer uses the house style in [`house-style/`](house-style/):
+Tufte-style figures, sidenotes, one stylesheet, and plain writing. Before
+building or changing a page, read `house-style/README.md`, open
+`house-style/specimen.html`, and copy `house-style/base.css` into the
+explainer's own CSS. The README sets the test every figure passes and the
+writing rules every page follows.
 
-- Light, quiet page on a warm off-white ground; a serif display face with a
-  sans body and a mono face for code (`jax-vs-pytorch` uses Instrument Serif,
-  Inter and JetBrains Mono).
-- Prose column about 68 characters wide; visualization "stages" up to 68rem,
-  each with a title, a hint, its controls, and a one-line takeaway or legend
-  in the footer.
-- Narrative order per section: a hook in prose, the concept, the interactive
-  widget, a takeaway. A sticky section nav with a reading-progress bar helps
-  on long pages.
-- Widgets are self-contained modules that register with a tiny shared
-  toolkit inside the folder (see `jax-vs-pytorch/js/common.js`); there is no
-  cross-folder sharing on purpose, so each explainer stays copyable.
+Widgets in a page are self-contained modules inside its folder (see
+`jax-vs-pytorch/js/common.js`); there is no cross-folder sharing on purpose,
+so each explainer stays copyable.
