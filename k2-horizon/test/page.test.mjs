@@ -1,53 +1,51 @@
 // Browser regression tests. Drives index.html in headless Chrome (the installed
 // Google Chrome via Playwright's "chrome" channel, falling back to Playwright's
-// own Chromium). Run with `pnpm test`. D3 is fetched from cdnjs once, cached in
-// test/.d3.min.js and served from there, so only the first run needs the network.
+// own Chromium). Run with `pnpm test`. The page has no third-party scripts;
+// Google Fonts requests are stubbed so the tests run offline.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = pathToFileURL(path.join(here, '..', 'index.html')).href;
-const D3_CACHE = path.join(here, '.d3.min.js');
-const D3_URL = 'https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js';
-const STAGES = ['fleetChart', 'layerDiagram', 'movaDiagram', 'unoDiagram', 'trainDiagram', 'dataDiagram', 'benchChart'];
-let browser, d3src;
+const FIGURES = ['#fleetChart', '#layerMultiples', '#movaLedger', '#unoChart', '#benchChart'];
+const N_WORDS = 36; // words in the Uno simulation sentence
+let browser;
 
 before(async () => {
   try { browser = await chromium.launch({ channel: 'chrome', headless: true }); }
   catch { browser = await chromium.launch({ headless: true }); }
-  if (!fs.existsSync(D3_CACHE)) {
-    const res = await fetch(D3_URL);
-    if (!res.ok) throw new Error(`could not fetch D3 fixture: ${res.status} ${D3_URL}`);
-    fs.writeFileSync(D3_CACHE, await res.text());
-  }
-  d3src = fs.readFileSync(D3_CACHE, 'utf8');
 });
 after(async () => { if (browser) await browser.close(); });
 
-async function open({ width = 1440, reduced = true } = {}) {
+async function open({ width = 1440, reduced = true, clock = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
   await context.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
-  await context.route(D3_URL, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: d3src }));
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  if (clock) await page.clock.install();
   await page.goto(PAGE);
   await page.waitForSelector('#benchChart svg');
   return { page, context, errors };
 }
-const svgCount = (page, id) => page.$eval('#' + id, (el) => el.querySelectorAll('svg *').length);
+const counts = async (page) => ({ ar: await page.locator('#arCount').innerText(), uno: await page.locator('#unoCount').innerText() });
+const parseUno = (s) => { const m = s.match(/^(\d+) tokens · (\d+) passes/); return { tokens: +m[1], passes: +m[2] }; };
 
 for (const width of [1440, 390]) {
-  test(`every stage renders without errors or horizontal overflow at ${width}px`, async () => {
+  test(`every figure renders, chart text is legible, and nothing overflows at ${width}px`, async () => {
     const { page, context, errors } = await open({ width });
-    for (const id of STAGES) assert.ok((await svgCount(page, id)) > 10, `${id} rendered nothing`);
-    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 20)); } });
-    await page.waitForTimeout(300);
+    for (const sel of FIGURES) {
+      const n = await page.$eval(sel, (el) => el.querySelectorAll('svg *').length);
+      assert.ok(n > 10, `${sel} rendered nothing`);
+    }
+    assert.equal(await page.$$eval('#layerMultiples svg', (els) => els.length), 3, 'three layer panels');
+    const small = await page.$$eval('svg text', (els) => els.filter((t) => t.getBoundingClientRect().width > 0 && parseFloat(getComputedStyle(t).fontSize) < 11).map((t) => t.textContent));
+    assert.deepEqual(small, [], 'chart text smaller than 11px');
+    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 15)); } });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.equal(overflow, 0, 'page scrolls horizontally');
     assert.deepEqual(errors, []);
@@ -55,118 +53,188 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('selecting a model updates the spec sheet and the fleet chart highlight', async () => {
+test('configuration table carries the values in each config.json', async () => {
   const { page, context, errors } = await open();
-  await page.locator('#modelChips button', { hasText: '375B-A23B' }).click();
-  assert.equal(await page.locator('#specTitle').innerText(), 'K2-Horizon-375B-A23B');
-  const grid = await page.locator('#specGrid').innerText();
-  assert.match(grid, /192 \+ 1 shared, top-8/);
-  assert.match(grid, /524,288 tokens/);
-  await page.locator('#modelChips button', { hasText: '0.9B' }).click();
-  assert.match(await page.locator('#specGrid').innerText(), /64,256/);
-  assert.match(await page.locator('#specGrid').innerText(), /131,072 tokens/);
+  const row = async (label) => page.$$eval('#configTable tbody tr', (trs, l) => {
+    const tr = trs.find((r) => r.querySelector('th').textContent.trim() === l);
+    return [...tr.querySelectorAll('td')].map((td) => td.textContent.trim());
+  }, label);
+  // 375B head_dim is 128 in its config (rope_head_dim is 64); the old page said 64.
+  assert.deepEqual(await row('Head dimension'), ['64', '128', '128', '128', '128', '128']);
+  assert.deepEqual(await row('MoVA value experts'), ['none', 'none', 'none', 'none', '64, top 4', 'none']);
+  assert.deepEqual(await row('Feed-forward experts'), ['none', 'none', 'none', 'none', '100 + 1 shared, top 8', '192 + 1 shared, top 8']);
+  assert.equal((await row('Vocabulary'))[0], '64,256');
+  assert.deepEqual(await row('Context (tokens)'), ['131,072', '524,288', '524,288', '524,288', '524,288', '524,288']);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('layer variants redraw with the right expert grids and routing lights experts', async () => {
+test('layer small multiples show the configured expert counts and active experts', async () => {
   const { page, context, errors } = await open();
-  const count = (sel) => page.$$eval(sel, (els) => els.length);
-  assert.equal(await count('#layerDiagram .ex'), 0, 'dense has no experts');
-  await page.locator('[data-variant="moe"]').click();
-  assert.equal(await count('#layerDiagram .ex'), 192);
-  assert.equal(await count('#layerDiagram .vx'), 0);
-  await page.locator('[data-variant="mova"]').click();
-  assert.equal(await count('#layerDiagram .ex'), 100);
-  assert.equal(await count('#layerDiagram .vx'), 16);
-  await page.locator('#routeBtn').click();
-  await page.waitForTimeout(300);
-  const lit = await page.$$eval('#layerDiagram .ex', (els) => els.filter((e) => e.getAttribute('stroke-width') === '1.5').length);
-  assert.equal(lit, 8, 'exactly eight experts active');
-  assert.match(await page.locator('#layerCap').innerText(), /4 of 64 value experts/);
+  const count = (variant, cls, on) => page.$$eval(`#layerMultiples [data-variant="${variant}"] rect.${cls}${on ? '.on' : ''}`, (els) => els.length);
+  assert.equal(await count('dense', 'ex'), 0, 'dense has no experts');
+  assert.equal(await count('moe', 'ex'), 192);
+  assert.equal(await count('moe', 'ex', true), 8);
+  assert.equal(await count('moe', 'vx'), 0, 'the 375B model has no MoVA');
+  assert.equal(await count('mova', 'ex'), 100);
+  assert.equal(await count('mova', 'ex', true), 8);
+  assert.equal(await count('mova', 'vx'), 64);
+  assert.equal(await count('mova', 'vx', true), 4);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('MoVA sliders change the pool, the active count never exceeds the pool, and stats follow', async () => {
+test('parameter ledger labels match the numbers in the prose', async () => {
   const { page, context, errors } = await open();
-  await page.locator('#mvExperts').fill('8');
-  await page.locator('#mvTop').fill('8');
-  const rects = await page.$$eval('#movaDiagram rect[stroke-width="1.5"]', (els) => els.length);
-  assert.equal(rects, 8);
-  assert.match(await page.locator('#movaStat').innerText(), /8×[\s\S]*8×[\s\S]*1:1/);
-  await page.locator('#mvExperts').fill('128');
-  await page.locator('#mvTop').fill('2');
-  assert.match(await page.locator('#movaStat').innerText(), /128×[\s\S]*2×[\s\S]*64:1/);
+  const text = await page.$eval('#movaLedger', (el) => el.textContent);
+  assert.match(text, /26\.5B stored · 2\.1B used/);
+  assert.match(text, /7\.5B stored · 0\.47B used/);
+  assert.match(text, /1\.6B, all used/);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('Uno: reset mid-run stops the old timer, and block size applies to the next draft', async () => {
-  const { page, context, errors } = await open();
-  const counts = () => page.$eval('#unoDiagram', (el) => [...el.querySelectorAll('text')].map((t) => t.textContent).filter((t) => /tokens ·/.test(t)));
-  const before = await counts();
-  assert.match(before[1], /^[1-9]\d*\/\d+ tokens/, 'Uno lane shows progress at rest');
-  await page.locator('#unoPlay').click();
-  await page.waitForTimeout(1000);
+test('Uno rests on a finished run, and reset during a run stops the timer', async () => {
+  const { page, context, errors } = await open({ clock: true, reduced: false });
+  const rest = await counts(page);
+  assert.equal(rest.ar, `${N_WORDS} tokens · ${N_WORDS} passes`);
+  const u = parseUno(rest.uno);
+  assert.equal(u.tokens, N_WORDS);
+  assert.ok(u.passes < N_WORDS, 'Uno should finish in fewer passes than autoregressive decoding');
+  await page.locator('#unoPlay').click(); // finished, so Play starts a fresh run
+  assert.equal(await page.locator('#unoPlay').innerText(), 'Pause');
+  await page.clock.runFor(600 * 5 + 50);
+  const mid = parseUno((await counts(page)).uno);
+  assert.equal(mid.passes, 5, 'one pass per tick');
   await page.locator('#unoReset').click();
-  const atReset = await counts();
-  assert.match(atReset[0], /^0\/\d+ tokens · 0 forward passes/);
-  assert.equal(await page.locator('#unoPlay').innerText(), '▶ Play');
-  await page.waitForTimeout(1200);
-  assert.deepEqual(await counts(), atReset, 'a cancelled run kept advancing after reset');
-  await page.locator('#unoBlock').fill('8');
-  assert.equal(await page.locator('#unoBlockN').innerText(), '8');
+  const atReset = await counts(page);
+  assert.equal(atReset.ar, '0 tokens · 0 passes');
+  assert.match(atReset.uno, /^0 tokens · 0 passes/);
+  assert.equal(await page.locator('#unoPlay').innerText(), 'Play');
+  await page.clock.runFor(10000);
+  assert.deepEqual(await counts(page), atReset, 'a cancelled run kept advancing after reset');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('Uno pause holds the state, and Step advances exactly one pass', async () => {
+  const { page, context, errors } = await open({ clock: true, reduced: false });
+  await page.locator('#unoReset').click();
   await page.locator('#unoPlay').click();
-  await page.waitForTimeout(700);
+  await page.clock.runFor(600 * 3 + 50);
   await page.locator('#unoPlay').click(); // pause
-  const paused = await counts();
-  assert.match(paused[0], /^[1-9]\d*\//);
-  await page.waitForTimeout(1000);
-  assert.deepEqual(await counts(), paused, 'pause did not stop the run');
+  const paused = await counts(page);
+  assert.equal(paused.ar, '3 tokens · 3 passes');
+  await page.clock.runFor(5000);
+  assert.deepEqual(await counts(page), paused, 'pause did not stop the run');
+  await page.locator('#unoStep').click();
+  assert.equal((await counts(page)).ar, '4 tokens · 4 passes');
+  assert.equal(parseUno((await counts(page)).uno).passes, 4);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('benchmark model select covers all six models and redraws with each card\'s competitors', async () => {
-  const { page, context, errors } = await open();
-  assert.deepEqual(await page.$$eval('#benchModel option', (els) => els.map((o) => o.value)), ['0.9B', '3.7B', '7B', '32B', '36B-A4B', '375B-A23B']);
-  await page.selectOption('#benchModel', '32B');
-  assert.match(await page.locator('#benchLegend').innerText(), /K2-Horizon-32B-Stage1[\s\S]*Qwen3.8-27B/);
-  assert.match(await page.locator('#benchNote').innerText(), /Stage 1 checkpoint/);
-  assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 24, '6 rows × 4 competitors');
-  await page.selectOption('#benchModel', '375B-A23B');
-  assert.match(await page.locator('#benchLegend').innerText(), /Claude Sonnet 5/);
-  assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 24, '6 rows × 4 competitors');
-  await page.selectOption('#benchModel', '3.7B');
-  assert.equal(await page.$$eval('#benchChart rect', (els) => els.length), 10, '5 rows × 2 competitors');
+test('switching block size mid-animation stops the run and redraws a finished run for the new size', async () => {
+  const { page, context, errors } = await open({ clock: true, reduced: false });
+  await page.locator('#unoReset').click();
+  await page.locator('#unoPlay').click();
+  await page.clock.runFor(600 * 4 + 50);
+  await page.locator('#unoBlock button[data-block="16"]').click();
+  assert.equal(await page.locator('#unoBlock button[data-block="16"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('#unoPlay').innerText(), 'Play');
+  const after = await counts(page);
+  const u = parseUno(after.uno);
+  assert.equal(u.tokens, N_WORDS);
+  assert.ok(u.tokens / u.passes <= (16 + 1) / 2, 'tokens per pass above the (B + 1)/2 bound');
+  await page.clock.runFor(10000);
+  assert.deepEqual(await counts(page), after, 'the old timer survived the switch');
+  // the agreement slider behaves the same way and shows its value
+  await page.locator('#unoAcc').fill('95');
+  assert.equal(await page.locator('#unoAccOut').innerText(), '95%');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('training stages are keyboard-reachable buttons that drive the detail and the chart', async () => {
+test('Uno readout per pass matches the simulation bounds for every setting', async () => {
   const { page, context, errors } = await open();
-  const chips = page.locator('#trainChips button');
-  assert.equal(await chips.count(), 8);
-  await chips.nth(0).focus();
-  await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
+  const results = await page.evaluate((n) => {
+    const out = [];
+    for (const B of [4, 8, 16]) for (const p of [0.3, 0.7, 0.95]) for (let seed = 1; seed <= 40; seed++) {
+      const r = window.K2.simulate(B, p, seed);
+      out.push({ B, p, seed, ok: r.tokens === n && r.tokens / r.passes >= 1 && r.tokens / r.passes <= (B + 1) / 2 });
+    }
+    return out.filter((r) => !r.ok);
+  }, N_WORDS);
+  assert.deepEqual(results, [], 'simulation left the paper’s 1 ≤ TPF ≤ (B + 1)/2 range');
+  // label versus computation: the lane readout is tokens / passes
+  const { uno } = await counts(page);
+  const u = parseUno(uno);
+  assert.ok(uno.endsWith(`${(u.tokens / u.passes).toFixed(2)} per pass`));
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('benchmark figure covers all six models and its labels match the data', async () => {
+  const { page, context, errors } = await open();
+  const buttons = page.locator('#benchModel button');
+  assert.deepEqual(await buttons.allInnerTexts(), ['0.9B', '3.7B', '7B', '32B', '36B-A4B', '375B-A23B']);
+  assert.equal(await page.locator('#benchModel button[aria-pressed="true"]').innerText(), '375B-A23B');
+  // 375B: 18 rows, one blue dot each, the audited Terminal-Bench marker, and the Elo row on its own axis
+  assert.equal(await page.$$eval('#benchChart circle.k2', (els) => els.length), 18);
+  assert.equal(await page.$$eval('#benchChart circle.audited', (els) => els.length), 1);
+  const notes = await page.$$eval('#benchChart text.row-note', (els) => els.map((e) => e.textContent));
+  assert.ok(notes.includes('K2 70.2 (66.9 audited) · best other 80.9, GPT 5.6 Luna (max)'), notes.join('\n'));
+  assert.ok(notes.includes('K2 1,441 · best other 1,584, Claude Sonnet 5 (max)'));
+  assert.ok(notes.includes('K2 42.6 · best other 48.8, GPT 5.6 Luna (max)'), 'SWE Bench Pro best other is GPT 5.6 Luna, not Claude');
+  assert.match(await page.locator('#benchTakeaway').innerText(), /top score in 1 of the 18 rows/);
+  // every "best other" label equals the maximum of that row in the data table
+  const mismatches = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#benchTable tbody tr')];
+    const notes = [...document.querySelectorAll('#benchChart text.row-note')].map((e) => e.textContent);
+    return rows.map((tr, i) => {
+      const vals = [...tr.querySelectorAll('td')].slice(1).map((td) => parseFloat(td.textContent.replace(/,/g, ''))).filter((v) => !Number.isNaN(v));
+      const best = Math.max(...vals);
+      const m = notes[i].match(/best other ([\d,.]+)/);
+      return m && parseFloat(m[1].replace(/,/g, '')) !== best ? tr.querySelector('th').textContent : null;
+    }).filter(Boolean);
+  });
+  assert.deepEqual(mismatches, []);
+  await page.locator('#benchModel button', { hasText: /^32B$/ }).click();
+  assert.equal(await page.locator('#benchModel button[aria-pressed="true"]').innerText(), '32B');
+  const head = await page.$$eval('#benchTable thead th', (els) => els.map((e) => e.textContent));
+  assert.deepEqual(head, ['Benchmark', 'K2-Horizon-32B (Stage 1)', 'Qwen3.8-27B', 'Muse Glimmer-30B', 'IBM Granite 4.2 30B']);
+  assert.equal(await page.$$eval('#benchChart circle.k2', (els) => els.length), 9);
+  assert.equal(await page.$$eval('#benchChart circle.other', (els) => els.length), 27, '9 rows × 3 comparison models');
+  assert.match(await page.locator('#benchTakeaway').innerText(), /top score in 0 of the 9 rows/);
+  await page.locator('#benchModel button', { hasText: '3.7B' }).click();
+  assert.match(await page.locator('#benchTakeaway').innerText(), /top score in 5 of the 8 rows/);
+  await page.locator('#benchModel button', { hasText: /^7B$/ }).click();
+  assert.equal(await page.$$eval('#benchChart circle.k2', (els) => els.length), 8);
+  assert.match(await page.locator('#benchTakeaway').innerText(), /top score in 6 of the 7 rows/, 'BrowseComp has no comparison');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('controls are keyboard reachable buttons with pressed state', async () => {
+  const { page, context, errors } = await open();
+  await page.locator('#benchModel button').first().focus();
+  await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  assert.equal(await chips.nth(3).getAttribute('aria-pressed'), 'true');
-  assert.match(await page.locator('#trainDetail').innerText(), /Midtrain 2 · context 131,072/);
-  const outlined = await page.$$eval('#trainDiagram .stbar', (els) => els.filter((e) => e.getAttribute('stroke') !== 'none').length);
-  assert.equal(outlined, 1);
+  assert.equal(await page.locator('#benchModel button[aria-pressed="true"]').innerText(), '7B');
+  for (const id of ['unoPlay', 'unoStep', 'unoReset']) assert.equal(await page.$eval('#' + id, (el) => el.tagName), 'BUTTON');
+  assert.equal(await page.$eval('#unoAcc', (el) => el.type), 'range');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('theme toggle redraws every chart and persists', async () => {
+test('the top bar marks the section in view', async () => {
   const { page, context, errors } = await open();
-  await page.locator('#themeBtn').click();
-  assert.equal(await page.locator('#themeBtn').innerText(), 'Theme: light');
-  await page.locator('#themeBtn').click();
-  assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
-  for (const id of STAGES) assert.ok((await svgCount(page, id)) > 10, `${id} empty after theme change`);
-  assert.equal(await page.evaluate(() => localStorage.getItem('k2theme')), 'dark');
+  await page.$eval('#bench', (el) => el.scrollIntoView());
+  await page.waitForTimeout(100);
+  assert.equal(await page.getAttribute('.topbar nav a[aria-current="true"]', 'href'), '#bench');
+  await page.$eval('#uno', (el) => el.scrollIntoView());
+  await page.waitForTimeout(100);
+  assert.equal(await page.getAttribute('.topbar nav a[aria-current="true"]', 'href'), '#uno');
   assert.deepEqual(errors, []);
   await context.close();
 });

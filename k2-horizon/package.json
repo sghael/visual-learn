@@ -2,7 +2,7 @@
   "name": "k2-horizon-explainer",
   "private": true,
   "version": "1.0.0",
-  "description": "Interactive K2 Horizon explainer. The page itself only loads D3 from cdnjs; the dev dependency drives it in headless Chrome for the tests.",
+  "description": "K2 Horizon explainer. The page has no dependencies; the dev dependency drives it in headless Chrome for the tests.",
   "type": "module",
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
