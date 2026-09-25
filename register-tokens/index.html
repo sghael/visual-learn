@@ -1,696 +1,189 @@
 <!doctype html>
 <html lang="en">
 <head>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a3aa7'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Register Tokens Explainer</title>
-<meta name="description" content="An interactive explanation of high-norm artifact tokens in Vision Transformers and the learned register tokens proposed to remove them.">
+<title>Register tokens in Vision Transformers · Visual Learn</title>
+<meta name="description" content="Why large Vision Transformers write global information into a few background patch tokens, and how learned register tokens give that computation its own place. After Darcet et al., ICLR 2024.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a3aa7'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
-<style>
-:root{
-  --bg:#F5F7FA; --surface:#FFFFFF; --surface-2:#EBEFF4; --line:#D3DAE3; --line-strong:#AEB8C6;
-  --ink:#141A22; --ink-2:#4B5563; --ink-3:#7B8794;
-  --reg:#0E8A8C; --reg-soft:#D7F0F0; --reg-ink:#0A6466;
-  --art:#D7791F; --art-soft:#FBE8D3; --art-ink:#9A5210;
-  --cls:#6B5BD2; --cls-soft:#E6E2F8;
-  --sky:#BFD9EE; --ground:#9CBF8B; --obj:#3C3A45; --obj-2:#57545F;
-  --heat0:#F7F1EA; --heat1:#C64B1A;
-  --attn0:#EEF5F5; --attn1:#0B5E60;
-  --focus:#0E8A8C;
-  --shadow:0 1px 2px rgba(20,26,34,.06),0 8px 24px rgba(20,26,34,.06);
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#0F1318; --surface:#161B22; --surface-2:#1E252E; --line:#2B333E; --line-strong:#3E4856;
-    --ink:#E9EEF3; --ink-2:#B4BDC8; --ink-3:#7F8A98;
-    --reg:#3FB8BA; --reg-soft:#123A3B; --reg-ink:#8EDDDE;
-    --art:#E8934A; --art-soft:#3F2A14; --art-ink:#F2B77E;
-    --cls:#9C8EF0; --cls-soft:#2A2547;
-    --sky:#2B4460; --ground:#3A5A3A; --obj:#D9D6E2; --obj-2:#B8B4C4;
-    --heat0:#1B1F26; --heat1:#F0752E;
-    --attn0:#161D1F; --attn1:#5FD2D4;
-    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0F1318; --surface:#161B22; --surface-2:#1E252E; --line:#2B333E; --line-strong:#3E4856;
-  --ink:#E9EEF3; --ink-2:#B4BDC8; --ink-3:#7F8A98;
-  --reg:#3FB8BA; --reg-soft:#123A3B; --reg-ink:#8EDDDE;
-  --art:#E8934A; --art-soft:#3F2A14; --art-ink:#F2B77E;
-  --cls:#9C8EF0; --cls-soft:#2A2547;
-  --sky:#2B4460; --ground:#3A5A3A; --obj:#D9D6E2; --obj-2:#B8B4C4;
-  --heat0:#1B1F26; --heat1:#F0752E;
-  --attn0:#161D1F; --attn1:#5FD2D4;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Source Serif 4",Georgia,"Times New Roman",serif;font-size:18px;line-height:1.6;-webkit-font-smoothing:antialiased}
-h1,h2,h3{font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;text-wrap:balance;line-height:1.1;margin:0}
-h1{font-size:clamp(2.4rem,6vw,4.4rem);font-weight:800;letter-spacing:-.02em}
-h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:700;letter-spacing:-.015em}
-h3{font-size:1.15rem;font-weight:700}
-p{margin:0}
-a{color:var(--reg-ink);text-decoration-color:var(--reg)}
-code,.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85em}
-.eyebrow{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
-.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
-.prose{max-width:66ch}
-.prose p+p{margin-top:1em}
-.kw{padding:.05em .35em;border-radius:4px;font-family:"JetBrains Mono",monospace;font-size:.82em;font-weight:600}
-.kw.reg{background:var(--reg-soft);color:var(--reg-ink)}
-.kw.art{background:var(--art-soft);color:var(--art-ink)}
-.kw.cls{background:var(--cls-soft);color:var(--cls)}
-
-/* header */
-header.top{border-bottom:1px solid var(--line);background:var(--surface)}
-header.top .wrap{display:flex;justify-content:space-between;align-items:center;height:56px;gap:16px}
-header.top nav{display:flex;gap:18px;font-family:"Bricolage Grotesque",sans-serif;font-size:.9rem;font-weight:500;overflow-x:auto}
-header.top nav a{color:var(--ink-2);text-decoration:none;white-space:nowrap}
-header.top nav a:hover{color:var(--ink)}
-.brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;letter-spacing:-.01em}
-.brand span{color:var(--reg)}
-
-/* hero */
-.hero{padding:64px 0 40px;display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:center}
-.hero .lead{font-size:1.2rem;color:var(--ink-2);margin-top:20px;max-width:52ch}
-.hero .meta{margin-top:24px;display:flex;gap:18px;flex-wrap:wrap;color:var(--ink-3);font-size:.9rem;font-family:"Bricolage Grotesque",sans-serif}
-@media (max-width:820px){.hero{grid-template-columns:1fr}}
-
-/* sections */
-section{padding:56px 0;border-top:1px solid var(--line)}
-section .head{margin-bottom:28px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
-@media (max-width:820px){.grid2{grid-template-columns:1fr}}
-
-/* figure */
-figure{margin:28px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
-figure .bar{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);font-family:"Bricolage Grotesque",sans-serif;font-size:.9rem}
-figure .body{padding:18px 16px}
-figcaption{padding:12px 16px 14px;border-top:1px solid var(--line);color:var(--ink-2);font-size:.92rem;line-height:1.5}
-.ctl{display:flex;align-items:center;gap:8px}
-.ctl label,.ctl .ctl-label{color:var(--ink-2)}
-.ctl output{font-family:"JetBrains Mono",monospace;font-size:.85rem;min-width:2.2ch;text-align:right;color:var(--ink)}
-input[type=range]{accent-color:var(--reg);width:150px}
-.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden}
-.seg button{background:var(--surface);color:var(--ink-2);border:0;padding:5px 11px;font:inherit;cursor:pointer}
-.seg button+button{border-left:1px solid var(--line-strong)}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.seg button:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
-.toggle input{accent-color:var(--reg);width:16px;height:16px}
-.btn{font:inherit;font-family:"Bricolage Grotesque",sans-serif;font-weight:600;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:7px 14px;cursor:pointer}
-.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
-
-/* patch grids */
-.gridwrap{display:grid;gap:2px;background:var(--line);border:1px solid var(--line);padding:2px;border-radius:6px;aspect-ratio:1;width:100%;max-width:420px}
-.gridwrap.no-gap{gap:0;padding:0}
-.cell{position:relative;cursor:pointer;transition:transform .12s;border:0;padding:0;margin:0;font:inherit;display:block;width:100%;height:100%;background:var(--surface-2)}
-.cell:focus-visible{outline:2px solid var(--focus);outline-offset:-2px;z-index:4}
-.cell:hover{outline:2px solid var(--ink);z-index:2}
-.cell.sel{outline:2px solid var(--ink);z-index:3}
-.cell.outlier::after{content:"";position:absolute;inset:18%;border:2px solid var(--art);border-radius:50%;box-sizing:border-box}
-.cell.rp{background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px)}
-.legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.82rem;color:var(--ink-2);font-family:"Bricolage Grotesque",sans-serif;margin-top:10px}
-.legend .sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line-strong)}
-.ramp{display:inline-block;width:70px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 4px;border:1px solid var(--line-strong)}
-
-/* token strip */
-.strip{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
-.tok{width:18px;height:26px;border-radius:3px;background:var(--surface-2);border:1px solid var(--line);position:relative;cursor:pointer;padding:0;margin:0;font:inherit}
-.tok:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
-.tok.cls{background:var(--cls-soft);border-color:var(--cls)}
-.tok.reg{background:var(--reg-soft);border-color:var(--reg)}
-.tok.art{background:var(--art-soft);border-color:var(--art)}
-.tok.sel{outline:2px solid var(--ink)}
-.tok i{position:absolute;left:2px;right:2px;bottom:2px;background:var(--ink-3);border-radius:1px}
-.tok.cls i{background:var(--cls)} .tok.reg i{background:var(--reg)} .tok.art i{background:var(--art)}
-.toklabel{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink-3);margin-top:8px;display:flex;gap:18px;flex-wrap:wrap}
-
-/* sequence diagram */
-.seq{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;padding:10px 0}
-.seq .blk{min-width:44px;height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:.75rem;font-weight:600;border:1.5px solid}
-.blk.cls{background:var(--cls-soft);border-color:var(--cls);color:var(--cls)}
-.blk.reg{background:var(--reg-soft);border-color:var(--reg);color:var(--reg-ink)}
-.blk.pat{background:var(--surface-2);border-color:var(--line-strong);color:var(--ink-2)}
-.blk.dots{border:0;background:none;color:var(--ink-3);min-width:26px}
-.seq .brace{width:100%;display:flex;gap:6px;font-family:"Bricolage Grotesque",sans-serif;font-size:.8rem;color:var(--ink-3)}
-.pipeline{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin-top:16px}
-.pipeline .arrow{color:var(--ink-3);font-size:1.4rem}
-.pipeline .stage{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;font-family:"Bricolage Grotesque",sans-serif;font-size:.85rem;color:var(--ink-2)}
-.pipeline .stage b{display:block;color:var(--ink);font-size:.95rem}
-.pipeline .stage.drop{border-style:dashed;color:var(--ink-3)}
-@media (max-width:700px){.pipeline{grid-template-columns:1fr}.pipeline .arrow{transform:rotate(90deg);text-align:center}}
-
-/* probe panel */
-.probe{border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--surface-2)}
-.probe h3{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.probe .pill{font-family:"JetBrains Mono",monospace;font-size:.72rem;padding:2px 8px;border-radius:99px;border:1px solid}
-.pill.norm{border-color:var(--line-strong);color:var(--ink-2)}
-.pill.art{border-color:var(--art);color:var(--art-ink);background:var(--art-soft)}
-.pill.reg{border-color:var(--reg);color:var(--reg-ink);background:var(--reg-soft)}
-.kv{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;margin-top:12px;font-family:"Bricolage Grotesque",sans-serif;font-size:.88rem}
-.kv .k{color:var(--ink-2)}
-.kv .v{font-family:"JetBrains Mono",monospace;font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
-.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
-.meter i{display:block;height:100%;background:var(--ink-3);border-radius:4px}
-.meter i.reg{background:var(--reg)} .meter i.art{background:var(--art)}
-.probe .note{margin-top:12px;font-size:.88rem;color:var(--ink-2);line-height:1.45}
-
-/* histogram */
-.hist{width:100%;height:auto;display:block}
-.hist text{font-family:"Bricolage Grotesque",sans-serif;font-size:11px;fill:var(--ink-3)}
-.hist .axis{stroke:var(--line-strong)}
-
-/* results table */
-table{border-collapse:collapse;width:100%;font-family:"Bricolage Grotesque",sans-serif;font-size:.92rem;font-variant-numeric:tabular-nums}
-th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-th{color:var(--ink-3);font-weight:500;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
-td:first-child,th:first-child{text-align:left}
-td.up{color:var(--reg-ink);font-weight:600}
-td.same{color:var(--ink-3)}
-td.down{color:var(--art-ink);font-weight:600}
-.tablewrap{overflow-x:auto}
-
-/* callouts */
-.callout{border:1px solid var(--line);background:var(--surface);padding:14px 18px;border-radius:8px;margin-top:24px;font-size:1rem}
-.callout.art{border-color:var(--art)}
-.callout b{font-family:"Bricolage Grotesque",sans-serif}
-.faq{display:grid;gap:14px}
-.faq details{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:0}
-.faq summary{cursor:pointer;padding:14px 18px;font-family:"Bricolage Grotesque",sans-serif;font-weight:600;list-style:none;display:flex;justify-content:space-between}
-.faq summary::after{content:"+";color:var(--ink-3)}
-.faq details[open] summary::after{content:"−"}
-.faq .a{padding:0 18px 16px;color:var(--ink-2);font-size:1rem;max-width:70ch}
-.refs{font-size:.95rem;color:var(--ink-2)}
-.refs li{margin-bottom:8px}
-footer{padding:40px 0 60px;color:var(--ink-3);font-size:.9rem;border-top:1px solid var(--line)}
-.sr{position:absolute;left:-9999px}
-.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
-@media (max-width:760px){.split{grid-template-columns:1fr}}
-.hero-fig .split{gap:14px}
-.hero-fig .cap{font-family:"Bricolage Grotesque",sans-serif;font-size:.8rem;color:var(--ink-2);text-align:center;margin-top:6px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
-</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-<header class="top">
-  <div class="wrap">
-    <div class="brand">ViT <span>Registers</span></div>
-    <nav>
-      <a href="#recap">Tokens</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">Register tokens</span>
+    <nav aria-label="Sections">
+      <a href="#tokens">Tokens</a>
       <a href="#artifacts">Artifacts</a>
-      <a href="#why">Why</a>
-      <a href="#fix">Registers</a>
+      <a href="#contents">What they hold</a>
+      <a href="#registers">Registers</a>
       <a href="#results">Results</a>
-      <a href="#faq">FAQ</a>
+      <a href="#questions">Questions</a>
     </nav>
   </div>
+  <div class="progress" id="progress"></div>
 </header>
 
-<main>
-<div class="wrap">
-  <div class="hero">
-    <div>
-      <h1 style="margin-top:10px">Register tokens in Vision Transformers</h1>
-      <p class="lead">Large Vision Transformers can repurpose a few low-information patch tokens for internal computation. Those <span class="kw art">artifact</span> tokens have unusually large norms and distort feature and attention maps. Adding learned <span class="kw reg">register</span> tokens gives the network dedicated slots for that computation.</p>
-      <div class="meta">
-        <span>Based on Darcet, Oquab, Mairal &amp; Bojanowski (ICLR 2024)</span>
-        <span>Figures use a simulated model</span>
-      </div>
-    </div>
-    <figure class="hero-fig" style="margin:0">
-      <div class="bar">
-        <div class="ctl"><span class="ctl-label" id="heroRegLabel">Registers</span>
-          <div class="seg" id="heroSeg" role="group" aria-labelledby="heroRegLabel">
-            <button type="button" data-n="0" aria-pressed="true">0</button>
-            <button type="button" data-n="4" aria-pressed="false">4</button>
-          </div>
-        </div>
-        <span style="color:var(--ink-3)">Attention from <span class="kw cls">[CLS]</span> to patches, last layer</span>
-      </div>
-      <div class="body">
-        <div class="split">
-          <div><div class="gridwrap no-gap" id="heroImg" aria-label="Input image, 14 by 14 patches"></div><div class="cap">Input, 14×14 patches</div></div>
-          <div><div class="gridwrap no-gap" id="heroAttn" aria-label="Attention map"></div><div class="cap" id="heroCap">Attention map, 0 registers: spikes on background</div></div>
-        </div>
-      </div>
-    </figure>
-  </div>
-</div>
+<main class="page">
+  <h1>Register tokens in Vision Transformers</h1>
+  <p class="subtitle">Why large vision transformers write global information into a few background patches, and how a handful of extra tokens gives it a place of its own</p>
+  <p class="lede">Attention maps from large Vision Transformers such as DINOv2 often show bright specks on empty background, over sky or a plain wall, that have nothing to do with the picture. Darcet, Oquab, Mairal and Bojanowski traced the specks to a few patch tokens that the network had taken over for its own computation. Their fix adds a few learned tokens, called registers, that do that job instead.</p>
+  <p class="meta">6 sections · about 12 minutes · after <a href="https://arxiv.org/abs/2309.16588">Darcet et al., ICLR 2024</a> · figures come from a small simulated model; tables are the paper’s numbers</p>
 
-<!-- 1. RECAP -->
-<section id="recap">
-<div class="wrap">
-  <div class="head"><h2>From image patches to tokens</h2></div>
-  <div class="grid2">
-    <div class="prose">
-      <p>A Vision Transformer (ViT) cuts the image into a grid of fixed-size patches, usually 14 or 16 pixels on a side. Each patch is flattened and linearly projected into a vector, then a positional embedding is added. Those vectors are the <b>patch tokens</b>.</p>
-      <p>One extra learned token, <span class="kw cls">[CLS]</span>, is prepended. It has no pixels of its own. Its job is to gather a summary of the whole image through attention, and its final state is what gets used for classification.</p>
-      <p>The sequence runs through a stack of transformer blocks. Self-attention lets each token read every other token. The architecture does not force a patch token to keep representing its original patch, so later layers can use that sequence position for another purpose.</p>
-      <p>Hover over a patch or token to follow the mapping.</p>
+  <figure class="fig" id="fig-compare">
+    <div class="multiples">
+      <div class="map"><h4>Input image <span>14 × 14 patches</span></h4><svg id="map-input" viewBox="0 0 14 14" role="img" aria-label="Simulated input image: a dark bird against pale sky above a green hill"></svg></div>
+      <div class="map"><h4>No registers</h4><svg id="map-attn-0" viewBox="0 0 14 14" role="img" aria-label="Attention map without registers"></svg></div>
+      <div class="map"><h4>4 registers</h4><svg id="map-attn-4" viewBox="0 0 14 14" role="img" aria-label="Attention map with four registers"></svg></div>
     </div>
-    <figure style="margin:0">
-      <div class="body">
-        <div class="split">
-          <div><div class="gridwrap no-gap" id="recapImg"></div></div>
-          <div>
-            <div class="eyebrow">Token sequence (1 + 196)</div>
-            <div class="strip" id="recapStrip"></div>
-            <div class="toklabel"><span>■ <span class="kw cls">[CLS]</span></span><span>■ patch token, bar = embedding norm</span></div>
-            <div class="probe" style="margin-top:14px" id="recapInfo">
-              <h3>Patch <span class="pill norm">hover a patch</span></h3>
-              <div class="note">Each 16×16 patch becomes one vector of size <i>d</i> (768 for ViT-B, 1024 for ViT-L). Its position in the sequence is fixed, but its contents are whatever the model decides to write there.</div>
-            </div>
-          </div>
-        </div>
-        <div class="pipeline">
-          <div class="stage"><b>Image 224×224</b>split into 14×14 patches</div><div class="arrow">→</div>
-          <div class="stage"><b>[CLS] + 196 tokens</b>linear projection + position</div><div class="arrow">→</div>
-          <div class="stage"><b>L transformer blocks</b>every token attends to all</div>
-        </div>
-      </div>
-    </figure>
-  </div>
-</div>
-</section>
-
-<!-- 2. ARTIFACTS -->
-<section id="artifacts">
-<div class="wrap">
-  <div class="head"><h2>High-norm artifact tokens</h2></div>
-  <div class="prose">
-    <p>Darcet and colleagues found a small number of patch tokens with norms much larger than the rest. They often occur in flat background regions such as sky, walls, or roads. Because these tokens can attract disproportionate attention, they produce bright spots that do not correspond to image content.</p>
-    <p>Drag the layer slider in this simplified DINOv2 ViT-L simulation. Artifact tokens appear after the early layers and remain through the final layer. Click a patch to compare the information carried by an artifact token and a typical patch token.</p>
-  </div>
-  <figure>
-    <div class="bar">
-      <div class="ctl"><label for="layer">Layer</label><input type="range" id="layer" min="1" max="24" value="18"><output id="layerOut">18</output><span style="color:var(--ink-3)">/ 24</span></div>
-      <div class="ctl"><span class="ctl-label">Model</span>
-        <div class="seg" id="modelSeg">
-          <button type="button" data-m="S" aria-pressed="false">DINOv2 ViT-S</button>
-          <button type="button" data-m="B" aria-pressed="false">DINOv2 ViT-B</button>
-          <button type="button" data-m="L" aria-pressed="true">DINOv2 ViT-L</button>
-        </div>
-      </div>
-      <label class="toggle"><input type="checkbox" id="showImg"> Overlay image</label>
-    </div>
-    <div class="body">
-      <div class="split">
-        <div>
-          <div class="gridwrap no-gap" id="normGrid" aria-label="Token norm heatmap"></div>
-          <div class="legend"><span>Token norm</span><span class="ramp" id="heatRamp"></span><span id="normRange">0 → 400</span><span><span class="sw" style="border:2px solid var(--art);border-radius:50%;background:none"></span>artifact (norm &gt; 150)</span></div>
-          <svg class="hist" id="hist" viewBox="0 0 420 110" role="img" aria-label="Histogram of token norms"></svg>
-        </div>
-        <div>
-          <div class="probe" id="probe">
-            <h3>Token <span class="pill norm" id="probeKind">click a patch</span></h3>
-            <div class="kv" id="probeKv"></div>
-            <div class="note" id="probeNote">Probes are small linear classifiers trained on frozen token embeddings. They tell us what information a token still carries.</div>
-          </div>
-          <div class="callout art" style="margin-top:16px"><b>What the paper measured.</b> Linear probes on artifact tokens perform worse on <i>local</i> tasks (predicting position and reconstructing source pixels) and better on a <i>global</i> task (classifying the whole image from one token) than probes on typical patch tokens.</div>
-        </div>
-      </div>
-    </div>
-    <figcaption>Simplified simulation calibrated to the paper's DINOv2 size study: artifacts appear around the middle of the network, only at ViT-L and above, and only in low-information patches. The paper also finds them in DeiT-III and OpenCLIP at ViT-B, so size is recipe-dependent. The probe numbers are the paper's reported values for DINOv2 ViT-g (position top-1 accuracy, reconstruction L2, ImageNet linear-probe top-1).</figcaption>
+    <div class="key" id="attn-key"></div>
+    <figcaption><span class="fig-n"></span>Attention from <code>[CLS]</code> to each patch in the last layer of a simulated DINOv2 ViT-L, without and with registers, on one color scale. Orange squares mark artifact tokens. <span class="takeaway" id="attn-takeaway"></span> Simulated, after the paper’s Figure 1.</figcaption>
   </figure>
-</div>
-</section>
 
-<!-- 3. WHY -->
-<section id="why">
-<div class="wrap">
-  <div class="head"><h2>What the artifact tokens contain</h2></div>
-  <div class="grid2">
-    <div class="prose">
-      <p><b>They appear in redundant patches.</b> Before an artifact forms, its token is usually similar to neighboring tokens. Replacing one of several nearly identical background representations loses little local information.</p>
-      <p><b>They lose local information and gain global information.</b> Linear probes recover less about the token's position and source pixels, but more about the image class.</p>
-      <p><b>The threshold depends on model and training recipe.</b> In the paper's DINOv2 size study, artifacts appear in ViT-L and larger models after sufficient training. The authors also found artifacts in ViT-B models trained with DeiT-III and OpenCLIP.</p>
-      <p>The authors hypothesize that the network repurposes redundant patch tokens for global computation. The register experiment supports that explanation: when dedicated learned tokens are available, the large norms move to them and patch-level representations become smoother. This is evidence for the hypothesis, rather than a proof of the exact mechanism.</p>
-      <p>Classification can tolerate the artifacts because it uses a global representation. Dense tasks such as segmentation, depth estimation, and object discovery read patch tokens directly and are more sensitive to corrupted local features.</p>
-    </div>
-    <figure style="margin:0">
-      <div class="bar"><span style="color:var(--ink-3)">Cosine similarity of each patch to its neighbours, layer before artifacts appear</span></div>
-      <div class="body">
-        <div class="gridwrap no-gap" id="redGrid" style="margin:0 auto"></div>
-        <div class="legend" style="justify-content:center"><span>Distinct</span><span class="ramp" id="simRamp"></span><span>Redundant</span><span><span class="sw" style="border:2px solid var(--art);border-radius:50%;background:none"></span>becomes artifact</span></div>
-      </div>
-      <figcaption>Simplified simulation. Candidate artifacts are placed in high-redundancy background patches to reproduce the paper's qualitative observation.</figcaption>
+  <section id="tokens">
+    <h2>How an image becomes a sequence of tokens</h2>
+    <p>A Vision Transformer (ViT) cuts an image into a grid of square patches, usually 14 or 16 pixels on a side. A 224-pixel image cut into 16-pixel patches gives a 14 × 14 grid of 196 patches.<span class="sn-ref"></span><span class="sidenote">DINOv2 uses 14-pixel patches, which gives a 16 × 16 grid of 256 patches at 224 pixels. For legibility, the simulation on this page uses the 14 × 14 grid everywhere, including where it is labeled DINOv2.</span> Each patch is flattened and multiplied by a learned matrix, which turns it into a vector of <i>d</i> numbers (768 for ViT-B, 1,024 for ViT-L). A positional embedding is added so the model knows where the patch came from. These vectors are the <b>patch tokens</b>.</p>
+    <p>One more learned vector, the <b>class token</b> <code>[CLS]</code>, goes in front of the patches. It has no pixels of its own. Through attention it gathers a summary of the whole image, and its final state is the image representation used for classification. The sequence is therefore 197 tokens long: <code>[CLS]</code> at position 0, then the patches in reading order, left to right and top to bottom, at positions 1 to 196.</p>
+
+    <figure class="fig wide" id="fig-tokens">
+      <div class="graphic" id="tokens-graphic"><svg id="tokens-svg" role="img" aria-label="The 14 by 14 patch grid flattened row by row into a sequence that starts with the class token"></svg></div>
+      <figcaption><span class="fig-n"></span>The simulated image flattened into its token sequence. Each cell of the strip is one token, shaded like its patch; four rows are shown and the other ten elided. Four patches are marked with their positions in both. <span class="takeaway">The patch in row <i>r</i>, column <i>c</i> becomes token 1 + 14<i>r</i> + <i>c</i>.</span></figcaption>
     </figure>
-  </div>
-</div>
-</section>
 
-<!-- 4. FIX -->
-<section id="fix">
-<div class="wrap">
-  <div class="head"><h2>Add register tokens</h2></div>
-  <div class="prose">
-    <p>A <span class="kw reg">register</span> is a learned input token with no corresponding image patch. The DINOv2 implementation places register tokens after <span class="kw cls">[CLS]</span> and before the patch tokens. They participate in every transformer block, receive no positional embedding, and are discarded when patch and class features are returned.</p>
-    <p>Models trained with registers put the high-norm global information into those tokens. The patch tokens retain more local information, and the feature and attention maps become smoother. The widget uses a simplified rule in which one register removes all simulated artifacts; the paper uses four registers for its main results.</p>
-  </div>
-  <figure>
-    <div class="bar">
-      <div class="ctl"><label for="nreg">Registers</label><input type="range" id="nreg" min="0" max="8" value="0"><output id="nregOut">0</output></div>
-      <div class="ctl"><span class="ctl-label">Show</span>
-        <div class="seg" id="viewSeg">
-          <button type="button" data-v="norm" aria-pressed="true">Token norms</button>
-          <button type="button" data-v="attn" aria-pressed="false">[CLS] attention</button>
-        </div>
-      </div>
-      <span style="color:var(--ink-3)" id="fixStatus"></span>
-    </div>
-    <div class="body">
-      <div class="eyebrow">Input sequence</div>
-      <div class="seq" id="seq"></div>
-      <div class="split" style="margin-top:8px">
-        <div>
-          <div class="gridwrap no-gap" id="fixGrid"></div>
-          <div class="legend" id="fixLegend"></div>
-        </div>
-        <div>
-          <div class="eyebrow">Where the high norms live</div>
-          <div class="strip" id="fixStrip" style="margin-top:8px"></div>
-          <div class="toklabel"><span>■ <span class="kw cls">[CLS]</span></span><span>■ <span class="kw reg">[REG]</span></span><span>■ patch (every 2nd shown)</span><span>■ <span class="kw art">artifact</span></span></div>
-          <div class="probe" style="margin-top:16px">
-            <h3>Token norms <span class="pill reg" id="budgetPill">0 registers</span></h3>
-            <div class="kv" id="budgetKv"></div>
-            <div class="note" id="budgetNote"></div>
-          </div>
-        </div>
-      </div>
-      <div class="pipeline" style="margin-top:22px">
-        <div class="stage"><b>[CLS] + <span id="pipeN">0</span> registers + 196 patches</b>input sequence</div><div class="arrow">→</div>
-        <div class="stage"><b>L transformer blocks</b>unchanged architecture</div><div class="arrow">→</div>
-        <div class="stage drop"><b>Registers discarded</b>use [CLS] and patch tokens as before</div>
-      </div>
-    </div>
-    <figcaption>Four registers increase this sequence from 197 to 201 tokens and leave the transformer blocks unchanged. The ICLR 2024 method trains the model with registers from the start.</figcaption>
-  </figure>
-  <div class="callout"><b>Interpretation.</b> Registers provide dedicated sequence positions for the global information that otherwise appears in a few background patch tokens. The experiment isolates that role without changing the transformer blocks.</div>
-</div>
-</section>
+    <p>The sequence then passes through a stack of transformer blocks, 12 in ViT-S and ViT-B and 24 in ViT-L. In each block, self-attention lets every token read from every other token and write the result into its own vector. Nothing in the architecture requires the token at position 92 to keep describing patch 92. If the network finds a better use for that slot, training is free to put it there.</p>
+  </section>
 
-<!-- 5. RESULTS -->
-<section id="results">
-<div class="wrap">
-  <div class="head"><h2>Results with four registers</h2></div>
-  <div class="grid2">
-    <div class="prose">
-      <p>The authors trained three model families with four registers: supervised DeiT-III, text-supervised OpenCLIP, and self-supervised DINOv2. The high-norm patch artifacts disappear in all three families.</p>
-      <p>ImageNet classification changes by at most 0.5 percentage points in this table. ADE20k segmentation and NYUd depth improve in most cases, with small regressions for DeiT-III depth and OpenCLIP classification. LOST object discovery improves substantially for DeiT-III and DINOv2, then declines by 1.7 points for OpenCLIP. The results support a patch-quality benefit, but they do not show a uniform improvement on every task.</p>
-      <p>Numbers below are from the paper's Tables 2 and 3 (ImageNet top-1, ADE20k mIoU, NYUd depth RMSE where lower is better, and LOST corloc on VOC 2007).</p>
-    </div>
-    <figure style="margin:0">
+  <section id="artifacts">
+    <h2>A few patch tokens with ten times the norm</h2>
+    <p>The <b>norm</b> of a token is the length of its vector: the square root of the sum of its squared entries. Darcet and colleagues found that in DINOv2 a few patch tokens leave the network with norms about ten times larger than the rest, and that these tokens are the bright specks in the attention maps.<span class="sn-ref"></span><span class="sidenote">Paper, §1 and Fig. 3. In DINOv2 ViT-g most patch norms lie between 0 and 100, and 2.37% exceed 150, a cutoff the authors chose by hand and note varies between models.</span> The paper calls them high-norm or outlier tokens. This page calls them <b>artifact tokens</b>.</p>
+    <p>They sit in flat background: sky, walls, roads, anywhere a patch looks like its neighbors.<span class="sn-ref"></span><span class="sidenote">Fig. 5a: measured right after patch embedding, patches that become high-norm tokens are very similar to their four neighbors. Appendix A: they are also more common near the image border.</span> A patch that repeats its neighbors carries little information of its own, so overwriting it costs the image representation little.</p>
+
+    <figure class="fig" id="fig-where">
+      <div class="where">
+        <div class="map"><h4>Token norms, last layer</h4><svg id="map-norm" viewBox="0 0 14 14" role="img" aria-label="Map of output token norms"></svg></div>
+        <div class="dots"><h4>The same 196 norms as dots</h4><div class="graphic"><svg id="dots-norm" role="img" aria-label="Dot plot of the 196 output token norms"></svg></div></div>
+      </div>
+      <figcaption><span class="fig-n"></span>Output norms of the simulated DINOv2 ViT-L with no registers. Left, one cell per patch: grey from light (norm 0) to dark (150), orange above 150; thin lines trace the bird and the hill. Right, the same norms as dots. <span class="takeaway" id="where-takeaway"></span></figcaption>
+    </figure>
+
+    <h3>When and in which models they appear</h3>
+    <p>The paper reports three conditions. The outliers separate from the other tokens partway through the network, around layer 15 of the 40-layer ViT-g. They appear only after about a third of training. And of six DINOv2 sizes, from ViT-Tiny to ViT-giant, only the three largest (ViT-L, ViT-H and ViT-g) have them.<span class="sn-ref"></span><span class="sidenote">Paper, §2.1 and Fig. 4. Training length is not simulated on this page.</span></p>
+
+    <figure class="fig" id="fig-depth">
+      <div class="depth" id="depth-grid"></div>
+      <figcaption><span class="fig-n"></span>Simulated norm maps at one quarter, one half, three quarters and the full depth of three DINOv2 sizes, on the same scale as Figure 3. <span class="takeaway">Artifacts appear only in ViT-L, and only from the middle layers on.</span> The simulation starts them between layers 9 and 13 of 24, in proportion to the paper’s layer 15 of 40 for ViT-g.</figcaption>
+    </figure>
+
+    <p>Size is not the whole story. The paper also finds artifacts at ViT-B in models trained with the supervised DeiT-III recipe and with OpenCLIP, and none in the original DINO. The authors say plainly that they could not determine which aspects of training cause them.<span class="sn-ref"></span><span class="sidenote">§2.2: “we have not been able to fully determine which aspects of the training led to the appearance of artifacts in different models.” OpenCLIP and DeiT-III show outliers at both ViT-B and ViT-L (Fig. 2).</span></p>
+  </section>
+
+  <section id="contents">
+    <h2>What the artifact tokens hold</h2>
+    <p>To find out what information a token still carries, the authors trained <b>linear probes</b>: small linear models fitted on frozen token vectors. If a probe can predict a patch’s position from its token, the position is still recoverable from that token. They probed normal and artifact tokens of DINOv2 ViT-g for three things: where the patch was, what pixels it held, and what the whole image showed.</p>
+
+    <figure class="fig" id="probe-table">
+      <table>
+        <thead><tr><th>Probe task</th><th class="n">Normal patch</th><th class="n">Artifact</th><th class="n"><code>[CLS]</code></th></tr></thead>
+        <tbody>
+          <tr><td>Position, top-1 accuracy (%)</td><td class="n">41.7</td><td class="n">22.8</td><td class="n">–</td></tr>
+          <tr><td>Position, average distance <span class="dir">(lower is better)</span></td><td class="n">0.79</td><td class="n">5.09</td><td class="n">–</td></tr>
+          <tr><td>Pixel reconstruction, L2 error <span class="dir">(lower is better)</span></td><td class="n">18.38</td><td class="n">25.23</td><td class="n">–</td></tr>
+          <tr><td>ImageNet class from one token, top-1 (%)</td><td class="n">65.8</td><td class="n">69.0</td><td class="n">86.0</td></tr>
+          <tr><td>Aircraft class from one token, top-1 (%)</td><td class="n">17.1</td><td class="n">79.1</td><td class="n">87.3</td></tr>
+        </tbody>
+      </table>
+      <figcaption><span class="fig-n"></span>Reported by the paper for DINOv2 ViT-g (Fig. 5b and Table 1); not simulated. <span class="takeaway">Artifact tokens lose most of what locates and describes their patch, and gain information about the whole image.</span></figcaption>
+    </figure>
+
+    <p>Artifact tokens do worse on both local tasks and better on both global ones. The gap is widest on fine-grained aircraft classification: a probe on one normal patch token gets 17.1% right, a probe on one artifact token 79.1%, close to the 87.3% of <code>[CLS]</code>, the token built for the job.</p>
+    <p>The authors’ hypothesis is that a large, well-trained model learns to recognize patches whose content is redundant, discards their local information, and uses their token slots to store, process and retrieve global information. They do not consider this computation harmful in itself. The problem is where it happens: inside patch tokens, which downstream methods read as a map of the image.</p>
+    <p>That explains which tasks suffer. Classification reads <code>[CLS]</code> and barely notices. Segmentation, depth estimation and object discovery read the patch tokens directly, and an overwritten token no longer describes its patch. The authors expected this to cost accuracy on dense prediction, and the results below bear that out most clearly for object discovery. The investigation started with such a mismatch: the object-discovery method LOST works well on the original DINO and poorly on DINOv2.<span class="sn-ref"></span><span class="sidenote">§1: “we observed that DINOv2 is surprisingly incompatible with LOST.” LOST (Siméoni et al., 2021) finds the main object from the similarity between patch features.</span></p>
+  </section>
+
+  <section id="registers">
+    <h2>Registers: extra tokens for global computation</h2>
+    <p>If the model needs scratch space, it can be given some. A <b>register</b> is a learned vector added to the input sequence that corresponds to no image patch. Registers pass through every transformer block like any other token, and their outputs are thrown away at the end: only <code>[CLS]</code> and the patch tokens are used, in training and at inference. The mechanism comes from Memory Transformers, where it improved machine translation.<span class="sn-ref"></span><span class="sidenote">Burtsev et al., 2020, cited in §2.2 of the paper.</span></p>
+
+    <figure class="fig" id="fig-sequence">
+      <div class="graphic" id="sequence-graphic"><svg id="sequence-svg" role="img" aria-label="Diagram: class token, four registers and 196 patch tokens enter unchanged transformer blocks; the register outputs are discarded"></svg></div>
+      <figcaption><span class="fig-n"></span>A ViT-L with four registers. The input grows from 197 to 201 tokens, the blocks are unchanged, and the register outputs are discarded. <span class="takeaway">Registers change the sequence, not the architecture.</span></figcaption>
+    </figure>
+
+    <p>In the official DINOv2 code the registers sit after <code>[CLS]</code> and before the patch tokens, and they are inserted after the positional embeddings are added, so they carry no position.<span class="sn-ref"></span><span class="sidenote"><code>prepare_tokens_with_masks</code> in <a href="https://github.com/facebookresearch/dinov2/blob/main/dinov2/models/vision_transformer.py">dinov2/models/vision_transformer.py</a>. The paper’s text says the registers are “appended”. Without positional embeddings, where a register sits in the sequence makes no difference to attention.</span> Their order in the sequence matters only to downstream code, which drops the first 1 + <i>n</i> outputs and reshapes the rest into the patch grid.</p>
+    <p>Models trained with registers no longer have high-norm patch tokens. The high norms move into the registers.</p>
+
+    <figure class="fig" id="fig-absorb">
+      <div class="graphic"><svg id="absorb-svg" role="img" aria-label="Dot plots of token norms for models with 0, 1 and 4 registers"></svg></div>
+      <figcaption><span class="fig-n"></span>Simulated output norms of every token for models trained with 0, 1 and 4 registers. Purple: <code>[CLS]</code>. Green: registers. Grey: patch tokens, orange above the 150 cutoff. <span class="takeaway" id="absorb-takeaway"></span> After the paper’s Figures 7 and 15.</figcaption>
+    </figure>
+
+    <p>The paper finds the same transfer in what the tokens hold. In a model with one register, a probe on the register classifies aircraft with 71.1% accuracy, close to the 73.3% of an artifact token in the same model trained without registers. The ordinary patch tokens keep the same local information with or without registers.<span class="sn-ref"></span><span class="sidenote">Appendix D, Tables 4 and 5. Position top-1 on normal patches is 66.3% without registers and 65.8% with four; reconstruction L2 error 15.9 and 16.0.</span></p>
+    <p>One register is enough to remove the visible artifacts. Adding more keeps improving ImageNet accuracy, while segmentation and depth have an optimum; the paper uses four for all its main results.<span class="sn-ref"></span><span class="sidenote">Fig. 8: DINOv2 ViT-L/14 trained with 0, 1, 2, 4, 8 and 16 registers.</span> The cost is small. Four registers add less than 2% to the model’s FLOPs and a negligible number of parameters.<span class="sn-ref"></span><span class="sidenote">Appendix B and Fig. 12. Sixteen registers add up to 6% FLOPs.</span></p>
+    <p>The registers do not all behave alike. In the paper’s attention maps, individual registers attend to different objects or regions of the image, although nothing in training asked them to.<span class="sn-ref"></span><span class="sidenote">Fig. 9 and Appendix D.3. One register of a DINOv2 model attends mostly to the image border on average.</span></p>
+  </section>
+
+  <section id="results">
+    <h2>What registers change downstream</h2>
+    <p>The authors trained three model families with and without four registers: DeiT-III, supervised on ImageNet-22k labels; OpenCLIP, trained on image–text pairs; and DINOv2, self-supervised. The high-norm patch artifacts disappear in all three. The table measures the effect on tasks, using frozen features with linear heads.</p>
+
+    <figure class="fig" id="results-table">
       <div class="tablewrap">
       <table>
-        <thead><tr><th>Model (size)</th><th>Registers</th><th>ImageNet ↑</th><th>ADE20k ↑</th><th>NYUd ↓</th><th>LOST ↑</th></tr></thead>
+        <thead><tr><th>Model (size)</th><th class="n">Registers</th><th class="n">ImageNet<span class="dir">top-1 (%)</span></th><th class="n">ADE20k<span class="dir">mIoU</span></th><th class="n">NYUd<span class="dir">RMSE, lower better</span></th><th class="n">LOST<span class="dir">corloc</span></th></tr></thead>
         <tbody>
-          <tr><td>DeiT-III (ViT-B)</td><td>0</td><td>84.7</td><td>38.9</td><td>0.511</td><td>11.7</td></tr>
-          <tr><td></td><td>4</td><td class="same">84.7</td><td class="up">39.1</td><td class="down">0.512</td><td class="up">27.1</td></tr>
-          <tr><td>OpenCLIP (ViT-B)</td><td>0</td><td>78.2</td><td>26.6</td><td>0.702</td><td>38.8</td></tr>
-          <tr><td></td><td>4</td><td class="down">78.1</td><td class="up">26.7</td><td class="up">0.661</td><td class="down">37.1</td></tr>
-          <tr><td>DINOv2 (ViT-L)</td><td>0</td><td>84.3</td><td>46.6</td><td>0.378</td><td>35.3</td></tr>
-          <tr><td></td><td>4</td><td class="up">84.8</td><td class="up">47.9</td><td class="up">0.366</td><td class="up">55.4</td></tr>
+          <tr><td>DeiT-III <span class="dir">(ViT-B)</span></td><td class="n">0</td><td class="n"><span class="v">84.7</span><span class="d"></span></td><td class="n"><span class="v">38.9</span><span class="d"></span></td><td class="n"><span class="v">0.511</span><span class="d"></span></td><td class="n"><span class="v">11.7</span><span class="d"></span></td></tr>
+          <tr><td></td><td class="n">4</td><td class="n same"><span class="v">84.7</span><span class="d" title="unchanged">=</span></td><td class="n up"><span class="v">39.1</span><span class="d" title="better">▲</span></td><td class="n down"><span class="v">0.512</span><span class="d" title="worse">▼</span></td><td class="n up"><span class="v">27.1</span><span class="d" title="better">▲</span></td></tr>
+          <tr><td>OpenCLIP <span class="dir">(ViT-B)</span></td><td class="n">0</td><td class="n"><span class="v">78.2</span><span class="d"></span></td><td class="n"><span class="v">26.6</span><span class="d"></span></td><td class="n"><span class="v">0.702</span><span class="d"></span></td><td class="n"><span class="v">38.8</span><span class="d"></span></td></tr>
+          <tr><td></td><td class="n">4</td><td class="n down"><span class="v">78.1</span><span class="d" title="worse">▼</span></td><td class="n up"><span class="v">26.7</span><span class="d" title="better">▲</span></td><td class="n up"><span class="v">0.661</span><span class="d" title="better">▲</span></td><td class="n down"><span class="v">37.1</span><span class="d" title="worse">▼</span></td></tr>
+          <tr><td>DINOv2 <span class="dir">(ViT-L)</span></td><td class="n">0</td><td class="n"><span class="v">84.3</span><span class="d"></span></td><td class="n"><span class="v">46.6</span><span class="d"></span></td><td class="n"><span class="v">0.378</span><span class="d"></span></td><td class="n"><span class="v">35.3</span><span class="d"></span></td></tr>
+          <tr><td></td><td class="n">4</td><td class="n up"><span class="v">84.8</span><span class="d" title="better">▲</span></td><td class="n up"><span class="v">47.9</span><span class="d" title="better">▲</span></td><td class="n up"><span class="v">0.366</span><span class="d" title="better">▲</span></td><td class="n up"><span class="v">55.4</span><span class="d" title="better">▲</span></td></tr>
         </tbody>
       </table>
       </div>
-      <figcaption>Green values improved; orange values regressed. Values are transcribed from Tables 2 and 3 of the paper.</figcaption>
+      <figcaption><span class="fig-n"></span>Reported by the paper (Tables 2a and 3); not simulated. ImageNet top-1 accuracy, ADE20k segmentation, NYUd depth error, and LOST object discovery on VOC 2007. ▲ better with registers, ▼ worse (also in red), = unchanged. <span class="takeaway">Classification barely moves; object discovery gains the most.</span></figcaption>
     </figure>
-  </div>
-</div>
-</section>
 
-<!-- 6. FAQ -->
-<section id="faq">
-<div class="wrap">
-  <div class="head"><h2>Details</h2></div>
-  <div class="faq">
-    <details open><summary>How many registers do I need?</summary><div class="a">The paper uses four by default. Its ablations show that the best count depends on the model and downstream task, while results generally level off after a small number. This page makes one register sufficient in its simplified simulation so the transfer of high norms is easy to inspect.</div></details>
-    <details><summary>Where do they go in the sequence?</summary><div class="a">The official DINOv2 implementation places them after [CLS] and before the patch tokens: [CLS], [REG1..n], then patches. Downstream code can drop the first 1+n outputs and reshape the rest into the patch grid. The registers receive no positional embedding.</div></details>
-    <details><summary>Are registers the same as [CLS]?</summary><div class="a">Both start as learned vectors and are updated by every transformer block. Their outputs serve different roles. The class token is used as a global image representation; the register outputs are discarded. Registers can also develop different attention patterns during training.</div></details>
-    <details><summary>Is this the same as attention sinks in language models?</summary><div class="a">They are related observations, but the papers do not establish one shared mechanism. StreamingLLM calls early tokens that receive large attention scores “attention sinks.” Other work finds massive activations concentrated in a few LLM token positions. ViT registers address high-norm patch artifacts by adding learned token positions. All three involve unusual behavior at a small number of sequence positions.</div></details>
-    <details><summary>Can I add registers to a model I already have?</summary><div class="a">The 2024 paper trains models with learned registers. Later work, <i>Vision Transformers Don't Need Trained Registers</i> (2025), reports a training-free method that shifts high-norm activations into an added token for existing models. That method changes internal activations and is different from inserting a blank token into an unchanged frozen model.</div></details>
-    <details><summary>Why did small models not have artifacts?</summary><div class="a">The paper does not establish a general size threshold. In its DINOv2 study, artifacts appear in ViT-L and larger models after enough training, while the tested ViT-S and ViT-B checkpoints remain clean. DeiT-III and OpenCLIP produce artifacts at ViT-B, which shows that architecture size alone does not determine the result.</div></details>
-  </div>
-</div>
-</section>
+    <p>ImageNet accuracy moves by at most 0.5 points. ADE20k segmentation and NYUd depth improve in most cases, with small regressions for DeiT-III depth and OpenCLIP classification. Object discovery with LOST gains 15.4 points for DeiT-III and 20.1 for DINOv2, and loses 1.7 for OpenCLIP.<span class="sn-ref"></span><span class="sidenote">Appendix C: for OpenCLIP, LOST reads the attention values, and the value projection already suppresses the outliers in the model without registers, so removing them changes little.</span> The results support a benefit to patch features, not a uniform gain on every task.</p>
+  </section>
 
-<section id="refs">
-<div class="wrap">
-  <div class="head"><h2>Primary sources</h2></div>
-  <ol class="refs">
-    <li>Darcet, T., Oquab, M., Mairal, J., Bojanowski, P. <i>Vision Transformers Need Registers.</i> ICLR 2024. <a href="https://arxiv.org/abs/2309.16588">arXiv:2309.16588</a></li>
-    <li>Oquab, M. et al. <i>DINOv2: Learning Robust Visual Features without Supervision.</i> 2023. <a href="https://arxiv.org/abs/2304.07193">arXiv:2304.07193</a></li>
-    <li>Dosovitskiy, A. et al. <i>An Image is Worth 16×16 Words.</i> ICLR 2021. <a href="https://arxiv.org/abs/2010.11929">arXiv:2010.11929</a></li>
-    <li>Xiao, G. et al. <i>Efficient Streaming Language Models with Attention Sinks.</i> 2023. <a href="https://arxiv.org/abs/2309.17453">arXiv:2309.17453</a></li>
-    <li>Sun, M. et al. <i>Massive Activations in Large Language Models.</i> 2024. <a href="https://arxiv.org/abs/2402.17762">arXiv:2402.17762</a></li>
-    <li>Jiang, N. et al. <i>Vision Transformers Don't Need Trained Registers.</i> 2025. <a href="https://arxiv.org/abs/2506.08010">arXiv:2506.08010</a></li>
-    <li>Siméoni, O. et al. <i>Localizing Objects with Self-Supervised Transformers and no Labels (LOST).</i> BMVC 2021.</li>
-  </ol>
-</div>
-</section>
+  <section id="questions">
+    <h2>Questions and related work</h2>
+
+    <h3>Are registers the same as <code>[CLS]</code>?</h3>
+    <p>Both start as learned vectors and are updated by every transformer block. Their outputs serve different roles: the class token is used as the global image representation, while the register outputs are discarded. Registers can also develop attention patterns different from <code>[CLS]</code> and from each other during training.</p>
+
+    <h3>Why did the small models have no artifacts?</h3>
+    <p>The paper does not establish a general size threshold. In its DINOv2 study, artifacts appear in ViT-L and larger models after enough training, while the tested ViT-S and ViT-B checkpoints stay clean. DeiT-III and OpenCLIP produce artifacts at ViT-B, so model size alone does not decide the outcome.</p>
+
+    <h3>Does every vision transformer have them?</h3>
+    <p>No. The original DINO shows none, and its attention maps were known for outlining objects without any labels. Neither does a ViT-L trained as a masked autoencoder (MAE). The authors’ guess is that MAE’s loss is purely local, a pixel reconstruction for each patch, so the model has no reason to gather global information anywhere.<span class="sn-ref"></span><span class="sidenote">Paper, Fig. 2 and Appendix E. The MAE explanation is stated as a hypothesis.</span></p>
+
+    <h3>Is this the same as attention sinks in language models?</h3>
+    <p>They are related observations, but the papers do not establish one shared mechanism. StreamingLLM calls the early tokens that receive large attention scores “attention sinks”. Other work finds massive activations concentrated in a few token positions of language models. ViT registers address high-norm patch artifacts by adding learned token positions. All three involve unusual behavior at a small number of sequence positions.</p>
+
+    <h3>Can registers be added to a model that is already trained?</h3>
+    <p>The 2024 paper trains its models with learned registers from the start. Later work, <i>Vision Transformers Don’t Need Trained Registers</i> (2025), reports a training-free method that shifts the high-norm activations of an existing model into an added token. That method edits internal activations; inserting a blank token into an unchanged frozen model is a different thing and is not what either paper does.</p>
+  </section>
+
+  <footer class="colophon">
+    <p><b>About the figures.</b> Every map and dot plot on this page is drawn in your browser by a small deterministic model written to reproduce the paper’s qualitative findings: artifacts from the middle layers of DINOv2 ViT-L and not in ViT-S or ViT-B, only in redundant background patches, and gone once a single register is present. No neural network runs here, and the simulated norms are illustrative, not measured. The two tables are transcribed from the ICLR 2024 version of the paper (arXiv v2, April 2024).</p>
+    <p><b>Sources.</b></p>
+    <ol class="refs">
+      <li>Darcet, T., Oquab, M., Mairal, J., Bojanowski, P. <i>Vision Transformers Need Registers.</i> ICLR 2024. <a href="https://arxiv.org/abs/2309.16588">arXiv:2309.16588</a></li>
+      <li>Oquab, M. et al. <i>DINOv2: Learning Robust Visual Features without Supervision.</i> 2023. <a href="https://arxiv.org/abs/2304.07193">arXiv:2304.07193</a></li>
+      <li>Dosovitskiy, A. et al. <i>An Image is Worth 16×16 Words.</i> ICLR 2021. <a href="https://arxiv.org/abs/2010.11929">arXiv:2010.11929</a></li>
+      <li>Xiao, G. et al. <i>Efficient Streaming Language Models with Attention Sinks.</i> 2023. <a href="https://arxiv.org/abs/2309.17453">arXiv:2309.17453</a></li>
+      <li>Sun, M. et al. <i>Massive Activations in Large Language Models.</i> 2024. <a href="https://arxiv.org/abs/2402.17762">arXiv:2402.17762</a></li>
+      <li>Jiang, N. et al. <i>Vision Transformers Don’t Need Trained Registers.</i> 2025. <a href="https://arxiv.org/abs/2506.08010">arXiv:2506.08010</a></li>
+      <li>Siméoni, O. et al. <i>Localizing Objects with Self-Supervised Transformers and no Labels (LOST).</i> BMVC 2021.</li>
+    </ol>
+    <p>Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn/tree/main/register-tokens">GitHub</a>.</p>
+  </footer>
 </main>
-
-<footer><div class="wrap">Every heatmap on this page is generated by a small simulation designed to reproduce the qualitative findings of the paper, not by a real network. Treat the pictures as diagrams and the tables as citations.</div></footer>
-
-<script>
-(() => {
-const N = 14;                       // patches per side
-const CSS = getComputedStyle(document.documentElement);
-const tok = (n) => CSS.getPropertyValue(n).trim();
-
-// ---------- deterministic RNG ----------
-function rng(seed){ let s = seed>>>0; return () => { s = (s + 0x6D2B79F5)>>>0; let t = s; t = Math.imul(t ^ (t>>>15), t | 1); t ^= t + Math.imul(t ^ (t>>>7), t | 61); return ((t ^ (t>>>14))>>>0) / 4294967296; }; }
-
-// ---------- synthetic scene ----------
-// label: 0 sky, 1 ground, 2 object. A bird-like blob on sky with a hill.
-const scene = [];
-for (let y=0;y<N;y++) for (let x=0;x<N;x++){
-  const hill = y > 9.5 + 1.2*Math.sin(x*0.9);
-  const dx=(x-6.5)/3.4, dy=(y-6)/2.2;
-  const body = dx*dx+dy*dy < 1;
-  const head = ((x-9.6)/1.3)**2 + ((y-4.6)/1.3)**2 < 1;
-  const wing = Math.abs(x-6) < 1.6 && y>2.2 && y<5 ;
-  scene.push(body||head||wing ? 2 : hill ? 1 : 0);
-}
-// informativeness: edge density (fraction of 4-neighbours with a different label) + small texture for ground
-const info = scene.map((l,i)=>{
-  const x=i%N,y=(i/N)|0; let diff=0,cnt=0;
-  [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const xx=x+dx,yy=y+dy; if(xx<0||yy<0||xx>=N||yy>=N)return; cnt++; if(scene[yy*N+xx]!==l)diff++;});
-  let v = diff/cnt;
-  if (l===2) v = Math.max(v, .45);
-  if (l===1) v = Math.max(v, .18);
-  return v;
-});
-const redundancy = info.map(v=>1-Math.min(1,v*1.4));
-
-// candidate artifact positions: most redundant sky/ground patches, seeded
-const r = rng(7);
-const cand = info.map((v,i)=>({i,s:redundancy[i] + (r()-.5)*.25})).filter(o=>scene[o.i]!==2 && redundancy[o.i]>.85).sort((a,b)=>b.s-a.s).map(o=>o.i);
-
-// ---------- model ----------
-// DINOv2 size study (paper Fig. 4c): outliers only at ViT-L and above.
-const MODEL = {S:{layers:12,start:99,max:0}, B:{layers:12,start:99,max:0}, L:{layers:24,start:11,max:7}};
-function state(model, layer, nreg){
-  const m = MODEL[model];
-  const frac = Math.min(1,(layer - m.start)/6);
-  const count = (nreg>0 || layer < m.start) ? 0 : Math.round(m.max * (0.5+0.5*frac));
-  const outliers = new Set(cand.slice(0,count));
-  const r2 = rng(layer*31+7);
-  const base = 12 + layer*1.4;
-  const norms = info.map((v,i)=> outliers.has(i) ? 170 + 230*(0.6+0.4*r2()) * Math.min(1,0.4+frac) : base*(0.85+0.3*v) + r2()*base*0.25);
-  const regNorms = Array.from({length:nreg},(_,k)=> nreg? 260 + 140*rng(k+3)() * (layer>m.start*0.6?1:0.2) : 0);
-  const clsNorm = base*1.8 + (nreg? 30: 0);
-  // attention from CLS at last layer
-  let attn = info.map((v,i)=> (scene[i]===2 ? 0.55+0.45*v : 0.06+0.25*v) + rng(i*13+layer)()*0.08);
-  if (outliers.size){ attn = attn.map((a,i)=> outliers.has(i) ? 1.0 + 0.3*rng(i)() : a*0.35); }
-  const max = Math.max(...attn); attn = attn.map(a=>a/max);
-  return {outliers, norms, regNorms, clsNorm, attn, frac};
-}
-
-// ---------- colour helpers ----------
-function hex2rgb(h){h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16));}
-function mix(a,b,t){const A=hex2rgb(a),B=hex2rgb(b);return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`;}
-const sceneColor = l => l===2? tok('--obj') : l===1 ? tok('--ground') : tok('--sky');
-
-// ---------- grid builder ----------
-function buildGrid(el, onCell){
-  el.style.gridTemplateColumns = `repeat(${N},1fr)`;
-  el.innerHTML='';
-  const cells=[];
-  // Interactive grids are one Tab stop: buttons with a roving tabindex and arrow-key movement.
-  // Passive grids are plain divs so keyboard users never traverse actionless controls.
-  for(let i=0;i<N*N;i++){const c=document.createElement(onCell?'button':'div'); c.className='cell'; c.dataset.i=i;
-    if(onCell){c.type='button';c.tabIndex=i?-1:0;c.setAttribute('aria-label',`patch column ${i%N}, row ${(i/N)|0}`);}
-    el.appendChild(c);cells.push(c);}
-  if(onCell){ el.setAttribute('role','grid'); el.addEventListener('mouseover',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
-              el.addEventListener('focusin',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'hover');});
-              rovingKeys(el, cells, N);
-              el.addEventListener('click',e=>{const c=e.target.closest('.cell'); if(c) onCell(+c.dataset.i,'click');}); }
-  return cells;
-}
-// Arrow keys move focus within a widget; Tab leaves it. cols = items per row for Up/Down.
-function rovingKeys(el, items, cols){
-  el.addEventListener('keydown',e=>{
-    const cur=items.indexOf(document.activeElement); if(cur<0) return;
-    const d={ArrowRight:1,ArrowLeft:-1,ArrowDown:cols,ArrowUp:-cols,Home:-cur,End:items.length-1-cur}[e.key]; if(d===undefined) return;
-    const next=Math.max(0,Math.min(items.length-1,cur+d)); if(next===cur) return;
-    e.preventDefault(); items[cur].tabIndex=-1; items[next].tabIndex=0; items[next].focus();
-  });
-}
-function paintScene(cells){ cells.forEach((c,i)=>{ c.style.background=sceneColor(scene[i]); if(scene[i]===2){c.style.background = (i%3===0)?tok('--obj-2'):tok('--obj');} }); }
-function paintHeat(cells, vals, c0, c1, opts={}){
-  const max = opts.max ?? Math.max(...vals);
-  cells.forEach((c,i)=>{ const t=Math.min(1,vals[i]/max); c.style.background = mix(c0,c1, opts.gamma? Math.pow(t,opts.gamma):t); c.classList.toggle('outlier', !!(opts.outliers&&opts.outliers.has(i))); });
-}
-function setRamp(id,c0,c1){ document.getElementById(id).style.background=`linear-gradient(90deg,${c0},${c1})`; }
-
-// =============== HERO ===============
-{
-  const img = buildGrid(document.getElementById('heroImg')); paintScene(img);
-  const at = buildGrid(document.getElementById('heroAttn'));
-  const seg = document.getElementById('heroSeg');
-  const render = n => { const s=state('L',24,n); paintHeat(at,s.attn,tok('--attn0'),tok('--attn1'),{max:1,gamma:.8});
-    document.getElementById('heroCap').textContent = n? `Attention map, ${n} registers: follows the object` : 'Attention map, 0 registers: spikes on background'; };
-  const setN = n => { [...seg.children].forEach(x=>x.setAttribute('aria-pressed', String(+x.dataset.n===n))); render(n); };
-  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;setN(+b.dataset.n);});
-  setN(0);
-  // Flip three times on load so the contrast is visible, then leave it to the reader.
-  // Skipped under prefers-reduced-motion; a real click on the toggle cancels it.
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(!reduced){
-    let flips=0;
-    const timer=setInterval(()=>{ if(flips>=3||document.hidden){clearInterval(timer);return;} flips++; const cur=[...seg.children].find(b=>b.getAttribute('aria-pressed')==='true'); setN(cur.dataset.n==='0'?4:0); },1800);
-    seg.addEventListener('click',()=>clearInterval(timer),{once:true});
-  }
-}
-
-// =============== RECAP ===============
-{
-  const cells = buildGrid(document.getElementById('recapImg'), (i)=>select(i)); paintScene(cells);
-  const strip = document.getElementById('recapStrip'); const toks=[];
-  const s = state('L',6,0);
-  const mk=(cls,h,label)=>{const t=document.createElement('button');t.type='button';t.className='tok '+cls;t.setAttribute('aria-label',label);t.tabIndex=-1;const b=document.createElement('i');b.style.height=h+'px';t.appendChild(b);strip.appendChild(t);return t;};
-  const clsTok=mk('cls',14,'[CLS] token'); clsTok.tabIndex=0; for(let i=0;i<N*N;i++) toks.push(mk('',4+Math.round(s.norms[i]/40*10),`token ${i+1}`));
-  toks.forEach((t,i)=>{t.addEventListener('mouseover',()=>select(i));t.addEventListener('focus',()=>select(i));});
-  rovingKeys(strip, [clsTok,...toks], 28);
-  const infoEl=document.getElementById('recapInfo');
-  function select(i){ cells.forEach((c,k)=>c.classList.toggle('sel',k===i)); toks.forEach((t,k)=>t.classList.toggle('sel',k===i));
-    const x=i%N,y=(i/N)|0; const lab=['sky','ground','object'][scene[i]];
-    infoEl.innerHTML=`<h3>Patch (${x}, ${y}) <span class="pill norm">token #${i+1}</span></h3>
-      <div class="kv"><span class="k">Content</span><span class="meter"><i style="width:${Math.round(20+80*info[i])}%"></i></span><span class="v">${lab}</span>
-      <span class="k">Edge density</span><span class="meter"><i style="width:${Math.round(info[i]*100)}%"></i></span><span class="v">${info[i].toFixed(2)}</span></div>
-      <div class="note">Row ${y}, column ${x} of the grid becomes token ${i+1} of 197. ${info[i]<.2?'This simulated patch resembles its neighbors and contains little unique local information.':'This simulated patch crosses an edge and contains more unique local information.'}</div>`;
-  }
-  select(6*N+7);
-}
-
-// =============== ARTIFACTS ===============
-{
-  let model='L', layer=18, sel=null, overlay=false;
-  const grid = buildGrid(document.getElementById('normGrid'), (i,kind)=>{ if(kind==='click'){sel=i;render();} });
-  const layerIn=document.getElementById('layer'), layerOut=document.getElementById('layerOut');
-  const mseg=document.getElementById('modelSeg');
-  setRamp('heatRamp',tok('--heat0'),tok('--heat1'));
-  layerIn.addEventListener('input',()=>{layer=+layerIn.value;render();});
-  mseg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...mseg.children].forEach(x=>x.setAttribute('aria-pressed',x===b));model=b.dataset.m;
-    layerIn.max=MODEL[model].layers; if(layer>MODEL[model].layers)layer=MODEL[model].layers; layerIn.value=layer; layerIn.nextElementSibling.nextElementSibling.textContent='/ '+MODEL[model].layers; render();});
-  document.getElementById('showImg').addEventListener('change',e=>{overlay=e.target.checked;render();});
-  const hist=document.getElementById('hist');
-  function drawHist(norms,outliers){
-    const W=420,H=110,L=28,B=22,bins=40,max=420; const counts=new Array(bins).fill(0);
-    norms.forEach(v=>counts[Math.min(bins-1,Math.floor(v/max*bins))]++);
-    const cm=Math.max(...counts); const bw=(W-L-8)/bins;
-    let s=`<line class="axis" x1="${L}" y1="${H-B}" x2="${W-8}" y2="${H-B}"/>`;
-    counts.forEach((c,b)=>{ if(!c)return; const h=Math.max(2,(H-B-10)*c/cm); const x=L+b*bw; const art=(b/bins*max)>150;
-      s+=`<rect x="${x+1}" y="${H-B-h}" width="${bw-2}" height="${h}" rx="2" fill="${art?tok('--art'):tok('--ink-3')}"/>`; });
-    [0,100,200,300,400].forEach(v=>{const x=L+v/max*(W-L-8); s+=`<text x="${x}" y="${H-6}" text-anchor="middle">${v}</text>`;});
-    s+=`<text x="${W-8}" y="12" text-anchor="end">tokens per norm bin${outliers.size?` · ${outliers.size} artifacts`:' · no artifacts'}</text>`;
-    hist.innerHTML=s;
-  }
-  const kindEl=document.getElementById('probeKind'), kv=document.getElementById('probeKv'), note=document.getElementById('probeNote');
-  const row=(k,pct,v,cls)=>`<span class="k">${k}</span><span class="meter"><i class="${cls}" style="width:${pct}%"></i></span><span class="v">${v}</span>`;
-  function render(){
-    layerOut.textContent=layer;
-    const s=state(model,layer,0);
-    paintHeat(grid,s.norms,tok('--heat0'),tok('--heat1'),{max:400,gamma:.6,outliers:s.outliers});
-    if(overlay) grid.forEach((c,i)=>{ c.style.backgroundImage=`linear-gradient(${sceneColor(scene[i])}88,${sceneColor(scene[i])}88)`; }); else grid.forEach(c=>c.style.backgroundImage='');
-    grid.forEach((c,i)=>c.classList.toggle('sel',i===sel));
-    document.getElementById('normRange').textContent='0 → 400';
-    drawHist(s.norms,s.outliers);
-    if(sel==null){ kindEl.textContent='click a patch'; kindEl.className='pill norm'; kv.innerHTML=''; return; }
-    const isArt=s.outliers.has(sel); const x=sel%N,y=(sel/N)|0;
-    kindEl.textContent=isArt?'artifact':'normal'; kindEl.className='pill '+(isArt?'art':'norm');
-    const c=isArt?'art':'';
-    kv.innerHTML = row('Norm', Math.round(s.norms[sel]/400*100), s.norms[sel].toFixed(0), c)
-      + row('Position probe (local)', isArt?22.8:41.7, (isArt?22.8:41.7)+'%', c)
-      + row('Reconstruction L2 (local, ↓)', isArt?25.2*2.6:18.4*2.6, (isArt?25.23:18.38).toFixed(2), c)
-      + row('ImageNet from this token (global)', isArt?69.0:65.8, (isArt?69.0:65.8).toFixed(1)+'%', c);
-    note.innerHTML = isArt
-      ? `Patch (${x}, ${y}) is <b>${['sky','ground','object'][scene[sel]]}</b> and resembles its neighbors. In this simplified model, its local position and pixel information have fallen while its global class information has increased.`
-      : `Patch (${x}, ${y}) still describes itself. ${s.outliers.size? 'Compare it with one of the circled tokens.' : (MODEL[model].max? `Move the layer slider past ${MODEL[model].start} to see artifacts appear.` : `The paper reports no artifacts for this DINOv2 ${model==='S'?'ViT-S':'ViT-B'} checkpoint in its size study.`)}`;
-  }
-  render();
-}
-
-// =============== WHY ===============
-{
-  const g=buildGrid(document.getElementById('redGrid'));
-  setRamp('simRamp',tok('--attn0'),tok('--attn1'));
-  const s=state('L',24,0);
-  paintHeat(g,redundancy,tok('--attn0'),tok('--attn1'),{max:1,gamma:2.2,outliers:s.outliers});
-  g.forEach((c,i)=>c.title=`cos sim ≈ ${(0.55+0.44*redundancy[i]).toFixed(2)}`);
-}
-
-// =============== FIX ===============
-{
-  let n=0, view='norm';
-  const grid=buildGrid(document.getElementById('fixGrid'));
-  const nIn=document.getElementById('nreg'), nOut=document.getElementById('nregOut');
-  const vseg=document.getElementById('viewSeg');
-  nIn.addEventListener('input',()=>{n=+nIn.value;render();});
-  vseg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...vseg.children].forEach(x=>x.setAttribute('aria-pressed',x===b));view=b.dataset.v;render();});
-  const seq=document.getElementById('seq'), strip=document.getElementById('fixStrip'), legend=document.getElementById('fixLegend');
-  const bkv=document.getElementById('budgetKv'), bnote=document.getElementById('budgetNote'), bpill=document.getElementById('budgetPill');
-  function render(){
-    nOut.textContent=n; document.getElementById('pipeN').textContent=n; document.getElementById('fixStatus').textContent = n? 'Artifacts: none' : 'Artifacts: present';
-    const s=state('L',24,n);
-    // sequence diagram
-    let h=`<div class="blk cls">CLS</div>`;
-    for(let k=0;k<n;k++) h+=`<div class="blk reg">R${k+1}</div>`;
-    if(!n) h+=`<div class="blk dots" style="color:var(--reg-ink)">0 registers</div>`;
-    h+=`<div class="blk pat">p1</div><div class="blk pat">p2</div><div class="blk dots">…</div><div class="blk pat">p196</div>`;
-    seq.innerHTML=h;
-    // grid
-    if(view==='norm'){ paintHeat(grid,s.norms,tok('--heat0'),tok('--heat1'),{max:400,gamma:.6,outliers:s.outliers});
-      legend.innerHTML=`<span>Token norm</span><span class="ramp" style="background:linear-gradient(90deg,${tok('--heat0')},${tok('--heat1')})"></span><span>0 → 400</span>`; }
-    else { paintHeat(grid,s.attn,tok('--attn0'),tok('--attn1'),{max:1,gamma:.8,outliers:s.outliers});
-      legend.innerHTML=`<span>[CLS] attention</span><span class="ramp" style="background:linear-gradient(90deg,${tok('--attn0')},${tok('--attn1')})"></span><span>low → high</span>`; }
-    // strip: CLS, registers, patches (downsampled every 2nd for width)
-    strip.innerHTML='';
-    const mk=(cls,v,title)=>{const t=document.createElement('div');t.className='tok '+cls;t.title=title;const b=document.createElement('i');b.style.height=Math.max(2,Math.round(v/420*22))+'px';t.appendChild(b);strip.appendChild(t);};
-    mk('cls',s.clsNorm,'[CLS] norm '+s.clsNorm.toFixed(0));
-    s.regNorms.forEach((v,k)=>mk('reg',v,`[REG${k+1}] norm ${v.toFixed(0)}`));
-    for(let i=0;i<N*N;i+=2){ const isArt=s.outliers.has(i)||s.outliers.has(i+1); const v=Math.max(s.norms[i],s.norms[i+1]); mk(isArt?'art':'',v,`patch ${i+1}–${i+2}, norm ${v.toFixed(0)}`); }
-    // budget
-    bpill.textContent=`${n} register${n===1?'':'s'}`;
-    const patchMax=Math.max(...s.norms), regMax=s.regNorms.length?Math.max(...s.regNorms):0;
-    const row=(k,pct,v,cls)=>`<span class="k">${k}</span><span class="meter"><i class="${cls}" style="width:${pct}%"></i></span><span class="v">${v}</span>`;
-    bkv.innerHTML = row('Max patch-token norm', patchMax/420*100, patchMax.toFixed(0), s.outliers.size?'art':'')
-      + row('Max register norm', regMax/420*100, n?regMax.toFixed(0):'—', 'reg')
-      + row('Patches overwritten', s.outliers.size/8*100, s.outliers.size, s.outliers.size?'art':'')
-      + row('Sequence length', (197+n)/205*100, 197+n, '');
-    bnote.textContent = n
-      ? `The simulated high norms now appear in the ${n} register${n===1?'':'s'}. Patch-token norms remain low, and [CLS] attention follows the object. The paper's results generally level off after a small number of registers.`
-      : 'With no registers, a few low-information sky and ground tokens have norms of several hundred while the other simulated patch tokens stay below 60.';
-  }
-  render();
-}
-})();
-</script>
+<script src="main.js"></script>
 </body>
 </html>
