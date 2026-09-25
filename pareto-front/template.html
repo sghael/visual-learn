@@ -94,9 +94,9 @@ select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper)
 .progress { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--ink); width: 0; }
 .colophon { margin-top: 5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
 @media (min-width: 62rem) {
-  .fig:not(.wide) { display: grid; grid-template-columns: var(--text) var(--margin); column-gap: var(--gap); max-width: none; align-items: end; }
+  .fig:not(.wide) { display: grid; grid-template-columns: var(--text) var(--margin); grid-auto-rows: minmax(min-content, auto); column-gap: var(--gap); max-width: none; align-items: end; }
   .fig:not(.wide) > * { grid-column: 1; }
-  .fig:not(.wide) > figcaption { grid-column: 2; grid-row: 1 / span 3; align-self: end; margin: 0; }
+  .fig:not(.wide) > figcaption { grid-column: 2; grid-row: 1 / span 6; align-self: end; margin: 0; }
 }
 @media (max-width: 61.99rem) {
   .sidenote, .marginnote { float: none; display: block; width: auto; margin: 0.6rem 0 0.9rem; padding-left: 0.9rem; border-left: 1px solid var(--rule-2); }
@@ -106,6 +106,7 @@ select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper)
   .page, .topbar-inner { padding-left: 1rem; padding-right: 1rem; }
   h1 { margin-top: 3rem; }
   .subtitle { font-size: 1.25rem; }
+  .lede { font-size: 1.125rem; }
   h2 { font-size: 1.6rem; margin-top: 3.5rem; }
   .topbar .title { display: none; }
   .btn { min-height: 2.5rem; }
@@ -353,15 +354,21 @@ function drawMain() {
       // A leader line when the label does not sit right beside its point.
       const nx = Math.max(box.x, Math.min(px, box.x + box.w)), ny = Math.max(box.y + 3, Math.min(py, box.y + box.h - 3));
       const dist = Math.hypot(nx - px, ny - py);
+      let leader = null;
       if (dist > 12) {
         const ux = (nx - px) / dist, uy = (ny - py) / dist;
-        el('line', { class: 'leader', x1: px + ux * 5, y1: py + uy * 5, x2: nx - ux * 3, y2: ny - uy * 3 }, leaders);
+        leader = el('line', { class: 'leader', x1: px + ux * 5, y1: py + uy * 5, x2: nx - ux * 3, y2: ny - uy * 3 }, leaders);
       }
-      return true;
+      const label = { box, base: baseName(p.name),
+        undo() { t.remove(); if (leader) leader.remove(); blocked.splice(blocked.indexOf(box), 1); labelBoxes.splice(labelBoxes.indexOf(label), 1); } };
+      labelBoxes.push(label);
+      return label;
     }
     t.remove();
-    return false;
+    return null;
   }
+  const labelBoxes = [];
+  let selLabel = null;
 
   // The selected model is labeled first, so the reader's choice always shows.
   const sel = state.selected && visible.some(p => p.id === state.selected) ? models[state.selected] : null;
@@ -375,7 +382,7 @@ function drawMain() {
     el('circle', { class: 'ring', cx: sx, cy: sy, r: 7 }, svg);
     blocked.push({ x: sx - 8, y: sy - 8, w: 16, h: 16 });
     // The haloed label may cross the step line, so it can sit right beside the ring.
-    place(sel, sel.name, 'strong', { extra: [['end', -11, 4], ['start', 11, 4], ['middle', 0, -14], ['middle', 0, 23],
+    selLabel = place(sel, sel.name, 'strong', { extra: [['end', -11, 4], ['start', 11, 4], ['middle', 0, -14], ['middle', 0, 23],
       ['end', 4, 23], ['start', -4, 23], ['end', 4, 35], ['start', -4, 35]], crossLines: true });
   }
 
@@ -390,7 +397,8 @@ function drawMain() {
   else blocked.push(annotBox);
 
   // Direct labels on the frontier. A run of points from one model gets its full name once,
-  // then just the effort setting; on narrow charts each run gets one label, the model name.
+  // then just the effort setting where that cannot be misread (see memberLabel below);
+  // on narrow charts each run gets one label, the model name.
   // Labels are placed cheapest first, following the line.
   const runs = [];
   for (const p of front) {
@@ -403,13 +411,40 @@ function drawMain() {
     if (narrow) heads.push({ p: first, text: r.base });
     else {
       heads.push({ p: first, text: first.name });
-      for (const p of rest) members.push({ p, text: effort(p.name), head: first.id });
+      for (const p of rest) members.push({ p, head: first.id });
     }
   }
-  const placed = new Set();
-  for (const c of heads) if (c.p.id !== sel?.id && place(c.p, c.text, '')) placed.add(c.p.id);
-  if (sel && onFront.has(sel.id)) placed.add(sel.id);
-  for (const c of members) if (c.p.id !== sel?.id && placed.has(c.head)) place(c.p, c.text, 'muted');
+  const headLabels = new Map();
+  for (const c of heads) {
+    const l = c.p.id !== sel?.id ? place(c.p, c.text, '') : selLabel;
+    if (l) headLabels.set(c.p.id, l);
+  }
+  // A bare setting ("high") is used only when the point's frontier neighbours on both sides
+  // are the same model, or when no other model's point or label lies between it and that
+  // model's full-name label. Otherwise the point gets its full name.
+  function memberLabel(c) {
+    const i = front.indexOf(c.p), b = baseName(c.p.name);
+    const prev = front[i - 1], next = front[i + 1];
+    const head = headLabels.get(c.head);
+    if (head) {
+      if (prev && next && baseName(prev.name) === b && baseName(next.name) === b) {
+        if (place(c.p, effort(c.p.name), 'muted')) return;
+      } else {
+        const bare = place(c.p, effort(c.p.name), 'muted');
+        if (bare) {
+          const r = { x: Math.min(head.box.x, bare.box.x, sc.x(c.p.cost)), y: Math.min(head.box.y, bare.box.y, sc.y(c.p.score)) };
+          r.w = Math.max(head.box.x + head.box.w, bare.box.x + bare.box.w, sc.x(c.p.cost)) - r.x;
+          r.h = Math.max(head.box.y + head.box.h, bare.box.y + bare.box.h, sc.y(c.p.score)) - r.y;
+          const between = labelBoxes.some(l => l.base !== b && overlaps(l.box, r, 0)) ||
+            front.some(q => baseName(q.name) !== b && overlaps({ x: sc.x(q.cost), y: sc.y(q.score), w: 0, h: 0 }, r, 0));
+          if (!between) return;
+          bare.undo();
+        }
+      }
+    }
+    place(c.p, c.p.name, '');
+  }
+  for (const c of members) if (c.p.id !== sel?.id) memberLabel(c);
 
   // One transparent layer takes clicks and taps and finds the nearest dot.
   const hit = el('rect', { class: 'hit', x: 0, y: 0, width: w, height: h }, svg);

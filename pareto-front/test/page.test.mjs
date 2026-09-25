@@ -53,6 +53,12 @@ for (const width of [1440, 390]) {
     assert.equal(await page.locator('#chart circle.fdot').count(), last.frontier.length);
     assert.equal(await page.locator('#chart circle.dot').count(), last.count - last.frontier.length);
     assert.ok(await page.locator('#chart text.label').count() >= 5, 'frontier points carry direct labels');
+    if (width === 1440) {
+      // GPT-5.6 Luna (medium) sits between two GPT-6 Luna runs; a bare "medium" there was misread.
+      const labels = await page.$$eval('#chart text.label', ts => ts.map(t => t.textContent));
+      assert.ok(labels.includes('GPT-5.6 Luna (medium)'), labels.join(' | '));
+      assert.ok(!labels.includes('medium'), 'no bare "medium" label at the latest date');
+    }
     assert.equal(await page.locator('#multiples svg').count(), DATA.snapshots.length);
     // No motion without a button press.
     await page.waitForTimeout(700);
