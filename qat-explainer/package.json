@@ -2,7 +2,7 @@
   "name": "qat-explainer",
   "private": true,
   "version": "1.0.0",
-  "description": "Interactive quantization-aware training explainer. The page has no dependencies beyond D3 from cdnjs; the dev dependency drives it in headless Chrome for the tests.",
+  "description": "Quantization-aware training explainer. The page has no dependencies; the dev dependency drives it in headless Chrome for the tests.",
   "type": "module",
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
