@@ -1,225 +1,290 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a3aa7'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <title>JAX Explainer</title>
-  <meta name="description" content="An interactive, visual tour of how JAX, XLA and TPUs run your code, side by side with PyTorch and CUDA.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%236a51a3'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>JAX and PyTorch</title>
+<meta name="description" content="How JAX and PyTorch run the same Python code: tracing and compiling versus eager dispatch, and what follows for fusion, gradients, batching, randomness, hardware and sharding.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
 <header class="topbar">
-  <a class="brand" href="#top">JAX <em>Explainer</em></a>
-  <nav aria-label="Sections">
-    <a href="#stack">Stacks</a>
-    <a href="#tracing">Tracing</a>
-    <a href="#fusion">Fusion</a>
-    <a href="#autodiff">Autodiff</a>
-    <a href="#transforms">Transformations</a>
-    <a href="#purity">State</a>
-    <a href="#silicon">Silicon</a>
-    <a href="#sharding">Sharding</a>
-    <a href="#choose">Choosing</a>
-  </nav>
-  <div class="progress" aria-hidden="true"></div>
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">JAX and PyTorch</span>
+    <nav aria-label="Sections">
+      <a href="#routes">Two routes</a>
+      <a href="#layers">Layers</a>
+      <a href="#tracing">Tracing</a>
+      <a href="#fusion">Fusion</a>
+      <a href="#gradients">Gradients</a>
+      <a href="#transforms">Transformations</a>
+      <a href="#state">State</a>
+      <a href="#hardware">Hardware</a>
+      <a href="#sharding">Sharding</a>
+      <a href="#choosing">Choosing</a>
+    </nav>
+  </div>
+  <div class="progress"></div>
 </header>
 
-<main id="top">
-
-  <div class="hero">
-    <div class="hero-inner">
-      <h1>How <em>JAX</em> and <span class="torch-word">PyTorch</span> run your code</h1>
-      <p class="lede">JAX and PyTorch both run Python array programs on accelerators. JAX can execute individual operations directly, while transformations such as <code>jit</code> trace a function into an intermediate program that XLA compiles. PyTorch runs tensor operations eagerly by default and can capture regions for compilation with <code>torch.compile</code>. This page follows the compiled JAX and eager PyTorch paths, then shows the corresponding APIs in each framework.</p>
-      <div class="meta">
-        <span>Interactive explainer in the spirit of <a href="https://poloclub.github.io/" target="_blank" rel="noopener">Polo Club</a>'s Transformer Explainer</span>
-        <span>Plain HTML, no build step</span>
-        <span>Best on a laptop screen</span>
-      </div>
-      <div class="stage" data-widget="pipeline" id="w-pipeline"></div>
-    </div>
-  </div>
+<main class="page">
+  <h1>How JAX and PyTorch run your code</h1>
+  <p class="subtitle">What happens between a Python function call and the accelerator, in each framework</p>
+  <p class="lede">JAX and PyTorch both run Python array programs on GPUs and TPUs, and by default they take different routes to get there. <code>jax.jit</code> traces a function once into a small intermediate program, compiles it with XLA, and reuses the result. Eager PyTorch sends each tensor operation to the accelerator as Python reaches it. This page follows one function down both routes, then shows how the difference shapes fusion, gradients, batching, randomness, hardware scheduling and sharding.</p>
+  <p class="meta">10 sections · about 25 minutes · behavior checked against JAX 0.11 and PyTorch 2.13 documentation</p>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="stack">
-    <div class="prose">
-      <h2>From Python to an accelerator</h2>
-      <p class="lead">Both frameworks pass through dispatch, compiler, runtime, and hardware layers. Their default execution paths arrange those layers differently.</p>
-      <p><strong class="torch-term">Eager PyTorch dispatches tensor operations as Python calls them.</strong> A call such as <code>torch.matmul</code> selects an implementation for the tensor's device and dtype, then queues work on the accelerator. Python can continue while queued GPU work runs asynchronously.</p>
-      <p><strong class="jax-term"><code>jax.jit</code> traces before it executes.</strong> On a cache miss, JAX calls the function with abstract values that carry information such as shape and dtype. It lowers the resulting jaxpr through StableHLO, and XLA compiles an executable for the target device.</p>
-      <p>Hover or focus a layer to inspect it. JAX also targets NVIDIA GPUs through XLA, and PyTorch reaches TPUs through PyTorch/XLA.</p>
-    </div>
-    <div class="stage" data-widget="stack" id="w-stack"></div>
+  <section id="routes">
+    <h2>One function, two routes</h2>
+    <p>Take a function with three array operations: a matrix multiply, an elementwise <code>tanh</code>, and a sum.</p>
+<pre data-lang="python">@jax.jit
+def step(w, x):
+    h = jnp.tanh(x @ w)
+    return h.sum()
+
+step(w, x)   # first call; w and x are f32[512, 512]
+step(w, x)   # second call, same shapes</pre>
+    <p>The PyTorch version drops the decorator and calls <code>torch.tanh</code>. When <code>step</code> is called, <code>jax.jit</code> first looks for a compiled executable that matches the shapes and dtypes of the arguments. On the first call there is none, so JAX runs the Python body once with stand-in values, records the operations, and hands the record to the XLA compiler. The second call finds the executable and runs it. Eager PyTorch keeps no such cache: every call runs the Python body, and each tensor operation is dispatched to its own GPU kernel as Python reaches it.<span class="sn-ref"></span><span class="sidenote">Dispatch is asynchronous in both frameworks. Python queues device work and moves on; it waits only when it needs a result on the host, for example to print it. In JAX, <code>block_until_ready()</code> waits explicitly; in PyTorch, <code>torch.cuda.synchronize()</code>.</span></p>
+
+    <figure class="fig" id="fig-routes">
+      <table class="routes">
+        <thead><tr><th>Step</th><th class="jax-c">JAX, first call</th><th class="jax-c">JAX, second call</th><th class="torch-c">Eager PyTorch, every call</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Look up an executable for these shapes and dtypes</th><td class="run jax">miss</td><td class="run jax">hit</td><td class="skip">no cache</td></tr>
+          <tr><th scope="row">Run the Python body</th><td class="run jax">once, with tracers</td><td class="skip">skipped</td><td class="run torch">yes, with real tensors</td></tr>
+          <tr><th scope="row">Record the operations as a jaxpr</th><td class="run jax">3 equations</td><td class="skip">skipped</td><td class="skip">none</td></tr>
+          <tr><th scope="row">Compile with XLA</th><td class="run jax">yes</td><td class="skip">skipped</td><td class="skip">none</td></tr>
+          <tr><th scope="row">Send work to the device</th><td class="run jax">1 executable</td><td class="run jax">1 executable</td><td class="run torch">3 operations, one at a time</td></tr>
+        </tbody>
+      </table>
+      <figcaption><span class="fig-n"></span>What each call of <code>step</code> does. A square marks work done on that call; grey cells are skipped. <span class="takeaway">JAX pays for tracing and compiling once per shape signature and then reuses the result. Eager PyTorch repeats its per-operation dispatch on every call.</span></figcaption>
+    </figure>
+
+    <p>The recorded program has one equation per operation: a <code>dot_general</code> for the matrix multiply, a <code>tanh</code> and a <code>reduce_sum</code>. XLA compiles the three as a whole, so it can fuse the elementwise work into fewer kernels than there are operations.<span class="sn-ref"></span><span class="sidenote">Whether XLA fuses a given pair depends on the backend and the shapes. The executable contains one or more device kernels.</span></p>
+    <p>Both frameworks can take the other route. JAX runs operations one at a time outside <code>jit</code>, and <code>torch.compile</code> captures PyTorch code into graphs and compiles them. This page follows the default paths, compiled JAX and eager PyTorch, and names the alternatives where they matter.</p>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="tracing">
-    <div class="prose">
-      <h2>How <code>jit</code> traces a function</h2>
-      <p class="lead"><code>jax.jit</code> does not read your source code. It calls your function with <strong>tracers</strong>, objects that know their shape and dtype but hold no values, and records every JAX operation they flow through. The record is a <strong>jaxpr</strong>: a tiny functional language with one equation per primitive.</p>
-      <p>Three consequences follow, and they explain most first-week surprises:</p>
-      <ul>
-        <li><strong>Ordinary Python executes while JAX traces.</strong> A <code>print</code> inside a jitted function runs on a cache miss and prints a tracer. A later cache hit runs the compiled executable without executing that Python statement again.</li>
-        <li><strong>A Python <code>if</code> needs a concrete condition.</strong> <code>if x.sum() &gt; 0:</code> asks Python to convert a traced value to <code>bool</code>, so tracing fails. Use a JAX control-flow operator such as <code>lax.cond</code> when the condition is computed at run time.</li>
-        <li><strong>Compilation is specialized.</strong> JAX caches compiled executables for compatible abstract argument signatures, including shape and dtype. Changes to shapes or static arguments can cause another trace and compile.</li>
-      </ul>
-      <p>Eager PyTorch executes the Python function on every call, so data-dependent Python control flow works, though converting a CUDA tensor to a Python boolean synchronizes with the GPU. With <code>torch.compile</code>, TorchDynamo captures graph regions and checks guards before reusing them. Unsupported code can cause a graph break: PyTorch compiles the region captured so far, runs the unsupported part in Python, and then resumes capture.</p>
-    </div>
-    <div class="stage" data-widget="tracing" id="w-tracing"></div>
+  <section id="layers">
+    <h2>The layers between Python and the chip</h2>
+    <p>Both stacks have the same kinds of layer: an API, an intermediate form, a compiler, kernels, a runtime and hardware. Eager PyTorch goes from the API to kernels directly. A call such as <code>torch.matmul</code> selects an implementation for the tensor’s device and dtype and queues it on the accelerator.</p>
+    <p><code>jax.jit</code> puts two layers in between. It traces the function into a jaxpr, lowers the jaxpr to StableHLO, and XLA compiles StableHLO into an executable for the target device.<span class="sn-ref"></span><span class="sidenote">StableHLO is the MLIR operation set that XLA accepts as input.</span> <code>torch.compile</code> adds a similar pair of layers to PyTorch: TorchDynamo captures graphs, and TorchInductor compiles them.</p>
+
+    <figure class="fig" id="fig-layers">
+      <table class="cmp layers">
+        <thead><tr><th>Layer</th><th class="jax-c">JAX, XLA, TPU</th><th class="torch-c">PyTorch, CUDA, GPU</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">You write</th>
+            <td><b>jax.numpy and transformations</b><code>jit</code>, <code>grad</code>, <code>vmap</code>, <code>shard_map</code>. Operations also run one at a time without <code>jit</code>.</td>
+            <td><b>Tensors and nn.Module</b>Eager operations, autograd and optimizers. <code>torch.compile</code> compiles selected regions.</td></tr>
+          <tr><th scope="row">Intermediate form</th>
+            <td><b>jaxpr, then StableHLO</b>Produced by tracing on a cache miss. A cache hit reuses the executable without retracing.</td>
+            <td><b>None in eager mode</b>Under <code>torch.compile</code>, TorchDynamo captures FX graphs and guards the assumptions it made while capturing.</td></tr>
+          <tr><th scope="row">Compiler</th>
+            <td><b>XLA</b>Fuses operations, assigns layouts, plans buffers and schedules work for the target.</td>
+            <td><b>TorchInductor</b>The default <code>torch.compile</code> backend. Generates fused GPU kernels and CPU code; AOTAutograd captures the backward graph.</td></tr>
+          <tr><th scope="row">Kernels</th>
+            <td><b>XLA fusions and libraries</b>Custom kernels in Pallas: Mosaic on TPU, Mosaic GPU on supported NVIDIA GPUs, and a Triton backend.</td>
+            <td><b>ATen operators</b>Backed by vendor libraries, native kernels and Triton. Extensions in C++, CUDA or Triton.</td></tr>
+          <tr><th scope="row">Runtime</th>
+            <td><b>PJRT</b>Dispatches asynchronously and returns a <code>jax.Array</code> before the device finishes.</td>
+            <td><b>c10 dispatcher and CUDA runtime</b>Routes each operation by device and dtype; CUDA streams, a caching allocator, NCCL for collectives.</td></tr>
+          <tr><th scope="row">Hardware</th>
+            <td><b>TPU</b>Also NVIDIA and AMD GPUs and CPUs through XLA.</td>
+            <td><b>NVIDIA GPU</b>Also CPUs, AMD GPUs through ROCm, Apple GPUs through MPS, and TPUs through PyTorch/XLA.</td></tr>
+        </tbody>
+      </table>
+      <figcaption><span class="fig-n"></span>The two stacks, top to bottom. <span class="takeaway">The default JAX path compiles before it runs; the default PyTorch path runs as it goes and compiles only regions you ask it to.</span></figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="fusion">
-    <div class="prose">
-      <h2>Fusion reduces memory traffic</h2>
-      <p class="lead">An H100 SXM has about 989 TFLOP/s of dense bf16 tensor-core throughput and about 3.35 TB/s of HBM bandwidth. Operations with little arithmetic per byte, including many elementwise operations, are usually limited by memory traffic rather than arithmetic throughput.</p>
-      <p>In the simplified pointwise chain below, eager PyTorch launches one kernel per operation and materializes each intermediate tensor in HBM. XLA and the default Inductor backend of <code>torch.compile</code> can <strong>fuse</strong> compatible operations into one kernel, keeping intermediates in registers or on-chip memory. Actual fusion depends on shapes, operations, backend, and compiler decisions. Reductions and library calls such as matrix multiplication often form boundaries, although compilers can fuse some pointwise work into them.</p>
-      <p>Toggle operations in the chain and switch execution mode to see how many kernels launch and how many intermediate tensors materialize.</p>
-    </div>
-    <div class="stage" data-widget="fusion" id="w-fusion"></div>
+  <section id="tracing">
+    <h2>How <code>jit</code> traces a function</h2>
+    <p><code>jax.jit</code> does not read your source code. It calls your function with <strong>tracers</strong>, stand-in objects that carry a shape and a dtype but no values, and records every JAX operation they pass through.</p>
+    <p>The record is a <strong>jaxpr</strong>, a small functional language with one equation per primitive operation. <code>jax.make_jaxpr(f)(x)</code> prints it.</p>
+    <p>Ordinary Python runs during tracing and not afterward. A <code>print</code> inside a jitted function runs on a cache miss and prints a tracer. On a cache hit, JAX runs the compiled executable and the <code>print</code> does not run. <code>jax.debug.print</code> prints from inside the compiled program instead.</p>
+    <p>A Python <code>if</code> cannot branch on a traced value. <code>if x.sum() &gt; 0:</code> asks the tracer for a Python <code>bool</code>, and the tracer has no value to give, so tracing fails with <code>TracerBoolConversionError</code>. <code>lax.cond</code> records both branches and leaves the choice to the compiled program.</p>
+    <p>Compiled executables are specialized to their inputs. JAX caches them by abstract signature: shapes, dtypes and the values of static arguments. A call with a new shape traces and compiles again.</p>
+
+    <figure class="fig wide" id="fig-tracing">
+      <div data-widget="tracing" id="w-tracing"></div>
+      <figcaption><span class="fig-n"></span>Three small functions traced with inputs of shape (3,). The figure starts on the finished trace and three calls; Play, Back and Step replay the trace one line at a time, and the call buttons add calls to the log. Jaxprs and tracer text as printed by JAX 0.11, with type annotations on literals and some primitive parameters removed. <span class="takeaway">Python runs once per new signature; later calls with that signature run only the compiled program.</span></figcaption>
+    </figure>
+
+    <p>Eager PyTorch runs the Python function on every call, so data-dependent control flow works directly, though turning a CUDA tensor into a Python <code>bool</code> makes the host wait for the GPU. With <code>torch.compile</code>, TorchDynamo captures graph regions and checks guards before reusing them. Code it cannot capture causes a graph break: PyTorch compiles the region captured so far, runs the unsupported code in Python, and resumes capture after it.</p>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="autodiff">
-    <div class="prose">
-      <h2>Automatic differentiation</h2>
-      <p class="lead">Both frameworks support reverse-mode automatic differentiation. Their common high-level APIs expose the result differently.</p>
-      <p><strong class="torch-term">PyTorch records a dynamic autograd graph during the forward pass.</strong> <code>loss.backward()</code> traverses that graph and accumulates gradients into leaf tensors such as parameters. The graph reflects the operations that actually ran.</p>
-      <p><strong class="jax-term"><code>jax.grad(f)</code> returns another function.</strong> JAX linearizes the traced computation and transposes the linear part to implement reverse mode. Calling the transformed function returns gradients as values, so it can be composed with <code>jit</code>, <code>vmap</code>, and further differentiation.</p>
-      <p>Drag the weight to change the input, then step through both machines.</p>
-    </div>
-    <div class="stage" data-widget="autodiff" id="w-autodiff"></div>
+  <section id="fusion">
+    <h2>Fusion reduces memory traffic</h2>
+    <p>An NVIDIA H100 SXM performs about 989 trillion dense bf16 operations per second and moves about 3.35 TB per second to and from its HBM memory.<span class="sn-ref"></span><span class="sidenote">Vendor peaks from NVIDIA’s H100 specifications, rounded and approximate. NVIDIA also quotes “with sparsity” figures that are twice the arithmetic rate.</span> That is roughly 295 operations for every byte moved. An elementwise add on float32 does one operation for every 8 bytes it reads and writes, so its speed is set by memory traffic, not arithmetic.</p>
+    <p>Eager PyTorch launches one kernel per operation, and each kernel writes its result to HBM for the next kernel to read back. A compiler that sees the whole chain can <strong>fuse</strong> compatible operations into one kernel and keep the intermediate values in registers or on-chip memory. XLA does this under <code>jax.jit</code>, and TorchInductor, the default backend of <code>torch.compile</code>, does it for PyTorch. Reductions such as softmax and library calls such as matrix multiplication often end a fused group, although compilers can fold pointwise work into a matrix multiply’s output stage.</p>
+
+    <figure class="fig wide" id="fig-fusion">
+      <div data-widget="fusion" id="w-fusion"></div>
+      <figcaption><span class="fig-n"></span>The same chain of operations on a [4096, 4096] float32 tensor, 64 MB, run eagerly and compiled. Each operation keeps its horizontal position in both drawings; a dashed outline marks an intermediate that the fused kernel keeps on chip. Simplified model: each kernel reads every HBM input once and writes its output once, the bias vector and the scale count as zero bytes, softmax counts as one read and one write, and memory time is traffic divided by 3.35 TB/s, a lower bound. Real fusion decisions depend on the backend, the shapes and the compiler version. On a narrow screen the drawings scroll sideways. <span class="takeaway">With all five operations, fusion cuts HBM traffic from 704 MB to 320 MB and kernel launches from 5 to 2.</span></figcaption>
+    </figure>
+
+    <p>Fusion does not speed up the matrix multiply itself, which is limited by arithmetic. Its 2 × 4096³ ≈ 137 billion operations take about 0.28 ms at 495 TFLOP/s, the H100’s dense TF32 peak, while its 192 MB of traffic needs about 0.06 ms.<span class="sn-ref"></span><span class="sidenote">The estimate assumes the float32 matrix multiply runs on TF32 tensor cores at the vendor peak; real kernels reach less.</span> What fusion removes is the memory traffic and launch overhead of the small operations around it.</p>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="transforms">
-    <div class="prose">
-      <h2>Function transformations</h2>
-      <p class="lead"><code>jit</code>, <code>grad</code>, and <code>vmap</code> each take a function and return a function. They can be nested, and the order determines the program JAX builds.</p>
-      <p><code>vmap</code> applies batching rules to primitives. Code written for one example can therefore accept a batch without a Python loop. In the example below, a vector dot product becomes a batched <code>dot_general</code>. Per-example gradients can be written as <code>vmap(grad(loss))</code>.</p>
-      <p>PyTorch provides corresponding function transforms in <code>torch.func</code>, including <code>torch.func.grad</code> and <code>torch.func.vmap</code>. <code>torch.compile</code> can then compile compatible regions of the resulting function.</p>
-    </div>
-    <div class="stage" data-widget="transforms" id="w-transforms"></div>
+  <section id="gradients">
+    <h2>Two ways to compute a gradient</h2>
+    <p>Both frameworks implement reverse-mode automatic differentiation. The function runs forward; then the chain rule runs backward from the output, multiplying one local derivative per operation. The frameworks differ in when the backward pass is built and where its result goes.</p>
+    <p>PyTorch records a graph while the forward pass runs. Each operation on a tensor that requires a gradient appends a node such as <code>SinBackward0</code>, which keeps whatever its derivative will need. <code>loss.backward()</code> walks the graph in reverse and adds each gradient into the <code>.grad</code> attribute of a leaf tensor such as a parameter. The graph holds exactly the operations that ran, and it is freed after the backward pass.</p>
+    <p><code>jax.grad(f)</code> returns a new function. JAX linearizes the traced computation and transposes its linear part, which produces the reverse pass as ordinary jaxpr equations. Calling the new function returns the gradient as a value, so it composes with <code>jit</code>, <code>vmap</code> and further differentiation.</p>
+
+    <figure class="fig wide" id="fig-gradients">
+      <div data-widget="autodiff" id="w-autodiff"></div>
+      <figcaption><span class="fig-n"></span>The gradient of L(w) = (sin(1.5 w) − 0.5)², computed both ways. Each step moves both frameworks through the same operation: four forward, four backward. The figure starts on the finished computation. The jaxpr is printed by <code>jax.make_jaxpr(jax.grad(L))</code> in JAX 0.11, with type annotations on literals removed. <span class="takeaway">Both apply the same chain rule to the same numbers. PyTorch does it while the program runs and stores the result in <code>w.grad</code>; JAX builds a function, and moving w changes its output but none of its equations.</span></figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="purity">
-    <div class="prose">
-      <h2>State and randomness</h2>
-      <p class="lead">JAX transformations give a function functional semantics: parameters, optimizer state, and random keys are explicit values, while array updates return new arrays. XLA may reuse a buffer when its analysis proves that doing so preserves those semantics.</p>
-      <p>Common PyTorch training code stores parameters in an <code>nn.Module</code> and updates them through an optimizer. PyTorch also maintains default random generators per device, and APIs may accept an explicit generator. The usual stateful style is concise, while the function signature alone does not list every value the step reads or changes.</p>
-      <p>The widget compares those common styles. Its random values are illustrative. JAX sampling is a deterministic function of a key, and splitting derives distinct keys; exact cross-device behavior can depend on the selected PRNG implementation.</p>
-    </div>
-    <div class="stage" data-widget="purity" id="w-purity"></div>
+  <section id="transforms">
+    <h2>Transformations take a function and return a function</h2>
+    <p><code>jit</code>, <code>grad</code> and <code>vmap</code> each take a function and return a new one, so they nest. <code>vmap</code> adds a batch dimension. It applies a batching rule to each primitive, so code written for one example accepts a whole batch without a Python loop. In figure 6 a dot product of two vectors becomes one <code>dot_general</code> between a vector and a matrix.</p>
+
+    <figure class="fig wide" id="fig-vmap">
+      <div data-widget="vmap" id="w-vmap"></div>
+      <figcaption><span class="fig-n"></span>Batching <code>predict(w, x) = jnp.dot(w, x)</code> over five examples, with <code>w</code> shared. <code>in_axes</code> tells <code>vmap</code> which axis of each argument holds the examples; <code>None</code> means the argument is shared. Under <code>jit</code> the loop would be unrolled into one jaxpr with five <code>dot_general</code> equations. <span class="takeaway">The loop calls <code>predict</code> five times; <code>vmap</code> rewrites it once into a single batched operation.</span></figcaption>
+    </figure>
+
+    <p>The order of nesting decides the program. <code>vmap(grad(loss))</code> differentiates the loss for one example and then batches that, which gives per-example gradients. <code>grad(vmap(loss))</code> fails, because <code>vmap(loss)</code> returns a vector and <code>grad</code> needs a scalar output. PyTorch provides the same transformations in <code>torch.func</code>, including <code>torch.func.grad</code>, <code>torch.func.vmap</code> and <code>torch.func.jacfwd</code>, and <code>torch.compile</code> can compile compatible regions of the result.</p>
+
+    <figure class="fig" id="fig-composer">
+      <div data-widget="composer" id="w-composer"></div>
+      <figcaption><span class="fig-n"></span>Build a stack of transformations around <code>loss(params, x, y)</code>, from the inside out, or pick a preset. <code>params</code> is a pytree with entries <code>w</code> and <code>b</code>; B is the batch size. <span class="takeaway">Each wrapper changes the output in a predictable way, and the wrong order fails when JAX traces it.</span></figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="silicon">
-    <div class="prose">
-      <h2>TPU and GPU matrix multiplication</h2>
-      <p class="lead">A TPU TensorCore contains matrix-multiply units (MXUs), vector units, and scalar units. The MXU uses a systolic array: values move through a regular grid of multiply-accumulate cells according to a schedule chosen by the compiler. MXUs are 128 × 128 before TPU v6e and 256 × 256 in v6e and TPU7x.</p>
-      <p>An NVIDIA GPU is a general-purpose parallel machine. Work is split into thousands of threads grouped in warps of 32 and scheduled across dozens of <strong>streaming multiprocessors</strong>, each with tensor cores for matmul and a hierarchy of caches and shared memory. Irregular workloads, dynamic shapes and hand-written kernels all fit, because the hardware finds parallelism at run time.</p>
-      <p>The diagrams compare two simplified scheduling models. The TPU example shows data movement through a small weight-stationary systolic array. The GPU example shows thread blocks assigned to streaming multiprocessors at run time. Real matrix multiplications tile work across many hardware units and use several levels of on-chip memory.</p>
-    </div>
-    <div class="stage" data-widget="silicon" id="w-silicon"></div>
-    <div class="prose">
-      <h3>Peak hardware specifications</h3>
-      <p>These are rounded vendor peak figures, not expected application throughput. Compute is dense bf16 unless a row says FP8. Memory capacity and bandwidth often constrain model workloads as much as peak arithmetic does.</p>
-    </div>
-    <div class="stage" id="spec-table">
-      <div class="stage-body tight tbl-wrap">
-        <table class="tbl">
-          <thead><tr><th>Chip</th><th>Compute</th><th>Memory</th><th>Bandwidth</th><th>Scale-out</th></tr></thead>
+  <section id="state">
+    <h2>Where state lives</h2>
+    <p>A function under a JAX transformation behaves as a pure function. Parameters, optimizer state and random keys enter as arguments and leave as return values, and updating an array produces a new array. XLA may still reuse a buffer in place when its analysis shows the result is the same.</p>
+    <p>Typical PyTorch training code keeps parameters inside an <code>nn.Module</code> and updates them through an optimizer, and random draws come from a default generator kept for each device. That style is shorter to write. The cost is that the function signature does not list everything the step reads or changes.</p>
+
+    <figure class="fig wide" id="fig-state">
+      <div data-widget="purity" id="w-purity"></div>
+      <figcaption><span class="fig-n"></span>The same training step in JAX with Optax and in PyTorch. Pick a concept to highlight the lines that handle it. Flax NNX and Equinox give JAX module-style ergonomics on top of this contract, and <code>torch.func</code> gives PyTorch a functional view of its modules; the defaults still differ. <span class="takeaway">In JAX every input and output of the step appears in its signature; in PyTorch the model, the optimizer and the generator are reached through objects.</span></figcaption>
+    </figure>
+
+    <p>Randomness shows the difference most clearly. A JAX sample is a deterministic function of its key, and <code>jax.random.split</code> derives new keys from an old one. A PyTorch draw advances a hidden generator, so its value depends on how many draws came before it. Figure 9 adds one debugging draw at the start of a step that already makes three.<span class="sn-ref"></span><span class="sidenote">One way to get <code>k_debug</code> is to split the key four ways instead of three. In JAX 0.11 with the default threefry implementation, the first three keys of <code>split(key, 4)</code> equal those of <code>split(key, 3)</code> (checked by running both), so the other draws keep their keys. Code that must not rely on that detail can derive <code>k_debug</code> separately.</span></p>
+
+    <figure class="fig" id="fig-rng">
+      <div class="rng-pair">
+        <table class="rng">
+          <caption class="torch-c">PyTorch, one generator seeded once</caption>
+          <thead><tr><th>Draw</th><th>Before</th><th>After adding a draw</th></tr></thead>
           <tbody>
-            <tr><td class="jaxc">TPU v5e</td><td class="num">~197 TFLOPS</td><td class="num">16 GB HBM2</td><td class="num">~0.8 TB/s</td><td>ICI, 256-chip pods</td></tr>
-            <tr><td class="jaxc">TPU v5p</td><td class="num">~459 TFLOPS</td><td class="num">95 GB HBM2e</td><td class="num">~2.8 TB/s</td><td>ICI, 8,960-chip pods</td></tr>
-            <tr><td class="jaxc">TPU v6e (Trillium)</td><td class="num">~918 TFLOPS</td><td class="num">32 GB HBM</td><td class="num">~1.6 TB/s</td><td>ICI, 256-chip pods</td></tr>
-            <tr><td class="jaxc">TPU v7 (Ironwood)</td><td class="num">~4,600 TFLOPS (FP8)</td><td class="num">192 GB HBM</td><td class="num">~7.4 TB/s</td><td>ICI, 9,216-chip pods</td></tr>
-            <tr><td class="torchc">NVIDIA H100 SXM</td><td class="num">~989 TFLOPS</td><td class="num">80 GB HBM3</td><td class="num">~3.4 TB/s</td><td>NVLink 900 GB/s, NVSwitch, InfiniBand</td></tr>
-            <tr><td class="torchc">NVIDIA B200</td><td class="num">~2,250 TFLOPS</td><td class="num">~180 GB HBM3e</td><td class="num">~8 TB/s</td><td>NVLink 1.8 TB/s, NVL72 racks</td></tr>
+            <tr><th scope="row">debug (new)</th><td class="same">none</td><td>stream values 1–3</td></tr>
+            <tr><th scope="row">dropout mask</th><td class="same">stream values 1–3</td><td class="changed">4–6, changed</td></tr>
+            <tr><th scope="row">noise</th><td class="same">stream values 4–6</td><td class="changed">7–9, changed</td></tr>
+            <tr><th scope="row">init</th><td class="same">stream values 7–9</td><td class="changed">10–12, changed</td></tr>
+          </tbody>
+        </table>
+        <table class="rng">
+          <caption class="jax-c">JAX, one key per draw</caption>
+          <thead><tr><th>Draw</th><th>Before</th><th>After adding a draw</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">debug (new)</th><td class="same">none</td><td>from <code>k_debug</code></td></tr>
+            <tr><th scope="row">dropout mask</th><td class="same">from <code>k_mask</code></td><td class="same">from <code>k_mask</code>, same</td></tr>
+            <tr><th scope="row">noise</th><td class="same">from <code>k_noise</code></td><td class="same">from <code>k_noise</code>, same</td></tr>
+            <tr><th scope="row">init</th><td class="same">from <code>k_init</code></td><td class="same">from <code>k_init</code>, same</td></tr>
           </tbody>
         </table>
       </div>
-      <div class="stage-foot">Sources: Google Cloud TPU and NVIDIA data-center spec sheets. Ironwood's headline figure is FP8; the others are bf16 dense. NVIDIA also quotes “with sparsity” figures that are double these.</div>
-    </div>
+      <figcaption><span class="fig-n"></span>Three <code>randn(3)</code> draws, then the same step with a debugging draw added first. Each PyTorch draw takes the next three values from one stream; each JAX draw is computed from its own key. <span class="takeaway">Adding a PyTorch draw shifts every later draw; adding a JAX draw leaves the others unchanged.</span></figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="sharding">
-    <div class="prose">
-      <h2>Sharding across devices</h2>
-      <p class="lead">JAX can map logical array dimensions onto a named device <strong>mesh</strong>. The compiler propagates those shardings through the computation and inserts collectives such as all-gather, all-reduce, and reduce-scatter when values must move between devices.</p>
-      <p>PyTorch offers several levels of control. <code>DistributedDataParallel</code> replicates the model and synchronizes gradients. <code>FullyShardedDataParallel</code> shards parameters and gathers them as needed. <code>DTensor</code> represents tensor placements over a device mesh and supports annotation-based parallelism.</p>
-      <p>Pick a sharding for the activations and the weights of a matmul, and watch which collective the compiler must insert.</p>
-    </div>
-    <div class="stage" data-widget="sharding" id="w-sharding"></div>
+  <section id="hardware">
+    <h2>How TPUs and GPUs schedule a matrix multiply</h2>
+    <p>A TPU TensorCore contains matrix-multiply units (MXUs) alongside vector and scalar units. An MXU is a <strong>systolic array</strong>: a grid of multiply-accumulate cells through which operands move one cell per clock cycle, on a schedule the compiler fixes before the program runs. MXUs are 128 × 128 cells before TPU v6e and 256 × 256 in v6e and TPU7x, so one MXU performs 16,384 or 65,536 multiply-accumulates per cycle when full.<span class="sn-ref"></span><span class="sidenote">For chip-level figures such as HBM capacity, bandwidth and pod sizes, see the <a href="../gcp-accelerators/">Google Cloud accelerators explainer</a> in this collection.</span></p>
+
+    <figure class="fig" id="fig-systolic">
+      <div data-widget="systolic" id="w-systolic"></div>
+      <figcaption><span class="fig-n"></span>A simplified 4 × 4 weight-stationary array computing C = A·B. The weights of B stay in the cells. Rows of A enter from the left one cycle apart; partial sums (green outline) move down and leave at the bottom. Violet marks values of A in flight; green fill marks the cells working this cycle. The figure starts at cycle 4. <span class="takeaway">Every value’s position on every cycle is fixed before the program runs: 64 multiply-accumulates in 10 cycles.</span></figcaption>
+    </figure>
+
+    <p>An NVIDIA GPU divides the same work into <strong>thread blocks</strong>, groups of threads that run in warps of 32. A hardware scheduler on the chip assigns blocks to streaming multiprocessors (SMs) as they become free, while the kernel runs. An H100 SXM has 132 SMs, each with tensor cores for matrix multiplication, registers and shared memory. Irregular workloads, dynamic shapes and hand-written kernels fit this model, because the hardware finds parallelism at run time.</p>
+
+    <figure class="fig" id="fig-gpu">
+      <div data-widget="gpu" id="w-gpu"></div>
+      <figcaption><span class="fig-n"></span>The same 4 × 4 output split into 16 thread blocks, one per output tile, on 8 SMs. Simplified: each SM here runs one block at a time, so the blocks run in two waves; real SMs host several blocks at once. <span class="takeaway">The GPU chooses placement while the kernel runs; the TPU schedule was fixed when the program was compiled.</span></figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ -->
-  <section class="chapter" id="choose">
-    <div class="prose">
-      <h2>Which should you use?</h2>
-      <p class="lead">Choose based on the execution model, hardware, libraries, and debugging workflow your project needs.</p>
-    </div>
-    <div class="stage" id="compare-table">
-      <div class="stage-body tight tbl-wrap">
-        <table class="tbl">
-          <thead><tr><th></th><th class="jaxc">JAX</th><th class="torchc">PyTorch</th></tr></thead>
-          <tbody>
-            <tr><td>Mental model</td><td>Pure functions and function transformations</td><td>Stateful modules and eager tensor operations</td></tr>
-            <tr><td>Execution</td><td>Trace once, compile with XLA, cache by shape signature</td><td>Op-by-op dispatch to kernels; <code>torch.compile</code> as opt-in</td></tr>
-            <tr><td>Gradients</td><td><code>grad(f)</code> returns a function</td><td><code>loss.backward()</code> fills <code>.grad</code> via the tape</td></tr>
-            <tr><td>Batching</td><td><code>vmap</code> rewrites primitives</td><td>Manual batch dims, or <code>torch.func.vmap</code></td></tr>
-            <tr><td>Randomness</td><td>Explicit, splittable keys</td><td>Global generator, seeded once</td></tr>
-            <tr><td>Home hardware</td><td>TPU; also NVIDIA and AMD GPUs and CPU through XLA</td><td>NVIDIA GPU via CUDA; also CPU, Apple MPS, AMD ROCm, TPU via PyTorch/XLA</td></tr>
-            <tr><td>Custom kernels</td><td>Pallas (Mosaic on TPU, Mosaic GPU on supported NVIDIA GPUs; Triton also available)</td><td>C++/CUDA extensions, Triton</td></tr>
-            <tr><td>Scaling out</td><td>Sharding annotations with GSPMD/Shardy; <code>shard_map</code> for explicit SPMD</td><td>DDP, FSDP, tensor/pipeline parallel, DTensor</td></tr>
-            <tr><td>Ecosystem</td><td>Flax, Optax, Orbax, MaxText, Equinox</td><td>torch.nn, torchvision, Hugging Face, Lightning, vLLM</td></tr>
-            <tr><td>Debugging</td><td><code>jax.debug.print</code>, <code>jax.disable_jit()</code></td><td><code>print</code> and <code>pdb</code> just work in eager</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="prose">
-      <h3>Reach for JAX when</h3>
-      <ul>
-        <li>You are training or serving on TPUs, or scaling one program across hundreds of chips where compiler-managed sharding pays off.</li>
-        <li>Your workload has stable shapes and benefits from compiler optimization across large function regions.</li>
-        <li>You need higher-order derivatives, per-example gradients or other function transformations as first-class tools.</li>
-      </ul>
-      <h3>Reach for PyTorch when</h3>
-      <ul>
-        <li>You want eager execution as the default while iterating on dynamic models or data-dependent control flow.</li>
-        <li>Your dependencies and deployment tools are built around the PyTorch ecosystem.</li>
-        <li>Your team prefers stateful modules and wants to add compilation selectively.</li>
-      </ul>
-      <h3>Go deeper</h3>
-      <ul>
-        <li><a href="https://docs.jax.dev/en/latest/notebooks/thinking_in_jax.html" target="_blank" rel="noopener">How to think in JAX</a> and <a href="https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html" target="_blank" rel="noopener">JAX: the sharp bits</a>, from the JAX docs.</li>
-        <li><a href="https://docs.jax.dev/en/latest/autodidax.html" target="_blank" rel="noopener">Autodidax</a>: JAX's core, tracing and all, rebuilt from scratch in a notebook.</li>
-        <li><a href="https://jax-ml.github.io/scaling-book/" target="_blank" rel="noopener">How to Scale Your Model</a>: TPU architecture and sharding math from Google DeepMind.</li>
-        <li><a href="https://openxla.org/xla" target="_blank" rel="noopener">OpenXLA</a> for the compiler and <a href="https://pytorch.org/docs/stable/torch.compiler.html" target="_blank" rel="noopener">torch.compile</a> for PyTorch's answer to it.</li>
-        <li><a href="https://poloclub.github.io/transformer-explainer/" target="_blank" rel="noopener">Transformer Explainer</a> and the other Polo Club explainers that inspired this page's format.</li>
-      </ul>
-    </div>
+  <section id="sharding">
+    <h2>Sharding a computation across devices</h2>
+    <p>JAX can lay out an array across a named <strong>mesh</strong> of devices. A <code>PartitionSpec</code> says which array dimension is split along which mesh axis. Under <code>jit</code>, the compiler propagates those layouts through the program and inserts collectives, operations that move data between devices, where values must move: an all-gather to reassemble a split array, an all-reduce to sum partial results, a reduce-scatter to sum and split again.</p>
+    <p>PyTorch offers the same patterns at several levels. <code>DistributedDataParallel</code> replicates the model and all-reduces gradients. <code>FullyShardedDataParallel</code> shards parameters and gathers them before use. <code>DTensor</code> describes tensor placements over a device mesh, close to the JAX model.</p>
+
+    <figure class="fig wide" id="fig-sharding">
+      <div data-widget="sharding" id="w-sharding"></div>
+      <figcaption><span class="fig-n"></span><code>y = x @ w</code> on 8 devices arranged as a 2 × 4 mesh with axes <code>'data'</code> and <code>'model'</code>. Each block of an array is labeled with the devices that hold it. Simplified: the real partitioner (GSPMD or Shardy) propagates layouts through a whole program and uses cost models to choose collectives; this figure applies three fixed rules to one matrix multiply. <span class="takeaway">Splitting the shared dimension D the same way on both operands leaves each device with a partial sum, which costs an all-reduce.</span></figcaption>
+    </figure>
   </section>
 
+  <!-- ============================================================ -->
+  <section id="choosing">
+    <h2>Choosing between them</h2>
+    <p>The choice follows from the execution model you want, the hardware you have, the libraries you depend on, and how you like to debug.</p>
+
+    <table class="cmp">
+      <thead><tr><th></th><th class="jax-c">JAX</th><th class="torch-c">PyTorch</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Model of a program</th><td>Pure functions and function transformations</td><td>Stateful modules and eager tensor operations</td></tr>
+        <tr><th scope="row">Execution</th><td>Trace once, compile with XLA, cache by shape signature</td><td>Dispatch operation by operation; <code>torch.compile</code> when you opt in</td></tr>
+        <tr><th scope="row">Gradients</th><td><code>grad(f)</code> returns a function</td><td><code>loss.backward()</code> fills <code>.grad</code> from the recorded graph</td></tr>
+        <tr><th scope="row">Batching</th><td><code>vmap</code> rewrites primitives</td><td>Batch dimensions by hand, or <code>torch.func.vmap</code></td></tr>
+        <tr><th scope="row">Randomness</th><td>Explicit keys, split as needed</td><td>A default generator per device, seeded once</td></tr>
+        <tr><th scope="row">Main hardware</th><td>TPU; also NVIDIA and AMD GPUs and CPUs through XLA</td><td>NVIDIA GPU through CUDA; also CPU, Apple MPS, AMD ROCm, and TPU through PyTorch/XLA</td></tr>
+        <tr><th scope="row">Custom kernels</th><td>Pallas (Mosaic on TPU, Mosaic GPU on supported NVIDIA GPUs; Triton also available)</td><td>C++ and CUDA extensions, Triton</td></tr>
+        <tr><th scope="row">Scaling out</th><td>Sharding annotations with GSPMD or Shardy; <code>shard_map</code> for explicit per-device code</td><td>DDP, FSDP, tensor and pipeline parallelism, DTensor</td></tr>
+        <tr><th scope="row">Libraries</th><td>Flax, Optax, Orbax, MaxText, Equinox</td><td>torch.nn, torchvision, Hugging Face, Lightning, vLLM</td></tr>
+        <tr><th scope="row">Debugging</th><td><code>jax.debug.print</code>, <code>jax.disable_jit()</code></td><td><code>print</code> and <code>pdb</code> work directly in eager mode</td></tr>
+      </tbody>
+    </table>
+
+    <h3>JAX fits when</h3>
+    <ul>
+      <li>You train or serve on TPUs, or scale one program across hundreds of chips, where compiler-managed sharding saves work.</li>
+      <li>Your shapes are stable and the workload gains from optimization across large regions of the program.</li>
+      <li>You need higher-order derivatives, per-example gradients or other function transformations as everyday tools.</li>
+    </ul>
+    <h3>PyTorch fits when</h3>
+    <ul>
+      <li>You want eager execution by default while you iterate on dynamic models or data-dependent control flow.</li>
+      <li>Your dependencies and deployment tools are built around the PyTorch ecosystem.</li>
+      <li>Your team prefers stateful modules and wants to add compilation region by region.</li>
+    </ul>
+
+    <h3>Further reading</h3>
+    <ul class="reading">
+      <li><a href="https://docs.jax.dev/en/latest/notebooks/thinking_in_jax.html" target="_blank" rel="noopener">How to think in JAX</a> and <a href="https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html" target="_blank" rel="noopener">JAX: the sharp bits</a>, from the JAX documentation.</li>
+      <li><a href="https://docs.jax.dev/en/latest/autodidax.html" target="_blank" rel="noopener">Autodidax</a>, which rebuilds the core of JAX, tracing included, in one notebook.</li>
+      <li><a href="https://jax-ml.github.io/scaling-book/" target="_blank" rel="noopener">How to Scale Your Model</a>, on TPU architecture and sharding arithmetic, from Google DeepMind.</li>
+      <li><a href="https://openxla.org/xla" target="_blank" rel="noopener">OpenXLA</a> for the compiler, and the <a href="https://pytorch.org/docs/stable/torch.compiler.html" target="_blank" rel="noopener">torch.compile documentation</a> for PyTorch’s compiler path.</li>
+    </ul>
+  </section>
+
+  <footer class="colophon">
+    <p>Framework behavior was checked against the JAX 0.11 and PyTorch 2.13 documentation; the jaxprs were printed with JAX 0.11.2. Hardware figures are vendor peaks, rounded and approximate. The fusion, systolic, GPU and sharding figures are simplified models, as their captions say. The format follows the <a href="https://poloclub.github.io/" target="_blank" rel="noopener">Polo Club</a> explainers, such as the <a href="https://poloclub.github.io/transformer-explainer/" target="_blank" rel="noopener">Transformer Explainer</a>.</p>
+    <p>Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn">GitHub</a>.</p>
+  </footer>
 </main>
 
-<footer>
-  <div class="prose">
-    <p>A standalone page: open <code>index.html</code> directly or serve the folder. No frameworks, no build step, no tracking.</p>
-    <p>Framework behavior was checked against JAX 0.11 and PyTorch 2.13 documentation. Hardware figures are rounded vendor peaks and marked approximate.</p>
-  </div>
-</footer>
-
 <script src="js/common.js"></script>
-<script src="js/pipeline.js"></script>
-<script src="js/stack.js"></script>
 <script src="js/tracing.js"></script>
 <script src="js/fusion.js"></script>
 <script src="js/autodiff.js"></script>

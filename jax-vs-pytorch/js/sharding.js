@@ -1,30 +1,19 @@
 /* ------------------------------------------------------------------
-   Sharding widget: annotate the two operands of y = x @ w with
-   PartitionSpecs on a 2 x 4 device mesh and watch which collectives a
-   (deliberately simplified) SPMD partitioner has to insert.
-   Registers JT.widget('sharding').
+   Figure: annotate the two operands of y = x @ w with PartitionSpecs on a
+   2 x 4 device mesh and see which collectives a deliberately simplified
+   SPMD partitioner inserts. Each block of an array is labeled with the
+   devices that hold it; color is reserved for the collectives (green,
+   the page's "active" color). Registers JT.widget('sharding').
    ------------------------------------------------------------------ */
 (function () {
   'use strict';
   const JT = window.JT;
-  const C = JT.colors;
 
   /* @model-start */
   /* Mesh: 2 x 4, axes ('data', 'model'); device id = 4 * data + model. */
   const AXES = { data: 2, model: 4 };
   const DEVICES = [0, 1, 2, 3, 4, 5, 6, 7];
   const coord = { data: (d) => d >> 2, model: (d) => d & 3 };
-  /* Validated colorblind-safe categorical set: hue = 'model' index. */
-  const HUES = ['#2a78d6', '#eb6834', '#1baf7a', '#4a3aa7'];
-  const GRAY = '#c9c6bb';
-
-  function mixWhite(hex, t) {
-    const n = parseInt(hex.slice(1), 16);
-    const ch = (v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, '0');
-    return '#' + ch(n >> 16) + ch((n >> 8) & 255) + ch(n & 255);
-  }
-  /* Lightness = 'data' index: data 0 keeps the hue, data 1 is a tint. */
-  const deviceColor = (d) => (coord.data(d) === 0 ? HUES[coord.model(d)] : mixWhite(HUES[coord.model(d)], 0.45));
 
   const specStr = (s) => (!s[0] && !s[1] ? 'P()' : 'P(' + s.map((a) => (a ? "'" + a + "'" : 'None')).join(', ') + ')');
   const key = (s) => s.map((a) => a || '-').join(',');
@@ -44,7 +33,7 @@
     if (bx && fw && bx === fw) {
       steps.push({ type: 'all-gather', over: fw, of: 'w' });
       fw = null;
-      notes.push("y cannot use '" + bx + "' on both of its dims, so w is gathered along F first");
+      notes.push("y cannot use '" + bx + "' on both of its dimensions, so w is gathered along F first");
     }
     /* Rule 1: the contracting dim D must be split the same way on both operands. */
     if (dx !== dw) {
@@ -78,305 +67,158 @@
     { value: 'data,-', label: "P('data', None)" },
   ];
   const PRESETS = [
-    { id: 'ddp', label: 'Data parallel (DDP-like)', x: ['data', null], w: [null, null], torch: 'DistributedDataParallel: replicate w on every rank, split the batch, all-reduce gradients in the backward pass' },
-    { id: 'coltp', label: 'Column tensor parallel', x: [null, null], w: [null, 'model'], torch: 'column-parallel Linear (Megatron-style): each rank owns a slice of the output features' },
-    { id: 'rowtp', label: 'Row tensor parallel', x: [null, 'model'], w: ['model', null], torch: 'row-parallel Linear + all-reduce (Megatron-style): partial sums are summed with NCCL' },
-    { id: 'fsdp', label: 'FSDP-like', x: ['data', null], w: ['data', null], torch: 'FullyShardedDataParallel: parameters are sharded and all-gathered right before use' },
-    { id: '2d', label: '2-D: data × model', x: ['data', null], w: [null, 'model'], torch: '2-D parallel with DTensor: Shard(0) on the data mesh dim for x, Shard(1) on the model mesh dim for w' },
+    { id: 'ddp', label: 'Data parallel', x: ['data', null], w: [null, null], torch: 'DistributedDataParallel replicates w on every rank, splits the batch, and all-reduces gradients in the backward pass.' },
+    { id: 'coltp', label: 'Column parallel', x: [null, null], w: [null, 'model'], torch: 'a column-parallel Linear layer (Megatron-style): each rank owns a slice of the output features.' },
+    { id: 'rowtp', label: 'Row parallel', x: [null, 'model'], w: ['model', null], torch: 'a row-parallel Linear layer (Megatron-style): partial sums are added with an NCCL all-reduce.' },
+    { id: 'fsdp', label: 'FSDP-like', x: ['data', null], w: ['data', null], torch: 'FullyShardedDataParallel: parameters are sharded and all-gathered right before use.' },
+    { id: '2d', label: 'Data × model', x: ['data', null], w: [null, 'model'], torch: 'DTensor on a 2-D mesh: Shard(0) on the data dimension for x, Shard(1) on the model dimension for w.' },
   ];
-  const stepStr = (s) => (s.type === 'all-gather' ? "all-gather " + s.of + " over '" + s.over + "'" : "all-reduce over '" + s.over + "'");
-
-  const CSS = `
-#w-sharding .sh-ctl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem 0.75rem; align-items: center; margin-bottom: 0.85rem; }
-#w-sharding .sh-ctl .lbl { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-3); white-space: nowrap; }
-#w-sharding .sh-ctl .lbl b { color: var(--ink); font-weight: 600; }
-#w-sharding .seg { flex-wrap: wrap; }
-#w-sharding .seg button { font-family: var(--font-mono); font-size: 0.75rem; padding: 0.3rem 0.6rem; white-space: nowrap; }
-#w-sharding .sh-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding-bottom: 0.9rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
-#w-sharding .sh-presets .lbl { font-size: 0.8125rem; color: var(--ink-3); margin-right: 0.25rem; }
-#w-sharding .sh-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
-#w-sharding .sh-left { min-width: 0; }
-#w-sharding .sh-mesh-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; }
-#w-sharding .sh-mesh-row .sh-mesh { flex: 1 1 220px; max-width: 300px; }
-#w-sharding .sh-legend { flex: 1 1 180px; display: grid; gap: 0.3rem; font-size: 0.78rem; color: var(--ink-2); line-height: 1.4; }
-#w-sharding .sh-legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 0.4rem; }
-#w-sharding .sh-legend .sw.striped { background: repeating-linear-gradient(45deg, #2a78d6 0 3px, #eb6834 3px 6px, #1baf7a 6px 9px, #4a3aa7 9px 12px); }
-#w-sharding .sh-legend .dim { color: var(--ink-3); }
-#w-sharding .sh-arrays { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 0.5rem 0.6rem; align-items: start; margin: 1.1rem 0 0.4rem; }
-#w-sharding .sh-arr { min-width: 0; text-align: center; }
-#w-sharding .sh-arr svg { width: 100%; max-width: 176px; margin: 0 auto; overflow: visible; }
-#w-sharding .sh-cap { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.3; margin-bottom: 0.4rem; min-height: 2.4rem; }
-#w-sharding .sh-cap b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
-#w-sharding .sh-cap .spec { display: block; font-family: var(--font-mono); font-size: 0.75rem; color: var(--jax-deep); }
-#w-sharding .sh-op { font-family: var(--font-mono); font-size: 1.3rem; color: var(--ink-3); text-align: center; padding-top: calc(2.4rem + 0.4rem + 3.2rem); line-height: 1; }
-#w-sharding .sh-readout { margin: 0.5rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-#w-sharding .sh-coll { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); padding: 0.7rem 0.85rem; }
-#w-sharding .sh-coll h5 { margin: 0 0 0.5rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
-#w-sharding .sh-coll .none { color: var(--live-deep); font-weight: 500; font-size: 0.875rem; }
-#w-sharding .sh-cards { display: grid; gap: 0.55rem; }
-#w-sharding .sh-card { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.85rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.55rem 0.7rem; }
-#w-sharding .sh-card svg { width: 150px; flex: 0 0 auto; }
-#w-sharding .sh-card .txt { flex: 1 1 160px; min-width: 0; font-size: 0.8125rem; color: var(--ink-2); line-height: 1.45; }
-#w-sharding .sh-card .txt b { display: block; color: var(--live-deep); font-family: var(--font-mono); font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.15rem; }
-#w-sharding .sh-card .when { display: inline-block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); background: var(--surface-2); border-radius: 999px; padding: 0.1rem 0.5rem; margin-left: 0.4rem; vertical-align: 1px; font-family: var(--font-body); }
-#w-sharding .sh-coll .note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--ink-3); }
-#w-sharding .sh-code { min-width: 0; }
-#w-sharding .sh-code pre.code { font-size: 0.78rem; }
-#w-sharding .sh-peq { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; padding: 0.6rem 0.9rem; border-top: 1px solid var(--line); background: var(--torch-soft); font-size: 0.8125rem; color: var(--ink-2); line-height: 1.45; }
-#w-sharding .sh-peq .lbl { color: var(--torch-deep); font-weight: 600; white-space: nowrap; }
-#w-sharding .sh-peq .val { flex: 1 1 200px; min-width: 0; }
-#w-sharding svg .cell { stroke: #fff; stroke-width: 0.8; transition: fill 250ms var(--ease-out); }
-#w-sharding.sh-static svg .cell { transition: none; }
-#w-sharding svg .blk-outline { fill: none; stroke: #fff; stroke-width: 1.6; pointer-events: none; }
-#w-sharding svg text.blk { font-family: var(--font-mono); font-size: 7.5px; fill: var(--ink); pointer-events: none; }
-#w-sharding svg .pill { fill: #fff; fill-opacity: 0.92; pointer-events: none; }
-#w-sharding svg .hit { fill: transparent; }
-#w-sharding svg text.did { font-family: var(--font-body); font-size: 15px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
-#w-sharding svg text.did.small { font-size: 10px; stroke-width: 2.5px; }
-#w-sharding svg text.dco { font-family: var(--font-mono); font-size: 7px; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 1.4px; stroke-linejoin: round; }
-#w-sharding svg text.ax { font-size: 9.5px; fill: var(--ink-3); }
-#w-sharding svg text.tick { font-family: var(--font-mono); font-size: 9px; fill: var(--ink-3); }
-@media (max-width: 880px) {
-  #w-sharding .sh-main { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 600px) {
-  #w-sharding .sh-ctl { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
-  #w-sharding .sh-ctl .seg { border-radius: 12px; margin-bottom: 0.35rem; }
-  #w-sharding .sh-arrays { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
-  #w-sharding .sh-op.eq { grid-column: 2; grid-row: 2; }
-  #w-sharding .sh-arr.y { grid-column: 3; grid-row: 2; }
-}
-`;
+  const stepStr = (s) => (s.type === 'all-gather' ? 'all-gather ' + s.of + " over '" + s.over + "'" : "all-reduce over '" + s.over + "'");
 
   /* ---------------------------------------------------------------- */
-  /* Drawing helpers                                                    */
+  /* Drawing, at real CSS pixels                                        */
   /* ---------------------------------------------------------------- */
+  function devLabel(devs) {
+    if (devs.length === 8) return 'all 8';
+    if (devs.length > 2 && devs.every((d, i) => i === 0 || d === devs[i - 1] + 1)) return devs[0] + '–' + devs[devs.length - 1];
+    return devs.join(' ');
+  }
 
-  /** 2 x 4 mesh. o: {cell, gapX, gapY, ml, mt, mr, mb, axes, coords, groups, uid, label, cls} */
+  /** The 2 x 4 mesh. groups: null, 'model' (rows communicate) or 'data' (columns communicate). */
   function drawMesh(o) {
-    const cell = o.cell, gx = o.gapX, gy = o.gapY;
-    const gridW = 4 * cell + 3 * gx, gridH = 2 * cell + gy;
-    const W = o.ml + gridW + o.mr, H = o.mt + gridH + o.mb;
-    const svg = JT.svg('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': o.label || '2 by 4 device mesh', class: o.cls || '' });
-    const at = (d) => ({ x: o.ml + coord.model(d) * (cell + gx), y: o.mt + coord.data(d) * (cell + gy) });
-    const groups = o.groups ? (o.groups === 'model' ? [[0, 1, 2, 3], [4, 5, 6, 7]] : [[0, 4], [1, 5], [2, 6], [3, 7]]) : null;
-    const mid = 'sh-arrow-' + o.uid;
-    if (groups) {
-      svg.appendChild(JT.svg('defs', null, JT.svg('marker', { id: mid, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 5, markerHeight: 5, orient: 'auto-start-reverse' }, JT.svg('path', { d: 'M0 0 L8 4 L0 8 Z', fill: C.liveDeep }))));
-      const pad = 4;
+    const cell = o.cell, gap = o.gap, ml = o.axes ? 58 : 4, mt = o.axes ? 34 : 4;
+    const W = ml + 4 * cell + 3 * gap + 4, H = mt + 2 * cell + gap + 4;
+    const svg = JT.svg('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': o.label });
+    const at = (d) => ({ x: ml + coord.model(d) * (cell + gap), y: mt + coord.data(d) * (cell + gap) });
+    if (o.groups) {
+      const groups = o.groups === 'model' ? [[0, 1, 2, 3], [4, 5, 6, 7]] : [[0, 4], [1, 5], [2, 6], [3, 7]];
       for (const g of groups) {
-        const ps = g.map(at);
-        const x0 = Math.min.apply(null, ps.map((p) => p.x)) - pad, y0 = Math.min.apply(null, ps.map((p) => p.y)) - pad;
-        const x1 = Math.max.apply(null, ps.map((p) => p.x)) + cell + pad, y1 = Math.max.apply(null, ps.map((p) => p.y)) + cell + pad;
-        svg.appendChild(JT.svg('rect', { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 6, fill: C.liveSoft, stroke: C.live, 'stroke-width': 1.25 }));
+        const a = at(g[0]), b = at(g[g.length - 1]);
+        svg.appendChild(JT.svg('rect', { class: 'grp', x: a.x - 2.5, y: a.y - 2.5, width: b.x - a.x + cell + 5, height: b.y - a.y + cell + 5, rx: 2 }));
       }
     }
     for (const d of DEVICES) {
-      const p = at(d), cx = p.x + cell / 2;
-      svg.appendChild(JT.svg('rect', { x: p.x, y: p.y, width: cell, height: cell, rx: Math.round(cell * 0.12), fill: deviceColor(d), class: 'dev' }));
-      if (o.coords) {
-        svg.appendChild(JT.svg('text', { x: cx, y: p.y + cell / 2 + 2, 'text-anchor': 'middle', class: 'did', text: String(d) }));
-        svg.appendChild(JT.svg('text', { x: cx, y: p.y + cell - 5, 'text-anchor': 'middle', class: 'dco', text: '(' + coord.data(d) + ', ' + coord.model(d) + ')' }));
-      } else {
-        svg.appendChild(JT.svg('text', { x: cx, y: p.y + cell / 2 + 3.5, 'text-anchor': 'middle', class: 'did small', text: String(d) }));
-      }
-    }
-    if (groups) {
-      const horiz = o.groups === 'model';
-      for (const g of groups) {
-        for (let i = 0; i + 1 < g.length; i++) {
-          const a = at(g[i]), b = at(g[i + 1]);
-          const line = horiz
-            ? { x1: a.x + cell + 1.5, y1: a.y + cell / 2, x2: b.x - 1.5, y2: b.y + cell / 2 }
-            : { x1: a.x + cell / 2, y1: a.y + cell + 1.5, x2: b.x + cell / 2, y2: b.y - 1.5 };
-          svg.appendChild(JT.svg('line', Object.assign({ stroke: C.liveDeep, 'stroke-width': 1.6, 'marker-start': 'url(#' + mid + ')', 'marker-end': 'url(#' + mid + ')' }, line)));
-        }
-      }
+      const p = at(d);
+      svg.appendChild(JT.svg('rect', { class: 'dev', x: p.x, y: p.y, width: cell, height: cell, rx: 1.5 }));
+      if (o.ids) svg.appendChild(JT.svg('text', { class: 'did', x: p.x + cell / 2, y: p.y + cell / 2 + 4.5, 'text-anchor': 'middle', text: String(d) }));
     }
     if (o.axes) {
-      svg.appendChild(JT.svg('text', { x: o.ml + gridW / 2, y: 10, 'text-anchor': 'middle', class: 'ax', text: "'model' axis, size 4" }));
-      for (let m = 0; m < 4; m++) svg.appendChild(JT.svg('text', { x: o.ml + m * (cell + gx) + cell / 2, y: o.mt - 6, 'text-anchor': 'middle', class: 'tick', text: String(m) }));
-      const ly = o.mt + gridH / 2;
-      svg.appendChild(JT.svg('text', { x: 11, y: ly, 'text-anchor': 'middle', class: 'ax', transform: 'rotate(-90 11 ' + ly + ')', text: "'data' axis, size 2" }));
-      for (let r = 0; r < 2; r++) svg.appendChild(JT.svg('text', { x: o.ml - 7, y: o.mt + r * (cell + gy) + cell / 2 + 3.5, 'text-anchor': 'end', class: 'tick', text: String(r) }));
+      svg.appendChild(JT.svg('text', { class: 'ax', x: ml, y: 12, text: "'model' axis (4) →" }));
+      for (let m = 0; m < 4; m++) svg.appendChild(JT.svg('text', { class: 'ax', x: ml + m * (cell + gap) + cell / 2, y: mt - 6, 'text-anchor': 'middle', text: String(m) }));
+      svg.appendChild(JT.svg('text', { class: 'ax', x: 0, y: mt + cell / 2 + 4, text: "'data'" }));
+      svg.appendChild(JT.svg('text', { class: 'ax', x: 0, y: mt + cell / 2 + 19, text: 'axis (2)' }));
+      for (let r = 0; r < 2; r++) svg.appendChild(JT.svg('text', { class: 'ax', x: ml - 8, y: mt + r * (cell + gap) + cell / 2 + 4, 'text-anchor': 'end', text: String(r) }));
     }
     return svg;
   }
 
-  /** An 8 x 8 array grid whose cells persist (so fills can transition). */
-  function makeGrid(name, dims, extraCls) {
-    const svg = JT.svg('svg', { viewBox: '0 0 100 100', role: 'img', 'aria-label': name + ' array, 8 by 8, colored by the device that holds each block' });
-    const defs = JT.svg('defs');
-    const cells = JT.svg('g');
-    const rects = [];
-    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
-      const rect = JT.svg('rect', { x: 2 + c * 12, y: 2 + r * 12, width: 12, height: 12, class: 'cell' });
-      rects.push(rect); cells.appendChild(rect);
-    }
-    const blocks = JT.svg('g');
-    svg.append(defs, cells, blocks);
-    const cap = JT.el('div', { class: 'sh-cap' });
-    const wrap = JT.el('div', { class: 'sh-arr ' + (extraCls || '') }, [cap, svg]);
-    return { name, dims, svg, defs, rects, blocks, cap, wrap };
-  }
-
-  function fillFor(devs, defs, uid) {
-    if (devs.length === 8) return GRAY;
-    if (devs.length === 1) return deviceColor(devs[0]);
-    const id = 'sh-pat-' + uid + '-' + devs.join('-');
-    if (!defs.querySelector('#' + id)) {
-      const n = devs.length, sw = 3;
-      const pat = JT.svg('pattern', { id, patternUnits: 'userSpaceOnUse', width: n * sw, height: n * sw, patternTransform: 'rotate(45)' });
-      devs.forEach((d, k) => pat.appendChild(JT.svg('rect', { x: k * sw, y: 0, width: sw, height: n * sw, fill: deviceColor(d) })));
-      defs.appendChild(pat);
-    }
-    return 'url(#' + id + ')';
-  }
-
-  function paintGrid(g, spec, uid) {
-    const nR = spec[0] ? AXES[spec[0]] : 1, nC = spec[1] ? AXES[spec[1]] : 1;
-    const rh = 8 / nR, cw = 8 / nC;
-    g.defs.replaceChildren();
-    g.blocks.replaceChildren();
-    for (let i = 0; i < nR; i++) for (let j = 0; j < nC; j++) {
-      const devs = DEVICES.filter((d) => (!spec[0] || coord[spec[0]](d) === i) && (!spec[1] || coord[spec[1]](d) === j));
-      const fill = fillFor(devs, g.defs, uid + g.name);
-      for (let r = i * rh; r < (i + 1) * rh; r++) for (let c = j * cw; c < (j + 1) * cw; c++) g.rects[r * 8 + c].style.fill = fill;
-      const x = 2 + j * cw * 12, y = 2 + i * rh * 12, w = cw * 12, h = rh * 12;
-      g.blocks.appendChild(JT.svg('rect', { x, y, width: w, height: h, rx: 1, class: 'blk-outline' }));
-      const label = devs.length === 8 ? 'all' : devs.join(' ');
-      const tw = label.length * 4.6 + 5, th = 10.5;
-      g.blocks.appendChild(JT.svg('rect', { x: x + w / 2 - tw / 2, y: y + h / 2 - th / 2, width: tw, height: th, rx: 2.5, class: 'pill' }));
-      g.blocks.appendChild(JT.svg('text', { x: x + w / 2, y: y + h / 2 + 2.7, 'text-anchor': 'middle', class: 'blk', text: label }));
-      const who = devs.length === 8 ? 'all 8 devices (replicated)' : (devs.length > 1 ? 'devices ' + devs.join(', ') + ' (shared)' : 'device ' + devs[0] + ' only');
-      g.blocks.appendChild(JT.svg('rect', { x, y, width: w, height: h, class: 'hit', 'data-tip': '<b>' + g.name + '[' + (i * rh) + ':' + ((i + 1) * rh) + ', ' + (j * cw) + ':' + ((j + 1) * cw) + ']</b> lives on ' + who }));
-    }
+  /** x @ w = y as three squares split into labeled blocks. */
+  function drawArrays(specs, A) {
+    const opW = 24, top = 34;
+    const W = 3 * A + 2 * opW, H = top + A + 2;
+    const svg = JT.svg('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
+      'aria-label': 'x ' + specStr(specs[0].spec) + ' times w ' + specStr(specs[1].spec) + ' gives y ' + specStr(specs[2].spec) });
+    specs.forEach((a, idx) => {
+      const x0 = idx * (A + opW);
+      svg.appendChild(JT.svg('text', { class: 'aname', x: x0, y: 12, text: a.name + ' ' + a.dims }));
+      svg.appendChild(JT.svg('text', { class: 'aspec', x: x0, y: 27, text: specStr(a.spec) }));
+      svg.appendChild(JT.svg('rect', { class: 'arr-out', x: x0, y: top, width: A, height: A }));
+      const nR = a.spec[0] ? AXES[a.spec[0]] : 1, nC = a.spec[1] ? AXES[a.spec[1]] : 1;
+      const bh = A / nR, bw = A / nC;
+      for (let i = 0; i < nR; i++) for (let j = 0; j < nC; j++) {
+        const devs = DEVICES.filter((d) => (!a.spec[0] || coord[a.spec[0]](d) === i) && (!a.spec[1] || coord[a.spec[1]](d) === j));
+        const bx = x0 + j * bw, by = top + i * bh;
+        svg.appendChild(JT.svg('rect', { class: 'blk', x: bx, y: by, width: bw, height: bh }));
+        svg.appendChild(JT.svg('text', { class: 'blab', x: bx + bw / 2, y: by + bh / 2 + 4, 'text-anchor': 'middle', text: devLabel(devs) }));
+      }
+      if (idx < 2) svg.appendChild(JT.svg('text', { class: 'op', x: x0 + A + opW / 2, y: top + A / 2 + 5, 'text-anchor': 'middle', text: idx === 0 ? '@' : '=' }));
+    });
+    return svg;
   }
 
   /* ---------------------------------------------------------------- */
   /* Widget                                                             */
   /* ---------------------------------------------------------------- */
   JT.widget('sharding', (container) => {
-    JT.style('sharding', CSS);
-    const uid = 'sh' + Math.random().toString(36).slice(2, 7);
-    const S = JT.stage(container, { title: 'Shard a matmul across a 2 × 4 device mesh', hint: 'y = x @ w on 8 devices, simplified GSPMD / Shardy rules' });
-    if (JT.reducedMotion) container.classList.add('sh-static');
+    container.classList.add('sharding');
+    let xSpec = ['data', null], wSpec = [null, null], width = 0;
 
-    let xSpec = ['data', null], wSpec = [null, null];
+    const sel = (opts, label, onChange) => {
+      const s = JT.el('select', { 'aria-label': label });
+      opts.forEach((o) => s.appendChild(JT.el('option', { value: o.value, text: o.label })));
+      s.addEventListener('change', () => onChange(s.value));
+      return s;
+    };
+    const xSel = sel(X_OPTS, 'PartitionSpec for x', (v) => { xSpec = unkey(v); render(); });
+    const wSel = sel(W_OPTS, 'PartitionSpec for w', (v) => { wSpec = unkey(v); render(); });
+    const presetBtns = PRESETS.map((p) => JT.button(p.label, () => { xSpec = p.x.slice(); wSpec = p.w.slice(); render(); }, { class: 'btn toggle', 'aria-pressed': 'false', dataset: { preset: p.id } }));
+    container.append(
+      JT.el('div', { class: 'controls tight' }, [JT.el('span', { class: 'lbl', text: 'Layout' }), ...presetBtns]),
+      JT.el('div', { class: 'controls' }, [JT.control('x', [xSel]), JT.control('w', [wSel])]),
+    );
 
-    /* controls */
-    const xSeg = JT.seg(X_OPTS, (v) => { xSpec = unkey(v); render(); }, key(xSpec), 'jax');
-    const wSeg = JT.seg(W_OPTS, (v) => { wSpec = unkey(v); render(); }, key(wSpec), 'jax');
-    xSeg.setAttribute('aria-label', 'PartitionSpec for x');
-    wSeg.setAttribute('aria-label', 'PartitionSpec for w');
-    const ctl = JT.el('div', { class: 'sh-ctl' }, [
-      JT.el('span', { class: 'lbl', html: '<b>x</b> [B=8, D=8]' }), xSeg,
-      JT.el('span', { class: 'lbl', html: '<b>w</b> [D=8, F=8]' }), wSeg,
-    ]);
-    const chips = PRESETS.map((p) => JT.el('button', {
-      type: 'button', class: 'chip', text: p.label, 'aria-pressed': 'false', dataset: { preset: p.id },
-      onClick: () => { xSpec = p.x.slice(); wSpec = p.w.slice(); xSeg.setValue(key(xSpec)); wSeg.setValue(key(wSpec)); render(); },
-    }));
-    const presets = JT.el('div', { class: 'sh-presets' }, [JT.el('span', { class: 'lbl', text: 'Presets' })].concat(chips));
-
-    /* mesh + legend */
-    const mesh = drawMesh({ cell: 44, gapX: 8, gapY: 8, ml: 36, mt: 30, mr: 4, mb: 4, axes: true, coords: true, uid: uid + 'm', cls: 'sh-mesh', label: 'Device mesh: 2 rows (data axis) by 4 columns (model axis); each square is one device, labeled with its id and (data, model) coordinate' });
-    const legend = JT.el('div', { class: 'sh-legend' }, [
-      JT.el('div', null, [JT.el('span', { class: 'sw', style: { background: HUES[0] } }), 'solid: this block lives on exactly one device']),
-      JT.el('div', null, [JT.el('span', { class: 'sw striped' }), 'striped: shared by the striped devices (replicated along one mesh axis)']),
-      JT.el('div', null, [JT.el('span', { class: 'sw', style: { background: GRAY } }), 'gray, "all": replicated on every device']),
-      JT.el('div', { class: 'dim', text: "hue = 'model' index, tint = 'data' index (lighter is data 1); device id = 4 × data + model" }),
-    ]);
-    const meshRow = JT.el('div', { class: 'sh-mesh-row' }, [mesh, legend]);
-
-    /* arrays */
-    const gx = makeGrid('x', '[B=8, D=8]'), gw = makeGrid('w', '[D=8, F=8]'), gy = makeGrid('y', '[B=8, F=8]', 'y');
-    const arrays = JT.el('div', { class: 'sh-arrays' }, [
-      gx.wrap, JT.el('div', { class: 'sh-op', text: '@', 'aria-hidden': 'true' }), gw.wrap, JT.el('div', { class: 'sh-op eq', text: '=', 'aria-hidden': 'true' }), gy.wrap,
-    ]);
-    const readout = JT.el('div', { class: 'readout sh-readout' });
-
-    /* collectives strip */
-    const collBody = JT.el('div');
-    const coll = JT.el('div', { class: 'sh-coll', 'aria-live': 'polite' }, [JT.el('h5', { text: 'Collectives inserted by the compiler' }), collBody]);
-
-    /* code pane */
+    const meshHost = JT.el('div');
+    const arraysHost = JT.el('div');
+    const readline = JT.el('p', { class: 'readline' });
+    const coll = JT.el('ul', { class: 'coll', 'aria-live': 'polite' });
     const codeHost = JT.el('div');
-    const peqVal = JT.el('span', { class: 'val' });
-    const pane = JT.el('div', { class: 'pane jax sh-code' }, [
-      JT.el('div', { class: 'pane-head' }, ['JAX', JT.el('span', { class: 'sub', text: 'annotate the data, jit the math' })]),
-      codeHost,
-      JT.el('div', { class: 'sh-peq' }, [JT.el('span', { class: 'lbl', text: 'PyTorch equivalent' }), peqVal]),
-    ]);
-
-    const main = JT.el('div', { class: 'sh-main' }, [JT.el('div', { class: 'sh-left' }, [meshRow, arrays, readout, coll]), pane]);
-    S.body.append(ctl, presets, main);
-    S.foot.textContent = 'Simplified: the real partitioner propagates shardings through the full program and uses cost models to choose placements, collectives, and resharding.';
-
-    const shardWord = (s) => (s[0] || s[1] ? 'sharded ' + specStr(s) : 'replicated ' + specStr(s));
-    const fracStr = (den) => '1/' + den;
+    const torchEq = JT.el('p', { class: 'torch-eq' });
+    container.append(
+      JT.el('div', { class: 'top' }, [meshHost, arraysHost]),
+      readline,
+      JT.el('div', { class: 'cols' }, [
+        JT.el('div', {}, [JT.el('h4', { text: 'Collectives the compiler inserts' }), coll]),
+        JT.el('div', {}, [JT.el('h4', { html: '<span class="jax-c">JAX</span> <span class="sub">annotate the data, jit the math</span>' }), codeHost, torchEq]),
+      ]),
+    );
+    meshHost.appendChild(drawMesh({ cell: 30, gap: 6, axes: true, ids: true, label: 'Device mesh: 2 rows along the data axis by 4 columns along the model axis; device id = 4 × data + model' }));
 
     function render() {
       const p = plan(xSpec, wSpec);
+      xSel.value = key(xSpec); wSel.value = key(wSpec);
 
-      paintGrid(gx, xSpec, uid); paintGrid(gw, wSpec, uid); paintGrid(gy, p.y, uid);
-      gx.cap.innerHTML = '<b>x</b> ' + gx.dims + '<span class="spec">' + JT.escape(specStr(xSpec)) + '</span>';
-      gw.cap.innerHTML = '<b>w</b> ' + gw.dims + '<span class="spec">' + JT.escape(specStr(wSpec)) + '</span>';
-      gy.cap.innerHTML = '<b>y</b> ' + gy.dims + '<span class="spec">' + JT.escape(specStr(p.y)) + '</span>';
+      const meshW = 208, avail = width >= 620 ? width - meshW - 32 : width;
+      const A = Math.max(84, Math.min(132, Math.floor((avail - 48) / 3)));
+      arraysHost.replaceChildren(drawArrays([
+        { name: 'x', dims: '[B, D]', spec: xSpec },
+        { name: 'w', dims: '[D, F]', spec: wSpec },
+        { name: 'y', dims: '[B, F]', spec: p.y },
+      ], A));
+      readline.innerHTML = `Each device holds <b>1/${p.mem.x}</b> of x, <b>1/${p.mem.w}</b> of w and <b>1/${p.mem.y}</b> of y. y comes out ${p.y[0] || p.y[1] ? 'sharded' : 'replicated'} as <code>${JT.escape(specStr(p.y))}</code>.`;
 
-      readout.innerHTML = '<span>per-device memory: x <b>' + fracStr(p.mem.x) + '</b> · w <b>' + fracStr(p.mem.w) + '</b> · y <b>' + fracStr(p.mem.y) + '</b></span>'
-        + '<span>y comes out <b>' + JT.escape(shardWord(p.y)) + '</b></span>';
+      coll.replaceChildren();
+      if (!p.steps.length) coll.appendChild(JT.el('li', { class: 'none', text: 'None. Every device already holds the operands it needs.' }));
+      p.steps.forEach((s) => {
+        const n = AXES[s.over], groups = 8 / n;
+        const mini = drawMesh({ cell: 14, gap: 5, groups: s.over, label: `${s.type} over '${s.over}': ${groups} groups of ${n} devices` });
+        const what = s.type === 'all-gather'
+          ? `Before the matmul. ${groups} groups of ${n} devices; each group concatenates its slices of ${s.of}, so every member holds ${s.of} whole along that axis.`
+          : `After the matmul. ${groups} groups of ${n} devices; each device holds a partial y from its slice of D, and each group sums them. XLA may choose a reduce-scatter instead when y should stay sharded.`;
+        coll.appendChild(JT.el('li', {}, [mini, JT.el('span', { html: `<b>${JT.escape(stepStr(s))}</b>. ${what}` })]));
+      });
+      if (p.notes.length) coll.appendChild(JT.el('li', { text: 'Note: ' + p.notes.join('; ') + '.' }));
 
-      /* collectives */
-      collBody.replaceChildren();
-      if (!p.steps.length) {
-        collBody.appendChild(JT.el('div', { class: 'none', text: 'No communication needed: every device already has what it needs.' }));
-      } else {
-        const cards = JT.el('div', { class: 'sh-cards' });
-        p.steps.forEach((s, i) => {
-          const n = AXES[s.over], groups = 8 / n;
-          const mini = drawMesh({ cell: 22, gapX: s.over === 'model' ? 16 : 12, gapY: s.over === 'model' ? 12 : 16, ml: 6, mt: 6, mr: 6, mb: 6, groups: s.over, uid: uid + 'c' + i, label: (s.type + " over '" + s.over + "': " + groups + ' groups of ' + n + ' devices') });
-          const when = s.type === 'all-gather' ? 'before matmul' : 'after matmul';
-          const what = s.type === 'all-gather'
-            ? n + ' devices per group, ' + groups + ' groups. Each group concatenates its slices so every member holds ' + s.of + ' whole along that axis.'
-            : n + ' devices per group, ' + groups + ' groups. Every device computed a partial y from its slice of D; each group sums them. XLA may pick reduce-scatter instead when y should stay sharded.';
-          const txt = JT.el('div', { class: 'txt' }, [
-            JT.el('b', null, [stepStr(s) + ' (' + n + ' devices)', JT.el('span', { class: 'when', text: when })]),
-            what,
-          ]);
-          cards.appendChild(JT.el('div', { class: 'sh-card' }, [mini, txt]));
-        });
-        collBody.appendChild(cards);
-        if (p.notes.length) collBody.appendChild(JT.el('p', { class: 'note', text: 'Note: ' + p.notes.join('; ') + '.' }));
-      }
-
-      /* code */
       const lines = [
-        'from jax.sharding import NamedSharding, PartitionSpec as P',
+        'from jax.sharding import NamedSharding',
+        'from jax.sharding import PartitionSpec as P',
         "mesh = jax.make_mesh((2, 4), ('data', 'model'))",
-        'x = jax.device_put(x, NamedSharding(mesh, ' + specStr(xSpec) + '))',
-        'w = jax.device_put(w, NamedSharding(mesh, ' + specStr(wSpec) + '))',
+        'shard = lambda spec: NamedSharding(mesh, spec)',
+        'x = jax.device_put(x, shard(' + specStr(xSpec) + '))',
+        'w = jax.device_put(w, shard(' + specStr(wSpec) + '))',
         'y = jax.jit(lambda x, w: x @ w)(x, w)',
+        'print(y.sharding.spec)   # ' + specStr(p.y),
       ];
-      lines.push('print(y.sharding.spec)   # ' + specStr(p.y) + (p.y[0] || p.y[1] ? '' : ', replicated'));
-      const firstComment = lines.length + 1;
-      if (!p.steps.length) {
-        lines.push('# XLA inserts: nothing — no communication needed');
-      } else {
-        lines.push('# XLA inserts: ' + stepStr(p.steps[0]) + (p.steps.length > 1 ? ',' : ''));
-        p.steps.slice(1).forEach((s, i) => lines.push('#   then ' + stepStr(s) + (i === p.steps.length - 2 && p.notes.length ? ' (' + p.notes[0] + ')' : '')));
-      }
-      const pre = JT.code(lines.join('\n'), { lang: 'python' });
-      JT.markLines(pre, lines.map((_, i) => i + 1).filter((n) => n >= firstComment), 'now');
+      const first = lines.length + 1;
+      if (!p.steps.length) lines.push('# XLA inserts no collectives');
+      else p.steps.forEach((s, i) => lines.push((i === 0 ? '# XLA inserts: ' : '#   then ') + stepStr(s)));
+      const pre = JT.code(lines.join('\n'));
+      JT.markLines(pre, lines.map((_, i) => i + 1).filter((n) => n >= first), 'now');
       codeHost.replaceChildren(pre);
 
-      /* presets + torch mapping */
       const active = PRESETS.find((q) => key(q.x) === key(xSpec) && key(q.w) === key(wSpec));
-      chips.forEach((c) => c.setAttribute('aria-pressed', String(!!active && c.dataset.preset === active.id)));
-      peqVal.textContent = active ? active.torch : 'custom DTensor placement (no standard PyTorch wrapper; spell the Shard/Replicate placements out by hand)';
+      presetBtns.forEach((b) => b.setAttribute('aria-pressed', String(!!active && b.dataset.preset === active.id)));
+      torchEq.innerHTML = '<b>PyTorch equivalent</b>: ' + (active ? active.torch : 'a custom DTensor placement, written out with Shard and Replicate by hand.');
     }
-
-    render();
-    JT.bindTips(S.root);
+    JT.onWidth(container, (w) => { width = w; render(); });
   });
 })();
