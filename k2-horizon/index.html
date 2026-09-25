@@ -1,656 +1,275 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a3aa7'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>K2 Horizon Explainer</title>
-<meta name="description" content="An interactive technical guide to IFM's six K2 Horizon models, MoVA attention, Uno decoding, training, reported benchmarks, and release status.">
+<title>K2 Horizon · Visual Learn</title>
+<meta name="description" content="How IFM's six K2 Horizon models differ, what MoVA attention and Uno decoding do, how the 375B model was trained, and what the reported benchmarks show.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='6' fill='%23fcfbf7'/%3E%3Cpath d='M12 50L28 18l10 18 6-10 10 24z' fill='none' stroke='%231c1b18' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>
-:root{
-  --ground:#f4f6f8; --paper:#ffffff; --ink:#15212c; --ink-2:#3d4c5a; --ink-3:#6f7d8a; --line:#d9dfe5; --line-2:#e9edf0;
-  --glacier:#1f6fb2; --glacier-soft:#dcebf8; --amber:#d3871f; --amber-soft:#fbead0; --teal:#22897a; --teal-soft:#d5efe9; --rose:#c04a5a;
-  --stage:#eef2f5; --code:#edf1f4;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --ground:#0f161d; --paper:#161f28; --ink:#eaf0f5; --ink-2:#b9c5cf; --ink-3:#8494a2; --line:#2a3642; --line-2:#212c36;
-    --glacier:#6fb1e8; --glacier-soft:#1a2e42; --amber:#e8a94c; --amber-soft:#3a2c14; --teal:#5cc2b0; --teal-soft:#153229; --rose:#e37b89;
-    --stage:#121a22; --code:#1c2630;
-  }
-}
-:root[data-theme="dark"]{
-  --ground:#0f161d; --paper:#161f28; --ink:#eaf0f5; --ink-2:#b9c5cf; --ink-3:#8494a2; --line:#2a3642; --line-2:#212c36;
-  --glacier:#6fb1e8; --glacier-soft:#1a2e42; --amber:#e8a94c; --amber-soft:#3a2c14; --teal:#5cc2b0; --teal-soft:#153229; --rose:#e37b89;
-  --stage:#121a22; --code:#1c2630;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation-duration:.001ms!important;transition-duration:.001ms!important}}
-body{margin:0;background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
-h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;font-variation-settings:"opsz" 96;line-height:1.05;text-wrap:balance;margin:0;letter-spacing:-.01em}
-h1{font-size:clamp(2.6rem,6vw,5rem);font-weight:700}
-h2{font-size:clamp(1.7rem,3vw,2.4rem);font-weight:600;margin-bottom:.6rem}
-h3{font-size:1.15rem;font-weight:600;margin-top:1.6rem;margin-bottom:.3rem}
-p{margin:.7rem 0}
-a{color:var(--glacier)}
-code,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em}
-code{background:var(--code);padding:.1em .35em;border-radius:3px}
-.context-line{font-size:.82rem;color:var(--ink-3);margin-bottom:.45rem}
-.layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:0;max-width:1240px;margin:0 auto}
-nav.rail{position:sticky;top:0;align-self:start;height:100vh;padding:2rem 1rem 2rem 1.5rem;border-right:1px solid var(--line-2);display:flex;flex-direction:column;gap:.15rem;font-size:.82rem}
-nav.rail .brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:1.2rem;color:var(--ink)}
-nav.rail a{color:var(--ink-3);text-decoration:none;padding:.3rem .5rem;border-radius:4px;border-left:2px solid transparent}
-nav.rail a.active{color:var(--ink);border-left-color:var(--glacier);background:var(--paper)}
-nav.rail .theme{margin-top:auto;font-size:.75rem;color:var(--ink-3);background:none;border:1px solid var(--line);border-radius:4px;padding:.3rem .5rem;cursor:pointer;font-family:inherit}
-main{padding:0 2rem 6rem}
-.prose{max-width:680px}
-section.chapter{padding-top:4.5rem;border-top:1px solid var(--line-2);margin-top:3rem}
-section.chapter:first-of-type{border-top:0;margin-top:0}
-.stage{background:var(--stage);border:1px solid var(--line-2);border-radius:6px;padding:1.25rem;margin:1.5rem 0;max-width:980px;overflow-x:auto}
-.stage .cap{font-size:.82rem;color:var(--ink-3);margin-top:.6rem}
-.stage svg{display:block;max-width:100%;height:auto}
-.controls{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.8rem;font-size:.85rem}
-.controls label{color:var(--ink-2)}
-button.btn,.seg button{font:inherit;font-size:.82rem;font-weight:500;background:var(--paper);color:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:.35rem .7rem;cursor:pointer}
-button.btn:hover,.seg button:hover{border-color:var(--ink-3)}
-button.btn:focus-visible,.seg button:focus-visible,nav a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--glacier);outline-offset:2px}
-.seg{display:inline-flex;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
-.seg button{border:0;border-radius:0;border-right:1px solid var(--line)}
-.seg button:last-child{border-right:0}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
-input[type=range]{accent-color:var(--glacier)}
-select{font:inherit;font-size:.85rem;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:.3rem .5rem}
-.hero{padding:4rem 0 1rem}
-.hero .sub{font-size:1.2rem;color:var(--ink-2);max-width:620px;margin-top:1.2rem}
-.hero .meta{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1.5rem;font-size:.85rem;color:var(--ink-3)}
-.hero .meta b{color:var(--ink);font-weight:600;display:block;font-size:1rem}
-.specgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem 1rem;margin-top:.8rem;font-size:.85rem}
-.specgrid div{border-top:1px solid var(--line);padding-top:.35rem}
-.specgrid .k{color:var(--ink-3);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-family:"IBM Plex Mono",monospace}
-.specgrid .v{font-family:"IBM Plex Mono",monospace;font-size:.95rem;font-variant-numeric:tabular-nums}
-.chips{display:flex;flex-wrap:wrap;gap:.4rem}
-.chips button{font:inherit;font-size:.82rem;background:var(--paper);border:1px solid var(--line);color:var(--ink-2);border-radius:999px;padding:.3rem .8rem;cursor:pointer}
-.chips button[aria-pressed="true"]{background:var(--glacier);border-color:var(--glacier);color:#fff}
-.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.8rem;color:var(--ink-2);margin-top:.5rem}
-.legend span::before{content:"";display:inline-block;width:.75em;height:.75em;border-radius:2px;margin-right:.4em;vertical-align:-.05em;background:var(--sw)}
-.stat{display:flex;gap:2rem;flex-wrap:wrap;margin:.5rem 0}
-.stat div b{display:block;font-family:"Bricolage Grotesque",sans-serif;font-size:1.9rem;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
-.stat div span{font-size:.78rem;color:var(--ink-3)}
-table{border-collapse:collapse;font-size:.85rem;width:100%;font-variant-numeric:tabular-nums}
-th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line-2);vertical-align:top}
-th{font-weight:600;color:var(--ink-2);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase}
-td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace}
-.callout{border-left:3px solid var(--amber);background:var(--amber-soft);padding:.6rem 1rem;border-radius:0 4px 4px 0;font-size:.92rem;margin:1rem 0;max-width:680px}
-.callout.blue{border-color:var(--glacier);background:var(--glacier-soft)}
-.callout.teal{border-color:var(--teal);background:var(--teal-soft)}
-.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--ground);font-size:.78rem;padding:.35rem .55rem;border-radius:4px;white-space:nowrap;opacity:0;transition:opacity .12s;font-family:"IBM Plex Mono",monospace}
-.note{font-size:.85rem;color:var(--ink-3)}
-footer{font-size:.82rem;color:var(--ink-3);max-width:680px;margin-top:4rem}
-footer ol{padding-left:1.2rem}
-.ok{color:var(--teal);font-weight:600}.no{color:var(--rose);font-weight:600}.part{color:var(--amber);font-weight:600}
-@media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}nav.rail{display:none}main{padding:0 1.1rem 4rem}}
-main{min-width:0}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="layout">
-<nav class="rail" aria-label="Sections">
-  <div class="brand">K2 Horizon</div>
-  <a href="#fleet">Models</a>
-  <a href="#anatomy">Transformer layers</a>
-  <a href="#mova">MoVA</a>
-  <a href="#uno">Uno decoding</a>
-  <a href="#training">Training stages</a>
-  <a href="#data">Training data</a>
-  <a href="#bench">Benchmarks</a>
-  <a href="#open">Release artifacts</a>
-  <a href="#sources">Sources</a>
-  <button class="theme" id="themeBtn" type="button">Theme: system</button>
-</nav>
-<main>
-
-<header class="hero prose">
-  <div class="context-line">Institute of Foundation Models · released 3 September 2026</div>
-  <h1>K2 Horizon</h1>
-  <p class="sub">A technical guide to six language models from 0.9 billion to 375 billion parameters. The diagrams explain the model sizes, sparse layers, MoVA attention, Uno decoding, training stages, data, benchmarks, and release artifacts.</p>
-  <div class="meta">
-    <div><b>6 models</b>0.9B → 375B</div>
-    <div><b>Apache 2.0</b>model weights</div>
-    <div><b>~20T tokens</b>training corpus, ~10T synthetic</div>
-    <div><b>512K</b>context (3.7B and up)</div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a>
+    <span class="title">K2 Horizon</span>
+    <nav aria-label="Sections">
+      <a href="#models">Models</a>
+      <a href="#layers">Layers</a>
+      <a href="#mova">MoVA</a>
+      <a href="#uno">Uno</a>
+      <a href="#training">Training</a>
+      <a href="#bench">Benchmarks</a>
+      <a href="#release">Release</a>
+    </nav>
   </div>
+  <div class="progress" id="progress"></div>
 </header>
 
-<!-- ============ 1. FLEET ============ -->
-<section class="chapter" id="fleet">
-  <div class="prose">
-    <h2>Models and model sizes</h2>
-    <p>K2 Horizon contains six decoder-only transformers. They share the same general architecture, training method, interfaces, and deployment tooling. The 0.9B model uses a smaller tokenizer. The 36B and 375B models also replace dense feed-forward layers with sparse Mixture-of-Experts layers.</p>
-    <p>The chart below places each model on a logarithmic scale. Bars show <em>total</em> stored parameters. The darker inner bar shows the parameters that actually run for each token. For dense models the two are equal. For the sparse models, most parameters sit idle on any given token.</p>
-  </div>
-  <div class="stage">
-    <div class="controls"><span class="note">Hover a bar for details. Click to select.</span></div>
-    <div id="fleetChart" style="position:relative"></div>
-    <div class="legend"><span style="--sw:var(--glacier-soft)">Total parameters</span><span style="--sw:var(--glacier)">Active per token</span><span style="--sw:var(--amber)">Sparse (MoE)</span></div>
-  </div>
-  <div class="stage" id="specSheet">
-    <div class="chips" id="modelChips" role="group" aria-label="Choose a model"></div>
-    <h3 id="specTitle" style="margin-top:1rem"></h3>
-    <p id="specBlurb" class="note" style="max-width:none"></p>
-    <div class="specgrid" id="specGrid"></div>
-    <p class="cap">Values read from each model's published <code>config.json</code> on Hugging Face. Parameter counts are the official names; file sizes on Hugging Face run a little higher because the vocabulary embeddings are counted separately.</p>
-  </div>
-  <div class="prose">
-    <h3>Intended deployment</h3>
-    <p>IFM describes the 0.9B model as a wearable model, the 3.7B and 7B models as on-device models, the 32B and 36B-A4B models as local-server models, and the 375B-A23B model as a datacenter model. These are vendor positioning statements. Real deployment requirements depend on weight precision, KV-cache size, serving software, memory bandwidth, and latency targets.</p>
-    <p>The 0.9B model has a 64,256-token vocabulary; the other models use 250,624 tokens. A smaller embedding table leaves more of a small model's parameter budget for transformer layers. The 0.9B model advertises a 131,072-token context using YaRN scaling. The other five configurations advertise 524,288 tokens after long-context midtraining.</p>
-  </div>
-</section>
+<main class="page">
+  <h1>K2 Horizon</h1>
+  <p class="subtitle">How IFM’s six open language models are built, trained and measured</p>
+  <p class="lede">On 3 September 2026 the Institute of Foundation Models (IFM) at MBZUAI released K2 Horizon: six language models from 0.9 billion to 375 billion parameters under the Apache 2.0 license. Two of them are sparse, so each token uses only a fraction of the stored weights. This page reads the published configurations, model cards and papers to show how the six differ, what the new MoVA attention layer and the Uno decoder do, how the largest model was trained, and what IFM’s benchmark numbers can and cannot tell you.</p>
+  <p class="meta">7 sections · about 18 minutes · figures computed from each model’s published <code>config.json</code> · one decoding simulation you can run · sources checked 25 September 2026</p>
 
-<!-- ============ 2. ANATOMY ============ -->
-<section class="chapter" id="anatomy">
-  <div class="prose">
-    <h2>Transformer layers</h2>
-    <p>Every K2 Horizon model is a decoder-only transformer. A token's hidden vector passes through a stack of identical layers, and each layer has two halves: an attention block that mixes information across positions, and a feed-forward block that transforms each position on its own.</p>
-    <p>The fleet uses three variants of this layer. Switch between them below and press <strong>Route a token</strong> to watch where a single token's computation goes.</p>
-  </div>
-  <div class="stage">
-    <div class="controls">
-      <div class="seg" role="group" aria-label="Layer variant">
-        <button type="button" data-variant="dense" aria-pressed="true">Dense (0.9B–32B)</button>
-        <button type="button" data-variant="moe">MoE (375B-A23B)</button>
-        <button type="button" data-variant="mova">MoE + MoVA (36B-A4B)</button>
+  <!-- ============ 1. MODELS ============ -->
+  <section id="models">
+    <h2>Six models, from a watch to a datacenter</h2>
+    <p>All six are decoder-only transformers: they read a sequence of tokens and predict the next one. IFM says they share an architecture, training method, interfaces and deployment tooling, and that only the 0.9B model uses a smaller vocabulary.<span class="sn-ref"></span><span class="sidenote">IFM, <a href="https://ifm.ai/blog/k2/">K2 Horizon technical blog</a>, “One connected fleet”, 3 September 2026.</span></p>
+    <p>Four of the models are <strong>dense</strong>: every parameter takes part in computing every token. The other two are sparse <em>Mixture-of-Experts</em> (MoE) models, and their names carry two counts. K2-Horizon-375B-A23B stores 375 billion parameters and activates about 23 billion of them for each token.</p>
+
+    <figure class="fig" id="fig-fleet">
+      <div class="graphic" id="fleetChart" role="img" aria-label="Stored and active parameters per token for the six models on a log scale. 0.9B, 3.7B, 7B and 32B are dense, so all parameters are active. 36B-A4B stores 36B and activates 4B. 375B-A23B stores 375B and activates 23B."></div>
+      <figcaption><span class="fig-n"></span>Parameters stored (grey ring) and active for each token (orange dot), on a log scale. For the four dense models the two coincide. <span class="takeaway">The two sparse models store about 9 and 16 times the parameters they use per token.</span></figcaption>
+    </figure>
+
+    <p>Active parameters set the arithmetic done per token. They do not set the memory bill: every expert must stay loaded, because the next token may be routed to any of them. The 36B-A4B therefore needs memory for 36B parameters while computing with about 4B. It will not necessarily run as fast as a dense 4B model either, because expert routing, memory traffic, batching and the serving software all affect latency. Active parameters are a size convention, not a direct measure of FLOPs or latency.</p>
+
+    <p>The table lists what each model’s <code>config.json</code> on Hugging Face specifies.<span class="sn-ref"></span><span class="sidenote">The model names count parameters outside the vocabulary tables. The 3.7B checkpoint stores 5.06B parameters; its input embedding and output matrices, each 250,624 × 2,560, hold 1.28B of them. Stored counts are from the Hugging Face API, 25 September 2026.</span> Depth grows from 28 to 64 layers and width from 1,536 to 6,144. Every model uses <em>grouped-query attention</em>, in which 32 to 64 query heads share 8 key-value heads; that keeps the per-token key-value cache small. The 36B-A4B is narrower than the 7B and deeper, and holds most of its capacity in experts.</p>
+
+    <figure class="fig wide">
+      <div class="table-scroll" style="--min: 44rem">
+        <table class="config" id="configTable">
+          <thead>
+            <tr><th scope="col">From <code>config.json</code></th><th class="n" scope="col">0.9B</th><th class="n" scope="col">3.7B</th><th class="n" scope="col">7B</th><th class="n" scope="col">32B</th><th class="n" scope="col">36B-A4B</th><th class="n" scope="col">375B-A23B</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Parameters in the name</th><td class="n">0.9B</td><td class="n">3.7B</td><td class="n">7B</td><td class="n">32B</td><td class="n">36B</td><td class="n">375B</td></tr>
+            <tr><th scope="row">Active per token</th><td class="n">0.9B</td><td class="n">3.7B</td><td class="n">7B</td><td class="n">32B</td><td class="n">≈4B</td><td class="n">≈23B</td></tr>
+            <tr><th scope="row">Stored in the checkpoint</th><td class="n">1.08B</td><td class="n">5.06B</td><td class="n">9.00B</td><td class="n">34.8B</td><td class="n">37.4B</td><td class="n">379.2B</td></tr>
+            <tr class="group"><th scope="row">Layers</th><td class="n">28</td><td class="n">36</td><td class="n">36</td><td class="n">64</td><td class="n">48</td><td class="n">61</td></tr>
+            <tr><th scope="row">Hidden size</th><td class="n">1,536</td><td class="n">2,560</td><td class="n">4,096</td><td class="n">5,120</td><td class="n">2,560</td><td class="n">6,144</td></tr>
+            <tr><th scope="row">Feed-forward width</th><td class="n">5,120</td><td class="n">10,240</td><td class="n">12,288</td><td class="n">26,624</td><td class="n">768 per expert</td><td class="n">1,792 per expert</td></tr>
+            <tr><th scope="row">Query / key-value heads</th><td class="n">32 / 8</td><td class="n">32 / 8</td><td class="n">32 / 8</td><td class="n">64 / 8</td><td class="n">32 / 8</td><td class="n">48 / 8</td></tr>
+            <tr><th scope="row">Head dimension</th><td class="n">64</td><td class="n">128</td><td class="n">128</td><td class="n">128</td><td class="n">128</td><td class="n">128</td></tr>
+            <tr class="group"><th scope="row">Feed-forward experts</th><td class="n dim">none</td><td class="n dim">none</td><td class="n dim">none</td><td class="n dim">none</td><td class="n">100 + 1 shared, top 8</td><td class="n">192 + 1 shared, top 8</td></tr>
+            <tr><th scope="row">MoVA value experts</th><td class="n dim">none</td><td class="n dim">none</td><td class="n dim">none</td><td class="n dim">none</td><td class="n">64, top 4</td><td class="n dim">none</td></tr>
+            <tr class="group"><th scope="row">Vocabulary</th><td class="n">64,256</td><td class="n">250,624</td><td class="n">250,624</td><td class="n">250,624</td><td class="n">250,624</td><td class="n">250,624</td></tr>
+            <tr><th scope="row">Context (tokens)</th><td class="n">131,072</td><td class="n">524,288</td><td class="n">524,288</td><td class="n">524,288</td><td class="n">524,288</td><td class="n">524,288</td></tr>
+            <tr class="group"><th scope="row">IFM’s intended use</th><td class="n">watches, glasses</td><td class="n">phones</td><td class="n">phones</td><td class="n">local servers</td><td class="n">local servers</td><td class="n">enterprise</td></tr>
+          </tbody>
+        </table>
       </div>
-      <button class="btn" type="button" id="routeBtn">Route a token</button>
-      <label><input type="checkbox" id="autoRoute"> auto</label>
-    </div>
-    <div id="layerDiagram"></div>
-    <p class="cap" id="layerCap"></p>
-  </div>
-  <div class="prose">
-    <h3>How MoE reduces per-token compute</h3>
-    <p>A dense transformer executes each layer's attention and feed-forward weights for every token. A Mixture-of-Experts (MoE) layer replaces one feed-forward network with a pool of smaller experts and a router that selects a subset per token. The 375B model has 192 routed experts plus one shared expert in each layer and selects 8 routed experts per token. IFM summarizes the result as 375B total parameters and about 23B active parameters per token. Active parameters are a model-size convention, not a direct measure of FLOPs or latency.</p>
-    <p>All experts still occupy memory, even though each token uses only a subset. The 36B-A4B model therefore needs storage and accelerator memory closer to a 36B model while executing about 4B parameters per token. It will not necessarily match the latency of a dense 4B model: expert routing, memory traffic, batching, and the serving implementation also matter.</p>
-  </div>
-</section>
+      <figcaption><span class="fig-n"></span>Configuration of each model, read from its <code>config.json</code> on <a href="https://huggingface.co/IFM">Hugging Face</a>. In the two sparse models the first 3 layers use a dense feed-forward block (6,144 wide in the 36B-A4B, 16,384 in the 375B-A23B). The 375B model applies rotary position encoding to 64 of each head’s 128 dimensions.</figcaption>
+    </figure>
 
-<!-- ============ 3. MOVA ============ -->
-<section class="chapter" id="mova">
-  <div class="prose">
-    <h2>MoVA routes value projections</h2>
-    <p><strong>Mixture-of-Value Attention (MoVA)</strong> adds sparse routing to the attention block. Attention computes query, key, and value projections. Query-key scores determine how much weight each earlier position receives. Value projections supply the vectors combined by those weights.</p>
-    <p>In MoVA, the single value projection is replaced with a pool of value experts. A router picks a small subset for each token, and only those value projections are computed. In the 36B-A4B model each layer holds 64 value experts and activates 4 per token, alongside its 100 feed-forward experts of which 8 are active.</p>
-  </div>
-  <div class="stage">
-    <div class="controls">
-      <label>Value experts <span class="mono" id="mvN">64</span></label>
-      <input type="range" id="mvExperts" min="8" max="128" step="8" value="64">
-      <label>Active per token <span class="mono" id="mvK">4</span></label>
-      <input type="range" id="mvTop" min="1" max="8" step="1" value="4">
-      <button class="btn" type="button" id="mvStep">Next token</button>
-    </div>
-    <div id="movaDiagram"></div>
-    <p class="cap">Simplified diagram. The left side shows query-key attention scores. The right side replaces one value projection with a routed pool. Increasing the pool adds stored parameters; increasing the active count adds per-token computation.</p>
-  </div>
-  <div class="prose">
-    <div class="stat" id="movaStat"></div>
-    <p>Routing value projections increases the number of learned value transformations without computing all of them for every token. IFM has published the configuration but has not yet documented the routing function in enough detail to reproduce it. The diagram therefore shows the configured pool and active-expert counts. Its token routing is random and illustrative.</p>
-    <div class="callout">The 375B-A23B config sets <code>mova_num_experts: 0</code>. Among the six released models, only the 36B-A4B configuration uses MoVA.</div>
-  </div>
-</section>
+    <p>The vocabulary choice matters most at the small end. At the 0.9B model’s width, a 250,624-token vocabulary would put about 0.77B parameters into the input and output tables alone (2 × 250,624 × 1,536). The 64,256-token vocabulary leaves that budget for transformer layers. The 0.9B model reaches 131,072 tokens of context by stretching its position encoding with YaRN from an 8,192-token original; the other five support 524,288 tokens after long-context midtraining.</p>
 
-<!-- ============ 4. UNO ============ -->
-<section class="chapter" id="uno">
-  <div class="prose">
-    <h2>Uno decodes multiple tokens per pass</h2>
-    <p>Autoregressive decoding commits one token at a time. The 7B and 0.9B models have optional <strong>Uno</strong> adapters based on IFM's paper <em>Unlocking Lossless Speedups in LLMs via Discrete Diffusion</em>. Uno proposes several tokens together, then verifies them against the base model's distribution.</p>
-    <p>Uno adds a second set of lightweight weights (LoRA adapters, rank 128) trained with a discrete-diffusion objective. Those weights can fill in a whole block of masked positions in parallel. A sampler the paper calls <strong>Ψ-Spec</strong> then checks the drafted block against the original autoregressive model and keeps the longest prefix the base model agrees with. Because acceptance is decided by the base model's own distribution, the output is provably the same distribution as ordinary decoding.</p>
-  </div>
-  <div class="stage">
-    <div class="controls">
-      <button class="btn" type="button" id="unoPlay">▶ Play</button>
-      <button class="btn" type="button" id="unoReset">Reset</button>
-      <label>Block size <span class="mono" id="unoBlockN">4</span></label>
-      <input type="range" id="unoBlock" min="2" max="8" step="1" value="4">
-      <label>Draft agreement <span class="mono" id="unoAccN">70%</span></label>
-      <input type="range" id="unoAcc" min="30" max="95" step="5" value="70">
-    </div>
-    <div id="unoDiagram"></div>
-    <div class="legend"><span style="--sw:var(--glacier)">Committed token</span><span style="--sw:var(--teal)">Diffusion draft, accepted</span><span style="--sw:var(--rose)">Draft rejected, resampled</span><span style="--sw:var(--line)">Masked slot</span></div>
-    <p class="cap">Simplified simulation. The acceptance slider is an invented probability, not a measured Uno parameter. Real acceptance depends on the prompt, generated text, sampler, and model. The counter omits adapter overhead, batching effects, and hardware utilization.</p>
-  </div>
-  <div class="prose">
-    <h3>Reported numbers</h3>
-    <div class="stat">
-      <div><b>2.71</b><span>tokens per forward pass, 7B-Uno (avg.)</span></div>
-      <div><b>5,255 tok/s</b><span>system throughput vs 2,794 next best</span></div>
-      <div><b>up to 3×</b><span>speedup over the base model, incl. max batch</span></div>
-    </div>
-    <p>Uno uses lightweight diffusion weights instead of a separate draft model. In IFM's experiments, it used fewer added parameters and less inference memory than the compared speculative-decoding methods. Ψ-Spec samples from the base autoregressive distribution, so the acceleration does not change that target distribution. The published 7B-Uno results report 70.1% on SWE-bench Verified, 77.1% on GPQA Diamond, and 98.9% on MATH500.</p>
-    <div class="callout teal">Two samplers ship in the Uno repository: a <em>linear</em> sampler that maximises system throughput at large batch sizes and a <em>tree</em> sampler that minimises per-request latency.</div>
-  </div>
-</section>
+    <p>IFM positions the 0.9B for watches and glasses, the 3.7B and 7B for phones and other on-device uses, the 32B and 36B-A4B for local workstations and on-premises servers, and the 375B-A23B for enterprise workloads.<span class="sn-ref"></span><span class="sidenote">IFM, <a href="https://ifm.ai/k2/press-release/">K2 Horizon press release</a>, 3 September 2026, and the technical blog. The press release also calls the 7B “the industry’s best-performing model under 10B”; that is IFM’s claim.</span> These are vendor positioning statements. Real requirements depend on weight precision, key-value cache size, serving software, memory bandwidth and latency targets. The 0.9B was trained with multi-teacher distillation, using separate teachers for math and code, STEM, and instruction following. IFM describes the 3.7B as a size meant for fine-tuning.</p>
+  </section>
 
-<!-- ============ 5. TRAINING ============ -->
-<section class="chapter" id="training">
-  <div class="prose">
-    <h2>375B training stages</h2>
-    <p>IFM documents the 375B-A23B training stages and has published many intermediate checkpoints. Select a stage for details. The line above the track shows the configured context growing from 8K to 512K tokens during midtraining.</p>
-  </div>
-  <div class="stage">
-    <div id="trainDiagram"></div>
-    <div class="chips" id="trainChips" role="group" aria-label="Training stage" style="margin-top:.6rem"></div>
-    <div id="trainDetail" class="note" style="margin-top:.8rem;min-height:3.2em"></div>
-  </div>
-  <div class="prose">
-    <h3>Specialized RL models and merging</h3>
-    <p>IFM trained five RL variants for knowledge work, instruction following, search, tool use, and reasoning, then merged them into the released model. Supervised fine-tuning ran in three phases totaling roughly 330 billion tokens.</p>
-    <div class="callout blue">Reasoning traces, tool calls, and agent trajectories enter during midtraining. The model card describes the 512K context as native from those stages onward.</div>
-  </div>
-</section>
+  <!-- ============ 2. LAYERS ============ -->
+  <section id="layers">
+    <h2>What changes inside a layer</h2>
+    <p>A transformer layer has two halves. <strong>Attention</strong> lets each position gather information from earlier positions. The <strong>feed-forward network</strong> (FFN) then transforms each position on its own. Attention starts by computing three projections of each token’s hidden vector: a query, a key and a value. Query–key scores decide how much weight each earlier position receives, and the values are the vectors averaged with those weights.</p>
+    <p>K2 Horizon uses three versions of this layer. The dense models run one FFN for every token. The 375B-A23B replaces most of its FFNs with 192 smaller experts and a <strong>router</strong>, a small linear layer that scores every expert for the current token and keeps the top 8; one shared expert runs for every token regardless. The 36B-A4B does the same with 100 experts, and also routes the value projection. That second change is MoVA.</p>
 
-<!-- ============ 6. DATA ============ -->
-<section class="chapter" id="data">
-  <div class="prose">
-    <h2>Training data</h2>
-    <p>IFM describes a roughly 20-trillion-token corpus, about half synthetic. Nearly 17% consists of problem-solving trajectories with explicit reasoning steps. The public Hugging Face organization links pretraining and midtraining datasets; availability and documentation are still changing during the rollout.</p>
-  </div>
-  <div class="stage">
-    <div id="dataDiagram"></div>
-    <div class="stat" style="margin-top:1rem">
-      <div><b>~20T</b><span>tokens in the reported corpus</span></div>
-      <div><b>~10T</b><span>synthetic tokens</span></div>
-      <div><b>~17%</b><span>reasoning trajectories</span></div>
-      <div><b>100M+</b><span>unique synthesised tasks</span></div>
-    </div>
-    <p class="cap">Proportions are as stated in IFM's release materials; the exact split between synthetic reasoning data and other synthetic data is not broken out, so the inner ring shows it as one region.</p>
-  </div>
-  <div class="prose">
-    <p>The published data includes tool definitions in JSON, XML, and Markdown. This teaches the models several common tool schemas; it does not guarantee that every deployed model will follow every schema reliably. The 375B model card recommends <code>reasoning_effort="high"</code>, temperature 1.0, and top-p 0.95.</p>
-  </div>
-</section>
+    <figure class="fig wide" id="fig-layers">
+      <div class="multiples" id="layerMultiples">
+        <div class="panel" data-variant="dense"><h4>Dense</h4><p class="sub">0.9B, 3.7B, 7B, 32B</p><div class="graphic"></div></div>
+        <div class="panel" data-variant="moe"><h4>Mixture of experts</h4><p class="sub">375B-A23B</p><div class="graphic"></div></div>
+        <div class="panel" data-variant="mova"><h4>Mixture of experts + MoVA</h4><p class="sub">36B-A4B</p><div class="graphic"></div></div>
+      </div>
+      <figcaption><span class="fig-n"></span>One layer of each type, with normalization and residual connections left out. Each small square is one expert; orange marks the experts a single token uses. Which experts light up here is illustrative, since the router chooses them per token. <span class="takeaway">A sparse layer stores many experts and runs a few; MoVA applies the same idea to the value projection.</span></figcaption>
+    </figure>
 
-<!-- ============ 7. BENCHMARKS ============ -->
-<section class="chapter" id="bench">
-  <div class="prose">
-    <h2>Reported benchmark results</h2>
-    <p>The chart reproduces comparisons selected and run by IFM for each model card. Use it to inspect the reported scores, not as an independent ranking. Different model cards use different competitors and sometimes different evaluation harnesses.</p>
-  </div>
-  <div class="stage">
-    <div class="controls">
-      <select id="benchModel" aria-label="Model size"></select>
-      <span class="note" id="benchNote"></span>
-    </div>
-    <div id="benchChart" style="position:relative"></div>
-    <div class="legend" id="benchLegend"></div>
-    <p class="cap">Scores are percentages except GDPVal-AA, which is an Elo rating. Numbers are transcribed from the Hugging Face model cards as of September 2026 and are self-reported by IFM.</p>
-  </div>
-  <div class="prose">
-    <p>In IFM's chosen comparisons, the 0.9B, 3.7B, and 7B models lead several math and software-engineering results. The 36B-A4B model scores well on the listed terminal and tool-use tasks but trails its comparison model on GPQA Diamond. The 32B results are provisional because they use a Stage 1 checkpoint. For the 375B model, the chart shows IFM's comparisons with open-weight and closed models; these are self-reported results rather than a controlled third-party evaluation.</p>
-    <div class="callout">IFM reports 70.2% raw accuracy on Terminal-Bench 2.1. Its later reward-hacking audit removed flagged trials and produced an adjusted score of 66.9%. The chart uses 66.9% and labels it as the audited correction.</div>
-  </div>
-</section>
+    <p>Both routers score experts with a sigmoid and weight the chosen experts’ outputs by those scores.<span class="sn-ref"></span><span class="sidenote"><code>router_score_func: "sigmoid"</code> in every config. In the 36B-A4B and 375B-A23B configs, <code>mlp_only_layers: [0, 1, 2]</code> keeps the first three layers dense.</span> The shared expert gives every token a common path through the layer, and the routed experts add capacity that each token uses only in part.</p>
+  </section>
 
-<!-- ============ 8. OPEN ============ -->
-<section class="chapter" id="open">
-  <div class="prose">
-    <h2>Release artifacts</h2>
-    <p>IFM calls K2 Horizon fully open because it plans to publish weights, code, training data, checkpoints, and evaluation methods. The rollout was incomplete on 10 September 2026. This table separates available artifacts from announced ones.</p>
-  </div>
-  <div class="stage">
-    <table id="openTable">
-      <thead><tr><th>Artifact</th><th>Typical "open weights"</th><th>K2 Horizon</th><th>What it lets you do</th></tr></thead>
-      <tbody>
-        <tr><td>Final weights</td><td class="ok">yes</td><td class="ok">yes</td><td>Run and fine-tune the model</td></tr>
-        <tr><td>Permissive license</td><td class="part">varies</td><td class="ok">Apache 2.0</td><td>Ship it commercially without a custom agreement</td></tr>
-        <tr><td>Intermediate checkpoints</td><td class="no">rare</td><td class="part">partial rollout</td><td>Study when a capability appears during training</td></tr>
-        <tr><td>Training code and configs</td><td class="no">rare</td><td class="part">code in progress</td><td>Reproduce the run or adapt the recipe</td></tr>
-        <tr><td>Pretraining and midtraining data</td><td class="no">almost never</td><td class="part">datasets published; rollout continues</td><td>Audit contamination, bias, and provenance</td></tr>
-        <tr><td>Post-training code and data</td><td class="no">rare</td><td class="part">rollout in progress</td><td>Rebuild the SFT and RL stages</td></tr>
-        <tr><td>Evaluation protocols</td><td class="part">sometimes</td><td class="part">partial</td><td>Check published scores under the same harness</td></tr>
-        <tr><td>Quantised builds (FP8, GGUF)</td><td class="part">sometimes</td><td class="ok">yes</td><td>Run on consumer hardware via Ollama or llama.cpp</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="prose">
+  <!-- ============ 3. MOVA ============ -->
+  <section id="mova">
+    <h2>MoVA: many value projections, four used per token</h2>
+    <p><strong>Mixture-of-Value Attention</strong> (MoVA) is IFM’s new layer. In standard attention, one linear map turns each token’s hidden vector into its value vector. MoVA keeps a pool of such maps, the value experts, and a router that picks a few of them for each token. Queries and keys are computed as usual. In the 36B-A4B, each of the 45 sparse layers holds 64 value experts and uses 4.<span class="sn-ref"></span><span class="sidenote">IFM’s technical report is due at the end of September 2026. This description follows the released modeling code, <a href="https://huggingface.co/IFM/K2-Horizon-MoVA-36B-A4B/blob/main/modeling_k2_horizon.py"><code>modeling_k2_horizon.py</code></a> (class <code>K2HorizonMoVAAttention</code>): a router scores 64 experts, the top 4 are kept, and each expert is a 2,560 → 1,024 linear map whose outputs are summed with the router’s weights.</span></p>
+    <p>Each value expert has the shape of one ordinary value projection: 2,560 × 1,024, or 2.6 million parameters. Per layer, then, the value path stores 64 of them and computes with 4: 64 times the storage of standard attention, 4 times the compute, and 16 stored for each one used. Summed over the model, that is 7.5B parameters stored in value experts, about a fifth of the model, and 0.47B used per token.</p>
+
+    <figure class="fig" id="fig-ledger">
+      <div class="graphic" id="movaLedger" role="img" aria-label="Where the 36B-A4B's non-embedding parameters sit. Routed feed-forward experts: 26.5B stored, 2.1B active. Value experts: 7.5B stored, 0.47B active. Attention Q, K, O and gate: 1.6B, all active. Shared experts and dense feed-forward layers: 0.41B, all active."></div>
+      <figcaption><span class="fig-n"></span>Where the 36B-A4B’s 36.2B non-embedding parameters sit, computed from its <code>config.json</code> and modeling code. Grey: stored. Orange: used for each token. Routers and norms (0.02B) are omitted; with embeddings added, the count matches the 37.4B tensors in the checkpoint exactly. <span class="takeaway">Routed experts hold 94% of the stored parameters but only 2.6B of the 4.7B that run per token.</span></figcaption>
+    </figure>
+
+    <p>IFM’s reason for routing values is that attention decides how information from across the context is combined, so sparsity there adds a second place to grow capacity besides the FFN. It also says MoVA remains compatible with FlashAttention, grouped-query attention and sparse attention.<span class="sn-ref"></span><span class="sidenote">IFM, <a href="https://ifm.ai/blog/k2/">technical blog</a>, “MoVA: scaling attention with sparse experts”.</span> One consequence is visible in the code: the routed value vectors are mixed before they are written to the key-value cache, so the cache is the same size as in ordinary grouped-query attention.<span class="sn-ref"></span><span class="sidenote">The 36B-A4B also multiplies each attention output by a learned softplus gate (<code>attention_gate_func: "softplus"</code>); the other five configs leave the gate off.</span></p>
+    <p>By this count about 4.7B non-embedding parameters run per token;<span class="marginnote">The 375B-A23B config sets <code>mova_num_experts: 0</code>. Of the six released models, only the 36B-A4B uses MoVA.</span> IFM describes the model as activating approximately 4B. IFM reports that, trained under the same conditions, the 36B-A4B scores slightly below the dense 32B while using far fewer active parameters. That is IFM’s own comparison, and the blog does not report an experiment that separates MoVA’s contribution from that of the MoE feed-forward layers.</p>
+  </section>
+
+  <!-- ============ 4. UNO ============ -->
+  <section id="uno">
+    <h2>Uno drafts several tokens and the base model checks them</h2>
+    <p>A language model normally generates <strong>autoregressively</strong>: each forward pass through the network produces one new token. The 7B and 0.9B models have optional <strong>Uno</strong> adapters, from IFM’s paper <em>Unlocking Lossless Speedups in LLMs via Discrete Diffusion</em>, that produce several tokens per round without changing the distribution the model samples from.<span class="sn-ref"></span><span class="sidenote">Sahoo et al., <a href="https://arxiv.org/abs/2609.04010">arXiv:2609.04010</a>, 2026. Code at <a href="https://github.com/ifm-ai/uno">ifm-ai/uno</a>; adapters at <a href="https://huggingface.co/IFM/K2-Horizon-7B-Uno">K2-Horizon-7B-Uno</a> and <a href="https://huggingface.co/IFM/K2-Horizon-0.9B-Uno">K2-Horizon-0.9B-Uno</a>.</span></p>
+    <p>Uno adds a second, small set of weights to the frozen base model: rank-128 LoRA adapters, low-rank corrections attached to each weight matrix, trained with a discrete-diffusion objective to fill in a block of masked positions at once. Each round then takes two forward passes. In the <em>draft</em> pass, the adapted model proposes a block of B tokens in parallel. In the <em>verify</em> pass, the unmodified base model scores the block, and a sampler the paper calls <strong>Ψ-Spec</strong> keeps the longest prefix that passes the standard speculative-decoding rejection test. The base model then samples one more token itself: a replacement for the first rejected draft, or a bonus token if all B passed. Because the frozen base model decides what is kept, the output follows its distribution exactly, which is why the paper calls the speedup lossless.<span class="sn-ref"></span><span class="sidenote">The paper’s accounting: the first drafted token comes from the base weights and is always accepted, so a round yields between 2 and B + 1 tokens for 2 forward passes. Tokens per forward pass therefore lie between 1 and (B + 1)/2.</span></p>
+
+    <figure class="fig wide" id="fig-uno">
+      <div class="controls">
+        <button type="button" class="btn primary" id="unoPlay">Play</button>
+        <button type="button" class="btn" id="unoStep">Step</button>
+        <button type="button" class="btn" id="unoReset">Reset</button>
+        <span class="control"><span class="label" id="unoBlockLabel">Block size</span>
+          <span class="seg" role="group" aria-labelledby="unoBlockLabel" id="unoBlock">
+            <button type="button" data-block="4" aria-pressed="true">4</button><button type="button" data-block="8" aria-pressed="false">8</button><button type="button" data-block="16" aria-pressed="false">16</button>
+          </span>
+        </span>
+        <label class="control"><span class="label">Draft agreement</span>
+          <input type="range" id="unoAcc" min="30" max="95" step="5" value="70">
+          <output id="unoAccOut" for="unoAcc">70%</output>
+        </label>
+      </div>
+      <div class="lanes">
+        <div class="lane" id="laneAR">
+          <div class="lane-head"><span class="name">Autoregressive</span><span class="readout" id="arCount"></span></div>
+          <p class="lane-text" id="arText"></p>
+        </div>
+        <div class="lane" id="laneUno">
+          <div class="lane-head"><span class="name">Uno, simulated</span><span class="readout" id="unoCount"></span></div>
+          <p class="lane-text" id="unoText" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="graphic uno-chart" id="unoChart" role="img" aria-label="Tokens written against forward passes for both decoders."></div>
+      <figcaption><span class="fig-n"></span><strong>Simplified simulation.</strong> Each word stands for one token, and one tick is one forward pass for both decoders. Upright black: drafted and accepted. Purple italic: sampled by the base model during verification, one per round. Red, struck through: drafted and rejected. Grey dashed: drafted, awaiting verification. “Draft agreement” is an invented probability that each drafted token after the first passes verification; it is not a measured Uno parameter, and real acceptance depends on the prompt, the text so far, the sampler and the model. The pass count ignores adapter overhead, batching and hardware utilization, and treats a pass over a block as costing the same as a one-token pass. <span class="takeaway">Tokens per pass rise with agreement and block size, but never above (B + 1)/2, because every round costs two passes.</span></figcaption>
+    </figure>
+
+    <p>The 7B-Uno model card reports an average of 2.71 tokens per forward pass across its benchmarks and a system throughput, tokens per second summed over a full batch, of 5,255 against 2,794 for the next-best model it compares. The same table shows the trade-off. Mercury 2 and DiffusionGemma, two diffusion language models, are about twice as fast for a single request; the paper reports that Uno outscores both on every agentic tool-use, coding and long-context benchmark it evaluated.</p>
+
+    <figure class="fig">
+      <div class="table-scroll" style="--min: 34rem">
+        <table id="unoTable">
+          <thead><tr><th scope="col">7B-Uno model card</th><th class="n" scope="col">Uno<br>7B</th><th class="n" scope="col">Nemotron-Diff<br>14B</th><th class="n" scope="col">Mercury 2<br>size n/a</th><th class="n" scope="col">DiffusionGemma<br>26B-A4B</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Tokens per forward pass, average</th><td class="n">2.71</td><td class="n">5.41</td><td class="n dim">n/a</td><td class="n">17.56</td></tr>
+            <tr><th scope="row">System throughput, tokens/s</th><td class="n">5,255</td><td class="n">2,794</td><td class="n">1,197</td><td class="n">1,136</td></tr>
+            <tr><th scope="row">Per-request throughput, tokens/s</th><td class="n">405</td><td class="n">290</td><td class="n">769</td><td class="n">836</td></tr>
+            <tr><th scope="row">SWE-bench Verified, %</th><td class="n">70.1</td><td class="n">0.8</td><td class="n dim">n/a</td><td class="n">18.7</td></tr>
+            <tr><th scope="row">GPQA Diamond, %</th><td class="n">77.1</td><td class="n">40.4</td><td class="n">77</td><td class="n">70.7</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><span class="fig-n"></span>Efficiency and two accuracy rows from the <a href="https://huggingface.co/IFM/K2-Horizon-7B-Uno">K2-Horizon-7B-Uno</a> card, as reported by IFM (the card labels the model “Uno 8B”). The paper measures throughput with 1,024 input and 8,192 output tokens on one H200 GPU.</figcaption>
+    </figure>
+
+    <p>The paper reports speedups of up to 3× over the base model, including at the largest batch size that fits on the device. It also finds that Uno adds fewer parameters and uses less inference memory than the speculative-decoding methods it compares, DFlash and Eagle3, because it needs no separate draft model. The Uno repository ships two samplers: a linear sampler for high system throughput and a tree sampler for high per-request throughput. The published 7B-Uno results report 70.1% on SWE-bench Verified, 77.1% on GPQA Diamond and 98.9% on MATH500.</p>
+  </section>
+
+  <!-- ============ 5. TRAINING ============ -->
+  <section id="training">
+    <h2>How the 375B model was trained</h2>
+    <p>The 375B-A23B model card lists every training stage with its steps, tokens and sequence length, and IFM has published a checkpoint from each stage. Each stage starts from the final checkpoint of the one before.</p>
+
+    <figure class="fig">
+      <div class="table-scroll" style="--min: 32rem">
+        <table id="trainTable">
+          <thead><tr><th scope="col">Stage, in order</th><th class="n" scope="col">Tokens</th><th scope="col" style="width:26%"><span class="sr-only">Tokens, drawn to scale</span></th><th class="n" scope="col">Steps</th><th class="n" scope="col">Sequence</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Pretraining, phase 1</th><td class="n">7.08T</td><td><span class="bar" style="width:87.95%"></span></td><td class="n">211,000</td><td class="n">8K</td></tr>
+            <tr><th scope="row">Pretraining, phase 2</th><td class="n">8.05T</td><td><span class="bar" style="width:100%"></span></td><td class="n">240,000</td><td class="n">8K</td></tr>
+            <tr class="group"><th scope="row">Midtraining, stage 1</th><td class="n">1.09T</td><td><span class="bar" style="width:13.54%"></span></td><td class="n">32,500</td><td class="n">32K</td></tr>
+            <tr><th scope="row">Midtraining, stage 2</th><td class="n">503B</td><td><span class="bar" style="width:6.25%"></span></td><td class="n">15,000</td><td class="n">128K</td></tr>
+            <tr><th scope="row">Midtraining, stage 3</th><td class="n">117B</td><td><span class="bar" style="width:1.45%"></span></td><td class="n">3,500</td><td class="n">512K</td></tr>
+            <tr><th scope="row">Midtraining, stage 4</th><td class="n">201B</td><td><span class="bar" style="width:2.5%"></span></td><td class="n">6,000</td><td class="n">512K</td></tr>
+            <tr class="group"><th scope="row">RL: 5 experts, then merged</th><td class="n dim">not reported</td><td></td><td class="n dim">not reported</td><td class="n">512K</td></tr>
+            <tr class="group"><th scope="row">SFT, phase 1</th><td class="n">81B</td><td><span class="bar" style="width:1.01%"></span></td><td class="n">2,400</td><td class="n">512K</td></tr>
+            <tr><th scope="row">SFT, phase 2</th><td class="n">201B</td><td><span class="bar" style="width:2.5%"></span></td><td class="n">6,000</td><td class="n">512K</td></tr>
+            <tr><th scope="row">SFT, phase 3</th><td class="n">50B</td><td><span class="bar" style="width:0.62%"></span></td><td class="n">1,500</td><td class="n">512K</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><span class="fig-n"></span>Training stages of the 375B-A23B, from its <a href="https://huggingface.co/IFM/K2-Horizon-375B-A23B">model card</a>. Bars share one linear scale. Steps are counted within each stage. <span class="takeaway">Pretraining is 87% of the 17.4T reported tokens; the stages that turn the model into a long-context assistant use the other 13%.</span></figcaption>
+    </figure>
+
+    <p>Midtraining extends the context window in four stages, from 8K to 32K, 128K and then 512K tokens, using 1.91T tokens in all.<span class="sn-ref"></span><span class="sidenote">The config sets the rotary-encoding base θ to 10,000,000, which spreads position angles over longer distances.</span> IFM introduces post-training data, meaning reasoning traces, instruction following and agent trajectories in the chat format, from the start of midtraining rather than saving it for the end. Stage 4 shifts the mix further toward agentic and reasoning data. The model card describes the 524,288-token context as native from midtraining onward.</p>
+    <p>From the last midtraining checkpoint, IFM trained five reinforcement-learning (RL) experts, for knowledge work, instruction following, search, tool use and reasoning, and merged them into one model. Supervised fine-tuning (SFT) came after the merge: three phases totaling 332B tokens, the last on a high-quality subset of the earlier data with a decaying learning rate.<span class="sn-ref"></span><span class="sidenote">The smaller models’ cards show different recipes. The 3.7B and 7B also run RL before SFT; the 32B and 36B-A4B go straight from midtraining to two SFT phases.</span></p>
+
+    <h3>The training data</h3>
+    <p>IFM describes each model’s pretraining corpus as roughly 20 trillion tokens, about 10 trillion of them synthetic.<span class="sn-ref"></span><span class="sidenote">The stage tables differ in detail: the 375B card lists 15.1T tokens of pretraining, the 3.7B, 7B, 32B and 36B-A4B cards list 22.9T, and the blog says those four were trained on exactly the same 22T tokens.</span> Nearly 17% of the pretraining corpus consists of problem-solving trajectories with explicit reasoning, and math trajectories were also rewritten as dialogues and study guides. IFM does not break out how the synthetic share and the reasoning share overlap.</p>
+    <p>The post-training data rests on task synthesis: more than 100 million unique tasks generated from task taxonomies, “diversity knobs” and web-search seeds. Tool definitions appear in JSON, XML and Markdown, and tool calls in JSON, XML and typed XML, so the model sees several conventions. IFM chose Markdown as the default tool format because on its data it was about 18.5% more token-efficient than JSON. Training on several schemas makes the common ones familiar; it does not guarantee that a deployed model follows every schema reliably. The 375B card recommends <code>reasoning_effort="high"</code>, temperature 1.0 and top-p 0.95.</p>
+  </section>
+
+  <!-- ============ 6. BENCHMARKS ============ -->
+  <section id="bench">
+    <h2>Reported benchmark scores</h2>
+    <p>Every number in this section comes from IFM. The K2 Horizon scores are from IFM’s own runs; the comparison scores are as IFM reports them, and for the 32B and 36B-A4B IFM says they come from Artificial Analysis. IFM chose the comparison models, and they differ from model to model. Read the figure as IFM’s comparison, not as an independent ranking.</p>
+
+    <figure class="fig wide" id="fig-bench">
+      <div class="controls">
+        <span class="control"><span class="label" id="benchLabel">Model</span>
+          <span class="seg" role="group" aria-labelledby="benchLabel" id="benchModel"></span>
+        </span>
+      </div>
+      <div class="graphic" id="benchChart"></div>
+      <details class="bench-details" id="benchDetails">
+        <summary>Every reported score for this model</summary>
+        <div class="table-scroll" style="--min: 44rem"><table id="benchTable"></table></div>
+      </details>
+      <figcaption><span class="fig-n"></span>Scores in percent on one shared 0–100 scale, except GDPVal-AA, an Elo rating drawn on its own axis. Blue: the K2 Horizon model; grey: each comparison model IFM lists. The right-hand column gives K2’s score and the best other score. Transcribed from the full results on IFM’s <a href="https://ifm.ai/blog/k2/">technical blog</a>, 3 September 2026; self-reported by IFM. <span class="takeaway" id="benchTakeaway"></span></figcaption>
+    </figure>
+
+    <p>In IFM’s comparisons the three small models lead most rows, including the math and software-engineering results. The 36B-A4B leads its comparison set on tool use and terminal tasks and trails on science and long-context reasoning. The 32B trails Qwen3.8-27B on every row but one; its card reports a Stage 1 checkpoint and says Stage 2 results are coming.<span class="sn-ref"></span><span class="sidenote">The blog labels this column K2-Horizon-32B; the <a href="https://huggingface.co/IFM/K2-Horizon-32B">32B model card</a> calls the evaluated checkpoint K2-Horizon-32B-Stage1.</span> The 375B leads every model listed on SWE-Atlas-QnA and every open-weight model on Toolathlon; on most other rows GLM 5.2 or one of the closed models scores higher.</p>
+    <p>IFM also audited one of its own results. On Terminal-Bench 2.1 the 375B passed 500 of 712 trials, 70.2%. An automated audit, following Artificial Analysis’s reward-hacking procedure, flagged 24 of those passes across 10 tasks, where the model had, for example, found the benchmark’s reference solution on GitHub or edited the test harness. Removing them gives 66.9%.<span class="sn-ref"></span><span class="sidenote">IFM, <a href="https://ifm.ai/blog/k2/">technical blog</a>, “From Open Source to Open Science”. The figure plots the 70.2% that the model card reports, because the comparison scores were not audited the same way, and marks 66.9% beside it.</span> IFM reports a similar case with the 7B, which downloaded SWE-bench answers in one run and scored an inflated 82%; the card lists 70.6%.<span class="sn-ref"></span><span class="sidenote">The 7B model card’s table chooses reference models row by row. For SciCode it lists Mistral Small 4 (28.0) where the blog lists Gemma 4-12B (38.2), which outscores K2’s 31.6. This page uses the blog’s fixed comparison set.</span></p>
+  </section>
+
+  <!-- ============ 7. RELEASE ============ -->
+  <section id="release">
+    <h2>What has been released</h2>
+    <p>IFM calls K2 Horizon fully open: for every model it promises weights, training code, training data or data recipes, intermediate checkpoints, logs and evaluation details. On 25 September 2026 most of that was available and some was still announced. The table separates the two, and compares each artifact with what open-weight releases usually include.</p>
+
+    <figure class="fig wide">
+      <div class="table-scroll" style="--min: 44rem">
+        <table id="openTable">
+          <thead><tr><th scope="col">Artifact</th><th scope="col">K2 Horizon, 25 Sep 2026</th><th scope="col">Typical open-weight release</th><th scope="col">What it lets you do</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Final weights</th><td>Available for all six</td><td>yes</td><td>Run and fine-tune the model</td></tr>
+            <tr><th scope="row">Permissive license</th><td>Apache 2.0</td><td>varies</td><td>Ship it commercially without a custom agreement</td></tr>
+            <tr><th scope="row">Intermediate checkpoints</th><td>Available; each card lists them by stage</td><td>rare</td><td>Study when a capability appears during training</td></tr>
+            <tr><th scope="row">Training logs</th><td>Available on W&amp;B</td><td>rare</td><td>Inspect loss curves and instabilities</td></tr>
+            <tr><th scope="row">Pretraining code</th><td>In progress; <a href="https://github.com/ifm-ai/xllm">xLLM</a> expected end of September</td><td>rare</td><td>Reproduce the run or adapt the recipe</td></tr>
+            <tr><th scope="row">Post-training code</th><td>RL code published as <a href="https://github.com/ifm-ai/RL360">RL360</a></td><td>rare</td><td>Rebuild the RL stages</td></tr>
+            <tr><th scope="row">Training data</th><td>Five dataset repositories published, starting with <a href="https://huggingface.co/datasets/IFM/TxT360-v2">TxT360-v2</a></td><td>almost never</td><td>Audit contamination, bias and provenance</td></tr>
+            <tr><th scope="row">Technical report</th><td>In progress; expected end of September</td><td>sometimes</td><td>Read the method and ablations in full</td></tr>
+            <tr><th scope="row">Evaluation protocols</th><td>Partial; Uno’s full suite “will be released soon”</td><td>sometimes</td><td>Check published scores under the same harness</td></tr>
+            <tr><th scope="row">Quantized builds</th><td>FP8, GGUF and NVFP4 for some sizes</td><td>sometimes</td><td>Run on smaller hardware via Ollama or llama.cpp</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><span class="fig-n"></span>Status from the release-artifact tables on each model card (for example the <a href="https://huggingface.co/IFM/K2-Horizon-375B-A23B#release-artifacts">375B inventory</a>, marked last updated 10 September 2026), the <a href="https://github.com/ifm-ai">ifm-ai GitHub organization</a> and the <a href="https://huggingface.co/IFM">IFM Hugging Face organization</a>, checked 25 September 2026. The “typical” column is a general characterization, not a survey.</figcaption>
+    </figure>
+
     <h3>Getting the models</h3>
-    <p>All six model repositories are under the <code>IFM</code> organization on Hugging Face. The model cards provide vLLM and SGLang serving recipes. IFM lists Compass, Cerebras, AWS, and Nebius as hosted API partners. Uno adapters and code are in <code>github.com/ifm-ai/uno</code>.</p>
-  </div>
-</section>
+    <p>All six model repositories are under the <code>IFM</code> organization on Hugging Face. The model cards give vLLM and SGLang serving recipes; the 375B recipe uses tensor parallelism across 8 GPUs with expert parallelism, validated on one 8× H200 node. IFM names Compass, Cerebras and Nebius as inference partners for API access.<span class="sn-ref"></span><span class="sidenote">IFM, <a href="https://ifm.ai/k2/press-release/">press release</a>. The blog adds day-zero support in vLLM, SGLang and Ollama, and hardware support from NVIDIA, AMD and Cerebras.</span> Uno adapters and code are at <code>github.com/ifm-ai/uno</code>.</p>
+  </section>
 
-<footer id="sources">
-  <h2>Sources</h2>
-  <ol>
-    <li><a href="https://ifm.ai/k2/">ifm.ai/k2</a> and the <a href="https://ifm.ai/k2/press-release/">K2 Horizon press release</a>, Institute of Foundation Models, 3 Sep 2026.</li>
-    <li>Hugging Face model cards and <code>config.json</code> files: <a href="https://huggingface.co/IFM">huggingface.co/IFM</a>.</li>
-    <li>Sahoo et al., <a href="https://arxiv.org/abs/2609.04010">Unlocking Lossless Speedups in LLMs via Discrete Diffusion</a>, arXiv:2609.04010; code at <a href="https://github.com/ifm-ai/uno">ifm-ai/uno</a>.</li>
-    <li>IFM, <a href="https://ifm.ai/blog/k2/">K2 Horizon technical blog</a> (training details and Terminal-Bench audit).</li>
-    <li><a href="https://huggingface.co/IFM/K2-Horizon-375B-A23B#release-artifacts">375B release-artifact inventory</a>, updated 10 Sep 2026.</li>
-  </ol>
-  <p>Format inspired by the Polo Club of Data Science explainers (Transformer Explainer, CNN Explainer). Built with D3. Diagrams are schematic; where IFM has not published a mechanism in detail, the page says so.</p>
-</footer>
+  <footer class="colophon" id="sources">
+    <p><strong>Sources.</strong> Numbers on this page were checked against these sources on 25 September 2026.</p>
+    <ol>
+      <li><a href="https://ifm.ai/k2/">ifm.ai/k2</a> and the <a href="https://ifm.ai/k2/press-release/">K2 Horizon press release</a>, Institute of Foundation Models, 3 September 2026.</li>
+      <li>Hugging Face model cards, <code>config.json</code> files and modeling code: <a href="https://huggingface.co/IFM">huggingface.co/IFM</a>.</li>
+      <li>Sahoo et al., <a href="https://arxiv.org/abs/2609.04010">Unlocking Lossless Speedups in LLMs via Discrete Diffusion</a>, arXiv:2609.04010; code at <a href="https://github.com/ifm-ai/uno">ifm-ai/uno</a>.</li>
+      <li>IFM, <a href="https://ifm.ai/blog/k2/">K2 Horizon technical blog</a>: training data, MoVA, full benchmark results and the Terminal-Bench audit.</li>
+      <li><a href="https://huggingface.co/IFM/K2-Horizon-375B-A23B#release-artifacts">375B release-artifact inventory</a> and training table.</li>
+    </ol>
+    <p>Diagrams are schematic, and the Uno figure is a simulation. Where IFM has not published a mechanism in detail, the page says so. Part of <a href="../">Visual Learn</a>. Source on <a href="https://github.com/sghael/visual-learn/tree/main/k2-horizon">GitHub</a>.</p>
+  </footer>
 </main>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script>
-/* ---------- data ---------- */
-const MODELS = [
-  {id:'0.9B', name:'K2-Horizon-0.9B', total:0.9, active:0.9, sparse:false, layers:28, hidden:1536, ffn:5120, heads:32, kv:8, headDim:64, vocab:64256, ctx:131072, experts:null, mova:null,
-   blurb:'Dense. Sized for wearables. 128K context via YaRN. Trained with multi-teacher distillation from math, code and STEM teachers. Ships with a Uno adapter.', target:'Watches, glasses'},
-  {id:'3.7B', name:'K2-Horizon-3.7B', total:3.7, active:3.7, sparse:false, layers:36, hidden:2560, ffn:10240, heads:32, kv:8, headDim:128, vocab:250624, ctx:524288, experts:null, mova:null,
-   blurb:'Dense. Optimised as a fine-tuning base for phones and on-device use.', target:'Phones, on-device'},
-  {id:'7B', name:'K2-Horizon-7B', total:7, active:7, sparse:false, layers:36, hidden:4096, ffn:12288, heads:32, kv:8, headDim:128, vocab:250624, ctx:524288, experts:null, mova:null,
-   blurb:'Dense. IFM calls it the strongest sub-10B model on its evaluations. Ships with a Uno adapter for ~3× faster decoding.', target:'Phones, laptops'},
-  {id:'32B', name:'K2-Horizon-32B', total:32, active:32, sparse:false, layers:64, hidden:5120, ffn:26624, heads:64, kv:8, headDim:128, vocab:250624, ctx:524288, experts:null, mova:null,
-   blurb:'Dense. The straightforward option for a single local server or workstation.', target:'Local hosting'},
-  {id:'36B-A4B', name:'K2-Horizon-MoVA-36B-A4B', total:36, active:4, sparse:true, layers:48, hidden:2560, ffn:768, heads:32, kv:8, headDim:128, vocab:250624, ctx:524288, experts:{n:100,k:8,shared:1}, mova:{n:64,k:4},
-   blurb:'Sparse. 100 feed-forward experts (8 active) plus 64 MoVA value experts (4 active). About 4B parameters execute per token; memory and latency still depend on the serving system.', target:'Local hosting, on-prem'},
-  {id:'375B-A23B', name:'K2-Horizon-375B-A23B', total:375, active:23, sparse:true, layers:61, hidden:6144, ffn:1792, heads:48, kv:8, headDim:64, vocab:250624, ctx:524288, experts:{n:192,k:8,shared:1}, mova:null,
-   blurb:'Sparse. 192 routed experts plus one shared expert per layer, with 8 routed experts active per token. The published serving recipe uses tensor parallelism 8 and expert parallelism.', target:'Datacenter, API'},
-];
-
-const BENCH = {
-  '0.9B':{note:'vs. sub-2B open models', comps:['K2-Horizon-0.9B','Qwen3.5-0.8B','OpenBMB-1B','Qwen3.5-2B'], rows:[
-    ['AIME 2026',48.5,0.2,40.4,38.8],['HMMT Feb 2026',25.8,0.6,23.3,22.7],['GPQA Diamond',27.3,11.9,26.3,54.9],['HumanEval+',79.9,16.5,65.2,75.6],['LiveCodeBench v6',37.4,6.6,33.5,29.8],['BFCL v4',28.0,25.3,25.2,43.6]]},
-  '3.7B':{note:'vs. Qwen3.5-4B', comps:['K2-Horizon-3.7B','Qwen3.5-4B'], rows:[
-    ['HMMT Feb 2026',70.5,61.6],['SWE-bench Verified',68.6,41.2],['GPQA Diamond',65.4,77.1],['Terminal-Bench 2.1',25.1,25.8],['BFCL v4',50.9,55.7]]},
-  '7B':{note:'vs. 8–12B open models', comps:['K2-Horizon-7B','Qwen3.5-9B','Gemma 4-12B','Granite 4.2-8B'], rows:[
-    ['HMMT',73.3,65.7,63.1,66.5],['SWE-bench Verified',70.6,50.8,30.6,47.7],["Humanity's Last Exam",18.6,14.9,15.7,9.7]]},
-  '32B':{note:'Stage 1 checkpoint (final checkpoint and Stage 2 results still to come) vs. ~30B open models', comps:['K2-Horizon-32B-Stage1','Qwen3.8-27B','Muse Glimmer-30B','Granite 4.2-30B'], rows:[
-    ['Terminal-Bench 2.1',36.6,79.8,51.7,26.6],['tau3-Banking',22.5,48.0,23.5,14.4],['SciCode',30.2,44.7,43.6,36.6],['GPQA Diamond',82.3,90.5,83.5,64.4],["Humanity's Last Exam",22.8,33.9,22.0,11.2],['AA-LCR long context',65.3,77.3,80.0,46.7]]},
-  '36B-A4B':{note:'vs. Nemotron 3 Ultra (550B total)', comps:['K2-Horizon-36B-A4B','Nemotron 3 Ultra'], rows:[
-    ['Terminal-Bench 2.1',58.6,53.9],['tau3-Banking',26.8,14.2],['GPQA Diamond',80.8,86.7],["Humanity's Last Exam",25.2,28.4]]},
-  '375B-A23B':{note:'selected open-weight and closed comparison models', comps:['K2-Horizon-375B','Nemotron 3 Ultra','MiniMax-M3','Claude Sonnet 5'], rows:[
-    ['GDPVal-AA (Elo)',1441,1162,1380,1584],['tau3 tool use',34.0,14.2,15.3,37.3],['Terminal-Bench 2.1',66.9,53.9,65.2,80.5],['SWE-bench Pro',42.6,38.7,43.8,48.8],['GPQA Diamond',87.3,86.7,92.9,91.1],['AA-LCR long context',76.0,71.0,80.3,77.0]]},
-};
-
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const fmt = d3.format(',');
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* ---------- theme toggle ---------- */
-(function(){
-  const root=document.documentElement, btn=document.getElementById('themeBtn');
-  const states=['system','light','dark']; let i=0;
-  try{ const s=localStorage.getItem('k2theme'); if(s){ i=Math.max(0,states.indexOf(s)); } }catch(e){}
-  const apply=()=>{ const s=states[i]; if(s==='system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme',s); btn.textContent='Theme: '+s; try{localStorage.setItem('k2theme',s)}catch(e){} document.dispatchEvent(new Event('themechange')); };
-  btn.addEventListener('click',()=>{ i=(i+1)%3; apply(); }); apply();
-})();
-
-/* ---------- nav highlight ---------- */
-(function(){
-  const links=[...document.querySelectorAll('nav.rail a')];
-  const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
-  const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting){ links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+e.target.id)); } }); },{rootMargin:'-30% 0px -60% 0px'});
-  secs.forEach(s=>s&&io.observe(s));
-})();
-
-/* ---------- 1. fleet chart ---------- */
-let selected='7B';
-function drawFleet(){
-  const host=d3.select('#fleetChart'); host.selectAll('*').remove();
-  const W=920,H=300,m={t:20,r:30,b:50,l:70};
-  const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const x=d3.scaleBand().domain(MODELS.map(d=>d.id)).range([m.l,W-m.r]).padding(0.3);
-  const y=d3.scaleLog().domain([0.5,600]).range([H-m.b,m.t]);
-  svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([1,10,100,500]).tickFormat(d=>d+'B')).call(g=>g.select('.domain').remove()).selectAll('text').attr('fill',css('--ink-3')).style('font-family','IBM Plex Mono').style('font-size','11px');
-  svg.selectAll('.grid').data([1,10,100]).join('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y).attr('y2',y).attr('stroke',css('--line')).attr('stroke-dasharray','2 4');
-  svg.append('g').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x)).call(g=>g.select('.domain').attr('stroke',css('--line'))).selectAll('text').attr('fill',css('--ink')).style('font-family','IBM Plex Mono').style('font-size','12px');
-  svg.append('text').attr('x',m.l-52).attr('y',m.t-6).attr('fill',css('--ink-3')).style('font-size','10px').style('font-family','IBM Plex Mono').text('parameters (log)');
-  const tip=host.append('div').attr('class','tip');
-  const g=svg.selectAll('.bar').data(MODELS).join('g').attr('class','bar').style('cursor','pointer')
-    .on('mousemove',(ev,d)=>{ tip.style('opacity',1).style('left',(ev.offsetX+14)+'px').style('top',(ev.offsetY-10)+'px').text(`${d.name}: ${d.total}B total · ${d.active}B active · ${d.layers} layers`); })
-    .on('mouseleave',()=>tip.style('opacity',0))
-    .on('click',(ev,d)=>{ selected=d.id; renderSpec(); drawFleet(); });
-  g.append('rect').attr('x',d=>x(d.id)).attr('width',x.bandwidth()).attr('y',d=>y(d.total)).attr('height',d=>y(0.5)-y(d.total)).attr('fill',d=>d.sparse?css('--amber-soft'):css('--glacier-soft')).attr('rx',2).attr('stroke',d=>d.id===selected?css('--ink'):'none').attr('stroke-width',1.5);
-  g.append('rect').attr('x',d=>x(d.id)+x.bandwidth()*0.22).attr('width',x.bandwidth()*0.56).attr('y',d=>y(d.active)).attr('height',d=>y(0.5)-y(d.active)).attr('fill',d=>d.sparse?css('--amber'):css('--glacier')).attr('rx',2);
-  g.append('text').attr('x',d=>x(d.id)+x.bandwidth()/2).attr('y',d=>y(d.total)-6).attr('text-anchor','middle').attr('fill',css('--ink')).style('font-family','IBM Plex Mono').style('font-size','11px').text(d=>d.sparse?`${d.total}B / ${d.active}B active`:`${d.total}B`);
-  g.append('text').attr('x',d=>x(d.id)+x.bandwidth()/2).attr('y',H-m.b+34).attr('text-anchor','middle').attr('fill',css('--ink-3')).style('font-size','10.5px').text(d=>d.target);
-}
-function renderSpec(){
-  const m=MODELS.find(d=>d.id===selected);
-  const chips=d3.select('#modelChips').selectAll('button').data(MODELS).join('button').attr('type','button').attr('aria-pressed',d=>d.id===selected).text(d=>d.id).on('click',(e,d)=>{selected=d.id;renderSpec();drawFleet();});
-  document.getElementById('specTitle').textContent=m.name;
-  document.getElementById('specBlurb').textContent=m.blurb;
-  const rows=[['Total params',m.total+'B'],['Active / token',m.active+'B'],['Layers',m.layers],['Hidden size',fmt(m.hidden)],['FFN width',fmt(m.ffn)+(m.sparse?' per expert':'')],['Attention heads',m.heads],['KV heads (GQA)',m.kv],['Head dim',m.headDim],['Vocabulary',fmt(m.vocab)],['Context',fmt(m.ctx)+' tokens'],['FFN experts',m.experts?`${m.experts.n} + ${m.experts.shared} shared, top-${m.experts.k}`:'none (dense)'],['MoVA value experts',m.mova?`${m.mova.n}, top-${m.mova.k}`:'none']];
-  d3.select('#specGrid').selectAll(':scope > div').data(rows).join('div').html(d=>`<div class="k">${d[0]}</div><div class="v">${d[1]}</div>`);
-}
-drawFleet(); renderSpec();
-
-/* ---------- 2. layer anatomy ---------- */
-let variant='dense', routeTimer=null;
-function drawLayer(animate){
-  const host=d3.select('#layerDiagram'); host.selectAll('*').remove();
-  const W=920,H=360; const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const ink=css('--ink'),ink3=css('--ink-3'),line=css('--line'),paper=css('--paper'),gl=css('--glacier'),am=css('--amber'),te=css('--teal');
-  const box=(x,y,w,h,label,fill,stroke)=>{ const g=svg.append('g'); g.append('rect').attr('x',x).attr('y',y).attr('width',w).attr('height',h).attr('rx',4).attr('fill',fill||paper).attr('stroke',stroke||line); if(label) g.append('text').attr('x',x+w/2).attr('y',y+h/2+4).attr('text-anchor','middle').attr('fill',ink).style('font-size','12px').style('font-weight',500).text(label); return g; };
-  const arrow=(x1,y1,x2,y2,c)=>svg.append('line').attr('x1',x1).attr('y1',y1).attr('x2',x2).attr('y2',y2).attr('stroke',c||ink3).attr('stroke-width',1.5).attr('marker-end','url(#ah)');
-  svg.append('defs').append('marker').attr('id','ah').attr('viewBox','0 0 10 10').attr('refX',9).attr('refY',5).attr('markerWidth',7).attr('markerHeight',7).attr('orient','auto-start-reverse').append('path').attr('d','M0,0 L10,5 L0,10 z').attr('fill',ink3);
-  const cy=H/2;
-  // token in
-  box(20,cy-22,90,44,'token xₜ',css('--glacier-soft'),gl);
-  arrow(110,cy,150,cy);
-  box(150,cy-60,60,120,'Norm');
-  arrow(210,cy,250,cy);
-  // attention
-  const attn=box(250,cy-80,170,160,'',paper,line);
-  attn.append('text').attr('x',335).attr('y',cy-58).attr('text-anchor','middle').attr('fill',ink).style('font-size','12px').style('font-weight',600).text(variant==='mova'?'Attention + MoVA':'Attention (GQA)');
-  ['Q','K','V'].forEach((l,i)=>{ const y=cy-32+i*36; box(265,y,40,26,l,l==='V'&&variant==='mova'?css('--amber-soft'):css('--glacier-soft'),l==='V'&&variant==='mova'?am:gl); });
-  if(variant==='mova'){ // value expert pool
-    for(let i=0;i<16;i++){ svg.append('rect').attr('class','vx').attr('x',320+(i%4)*22).attr('y',cy-30+Math.floor(i/4)*22).attr('width',18).attr('height',18).attr('rx',2).attr('fill',css('--amber-soft')).attr('stroke',am).attr('stroke-width',.8); }
-    svg.append('text').attr('x',360).attr('y',cy+70).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10px').text('64 value experts · top-4');
-  } else { svg.append('text').attr('x',360).attr('y',cy+8).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10.5px').text('softmax(QKᵀ)·V'); }
-  arrow(420,cy,460,cy);
-  svg.append('text').attr('x',440).attr('y',cy-8).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10px').text('+ residual');
-  box(460,cy-60,60,120,'Norm');
-  arrow(520,cy,560,cy);
-  // FFN
-  if(variant==='dense'){
-    box(560,cy-80,220,160,'Feed-forward (SwiGLU)');
-    svg.append('text').attr('x',670).attr('y',cy+20).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10.5px').text('all parameters, every token');
-  } else {
-    const n=variant==='moe'?192:100,k=8,cols=24,rows=Math.ceil(n/cols),cw=8,gap=1.6;
-    const gx=560,gy=cy-80;
-    svg.append('text').attr('x',gx+110).attr('y',gy-6).attr('text-anchor','middle').attr('fill',ink).style('font-size','12px').style('font-weight',600).text(`Router → ${k} of ${n} experts`);
-    for(let i=0;i<n;i++){ svg.append('rect').attr('class','ex').attr('x',gx+(i%cols)*(cw+gap)).attr('y',gy+Math.floor(i/cols)*(cw+gap)).attr('width',cw).attr('height',cw).attr('rx',1).attr('fill',css('--amber-soft')).attr('stroke',am).attr('stroke-width',.5); }
-    box(gx,gy+rows*(cw+gap)+8,230,24,'+ 1 shared expert (always on)',css('--glacier-soft'),gl);
-    svg.append('text').attr('x',gx+115).attr('y',gy+rows*(cw+gap)+52).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10px').text(variant==='moe'?'23B of 375B run per token':'4B of 36B run per token');
-  }
-  arrow(780,cy,820,cy);
-  box(820,cy-22,80,44,'xₜ₊₁',css('--glacier-soft'),gl);
-  svg.append('text').attr('x',W/2).attr('y',H-8).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10.5px').text(variant==='dense'?'repeated ×28 to ×64 layers depending on model':variant==='moe'?'× 61 layers':'× 48 layers');
-  const cap={dense:'Dense layer: grouped-query attention uses 8 key-value heads shared across the query heads. One feed-forward block runs for every token.',moe:'375B MoE layer: the feed-forward block contains 192 routed experts of width 1,792 plus one shared expert. A sigmoid router selects 8 routed experts per token.',mova:'36B-A4B layer: the value path selects 4 of 64 value experts. The feed-forward block selects 8 of 100 routed experts and always runs one shared expert.'};
-  document.getElementById('layerCap').textContent=cap[variant];
-  if(animate) routeToken();
-}
-function routeToken(){
-  const svg=d3.select('#layerDiagram svg'); const am=css('--amber'),te=css('--teal');
-  const ex=svg.selectAll('.ex'); const n=ex.size(); if(n){ const pick=new Set(); while(pick.size<8) pick.add(Math.floor(Math.random()*n)); ex.transition().duration(reduced?0:200).attr('fill',(d,i)=>pick.has(i)?am:css('--amber-soft')).attr('stroke-width',(d,i)=>pick.has(i)?1.5:.5); }
-  const vx=svg.selectAll('.vx'); if(vx.size()){ const pick=new Set(); while(pick.size<4) pick.add(Math.floor(Math.random()*16)); vx.transition().duration(reduced?0:200).attr('fill',(d,i)=>pick.has(i)?am:css('--amber-soft')); }
-  // pulse token
-  const dot=svg.append('circle').attr('r',6).attr('cx',65).attr('cy',180).attr('fill',te);
-  dot.transition().duration(reduced?0:1400).ease(d3.easeLinear).attr('cx',860).remove();
-}
-document.querySelectorAll('[data-variant]').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('[data-variant]').forEach(x=>x.setAttribute('aria-pressed',x===b)); variant=b.dataset.variant; drawLayer(true); }));
-document.getElementById('routeBtn').addEventListener('click',routeToken);
-document.getElementById('autoRoute').addEventListener('change',e=>{ clearInterval(routeTimer); if(e.target.checked) routeTimer=setInterval(routeToken,1600); });
-drawLayer(false);
-
-/* ---------- 3. MoVA ---------- */
-let mvN=64,mvK=4,mvSeed=0;
-function drawMova(){
-  const host=d3.select('#movaDiagram'); host.selectAll('*').remove();
-  const W=920,H=330; const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const ink=css('--ink'),ink3=css('--ink-3'),line=css('--line'),paper=css('--paper'),gl=css('--glacier'),am=css('--amber');
-  const lbl=(x,y,t,c,s,w)=>svg.append('text').attr('x',x).attr('y',y).attr('text-anchor','middle').attr('fill',c||ink).style('font-size',(s||12)+'px').style('font-weight',w||400).text(t);
-  // left: standard Q K
-  svg.append('rect').attr('x',20).attr('y',20).attr('width',330).attr('height',H-40).attr('rx',6).attr('fill','none').attr('stroke',line);
-  lbl(185,45,'Where to look (unchanged)',ink,12,600);
-  const tok=['The','model','routes','each','token'];
-  tok.forEach((t,i)=>{ svg.append('rect').attr('x',40).attr('y',70+i*40).attr('width',60).attr('height',30).attr('rx',3).attr('fill',css('--glacier-soft')).attr('stroke',gl); lbl(70,90+i*40,t,ink,11); });
-  lbl(150,66,'Q',ink3,10); lbl(190,66,'K',ink3,10);
-  // attention matrix
-  const rng=d3.randomLcg(0.42);
-  for(let r=0;r<5;r++)for(let c=0;c<5;c++){ const v=c<=r?rng():0; svg.append('rect').attr('x',130+c*34).attr('y',70+r*40).attr('width',30).attr('height',30).attr('rx',2).attr('fill',gl).attr('opacity',c<=r?0.15+v*0.8:0.05); }
-  lbl(215,H-30,'softmax(QKᵀ/√d), causal',ink3,10);
-  svg.append('text').attr('x',330).attr('y',160).attr('text-anchor','middle').attr('fill',ink3).style('font-size','20px').text('×');
-  // right: value pool
-  svg.append('rect').attr('x',370).attr('y',20).attr('width',530).attr('height',H-40).attr('rx',6).attr('fill','none').attr('stroke',line);
-  lbl(635,45,'Value projections: routed experts (MoVA)',ink,12,600);
-  const rnd=d3.randomLcg(mvSeed+0.1);
-  const cols=16,cw=Math.min(24,Math.floor(380/cols)),gap=4,rows=Math.ceil(mvN/cols);
-  const gx=390,gy=95+(Math.max(0,4-rows))*14;
-  const chosen=new Set(); while(chosen.size<Math.min(mvK,mvN)) chosen.add(Math.floor(rnd()*mvN));
-  for(let i=0;i<mvN;i++){ const on=chosen.has(i); svg.append('rect').attr('x',gx+(i%cols)*(cw+gap)).attr('y',gy+Math.floor(i/cols)*(cw+gap)).attr('width',cw).attr('height',cw).attr('rx',3).attr('fill',on?am:css('--amber-soft')).attr('stroke',am).attr('stroke-width',on?1.5:.6); }
-  // router
-  svg.append('rect').attr('x',gx).attr('y',62).attr('width',120).attr('height',22).attr('rx',3).attr('fill',paper).attr('stroke',line); lbl(gx+60,77,'router(xₜ)',ink,11);
-  [...chosen].forEach(i=>{ svg.append('line').attr('x1',gx+60).attr('y1',84).attr('x2',gx+(i%cols)*(cw+gap)+cw/2).attr('y2',gy+Math.floor(i/cols)*(cw+gap)).attr('stroke',am).attr('stroke-width',1).attr('opacity',.7); });
-  // output
-  const oy=gy+rows*(cw+gap)+22;
-  lbl(gx+190,Math.min(oy,H-46),`V = Σ  gate·Expertᵢ(xₜ)  over ${Math.min(mvK,mvN)} chosen of ${mvN}`,ink3,11);
-  lbl(gx+190,Math.min(oy+18,H-28),'Q and K stay standard, so every attention kernel still works',ink3,10);
-  document.getElementById('mvN').textContent=mvN; document.getElementById('mvK').textContent=mvK;
-  const stored=mvN, active=Math.min(mvK,mvN);
-  document.getElementById('movaStat').innerHTML=`<div><b>${stored}×</b><span>value capacity vs one projection</span></div><div><b>${active}×</b><span>value compute vs one projection</span></div><div><b>${(stored/active).toFixed(0)}:1</b><span>stored-to-active ratio in the value path</span></div>`;
-}
-document.getElementById('mvExperts').addEventListener('input',e=>{mvN=+e.target.value;drawMova();});
-document.getElementById('mvTop').addEventListener('input',e=>{mvK=+e.target.value;drawMova();});
-document.getElementById('mvStep').addEventListener('click',()=>{mvSeed++;drawMova();});
-drawMova();
-
-/* ---------- 4. Uno simulation ---------- */
-const UNO_TEXT='Diffusion proposes a block of tokens and the base model verifies the longest accepted prefix before decoding continues'.split(' ');
-let uno={block:4,acc:0.7,timer:null,arPos:0,arPasses:0,unoPos:0,unoPasses:0,unoCells:[],flash:[]};
-function unoReset(){ clearInterval(uno.timer); uno.timer=null; uno.arPos=0;uno.arPasses=0;uno.unoPos=0;uno.unoPasses=0;uno.unoCells=[];uno.flash=[]; document.getElementById('unoPlay').textContent='▶ Play'; drawUno(); }
-function unoStep(){
-  const N=UNO_TEXT.length; let did=false;
-  if(uno.arPos<N){ uno.arPos++; uno.arPasses++; did=true; }
-  if(uno.unoPos<N){
-    uno.unoPasses++; uno.flash=[]; let accepted=0;
-    for(let i=0;i<uno.block && uno.unoPos+i<N;i++){ if(i===0||Math.random()<uno.acc){ accepted++; uno.flash.push({i:uno.unoPos+i,ok:true}); } else { uno.flash.push({i:uno.unoPos+i,ok:false}); break; } }
-    uno.unoPos+=accepted; did=true;
-  }
-  drawUno();
-  if(!did){ clearInterval(uno.timer); uno.timer=null; document.getElementById('unoPlay').textContent='▶ Play'; }
-}
-function drawUno(){
-  const host=d3.select('#unoDiagram'); host.selectAll('*').remove();
-  const N=UNO_TEXT.length,W=920,cw=W/ N,H=230; const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const ink=css('--ink'),ink3=css('--ink-3'),line=css('--line'),gl=css('--glacier'),te=css('--teal'),ro=css('--rose');
-  const lane=(y,title,pos,passes,flash,isUno)=>{
-    svg.append('text').attr('x',0).attr('y',y-10).attr('fill',ink).style('font-size','12px').style('font-weight',600).text(title);
-    svg.append('text').attr('x',W).attr('y',y-10).attr('text-anchor','end').attr('fill',ink3).style('font-family','IBM Plex Mono').style('font-size','11px').text(`${pos}/${N} tokens · ${passes} forward passes`);
-    for(let i=0;i<N;i++){
-      let fill=line, op=.5; const f=flash&&flash.find(x=>x.i===i);
-      if(i<pos){ fill=(isUno&&f&&f.ok)?te:gl; op=1; } else if(f&&!f.ok){ fill=ro; op=.9; } else if(isUno && i>=pos && i<pos+uno.block && pos<N){ fill=line; op=.9; }
-      svg.append('rect').attr('x',i*cw+1).attr('y',y).attr('width',cw-2).attr('height',44).attr('rx',2).attr('fill',fill).attr('opacity',op);
-      if(i<pos) svg.append('text').attr('x',i*cw+cw/2).attr('y',y+27).attr('text-anchor','middle').attr('fill','#fff').style('font-size','8.5px').text(UNO_TEXT[i].slice(0,7));
-      else if(isUno && i<pos+uno.block && pos<N) svg.append('text').attr('x',i*cw+cw/2).attr('y',y+27).attr('text-anchor','middle').attr('fill',ink3).style('font-size','10px').text('▒');
-    }
-  };
-  lane(30,'Autoregressive: one token per pass',uno.arPos,uno.arPasses,null,false);
-  lane(120,`Uno: draft ${uno.block}, verify with Ψ-Spec, keep the agreed prefix`,uno.unoPos,uno.unoPasses,uno.flash,true);
-  const ratio=uno.unoPasses?(uno.unoPos/uno.unoPasses):0;
-  svg.append('text').attr('x',0).attr('y',H-14).attr('fill',ink3).style('font-family','IBM Plex Mono').style('font-size','11px').text(`Uno so far: ${ratio?ratio.toFixed(2):'—'} tokens per forward pass · reported average for 7B-Uno: 2.71`);
-}
-document.getElementById('unoPlay').addEventListener('click',e=>{ if(uno.timer){ clearInterval(uno.timer); uno.timer=null; e.target.textContent='▶ Play'; } else { if(uno.arPos>=UNO_TEXT.length) unoReset(); uno.timer=setInterval(unoStep,reduced?600:420); e.target.textContent='❚❚ Pause'; } });
-document.getElementById('unoReset').addEventListener('click',unoReset);
-document.getElementById('unoBlock').addEventListener('input',e=>{ uno.block=+e.target.value; document.getElementById('unoBlockN').textContent=uno.block; drawUno(); });
-document.getElementById('unoAcc').addEventListener('input',e=>{ uno.acc=+e.target.value/100; document.getElementById('unoAccN').textContent=e.target.value+'%'; });
-for(let i=0;i<4;i++) unoStep();
-
-/* ---------- 5. training track ---------- */
-const STAGES=[
-  {id:'p1',name:'Pretrain phase 1',tokens:7000,ctx:8192,steps:'211K steps',color:'--glacier',detail:'7 trillion tokens at 8K sequence length over 211,000 steps. General web, code and synthetic data establish the base model.'},
-  {id:'p2',name:'Pretrain phase 2',tokens:8000,ctx:8192,steps:'240K steps',color:'--glacier',detail:'A further 8 trillion tokens (15T cumulative) over 240,000 steps, still at 8K. The mix shifts toward higher-quality and synthetic reasoning data.'},
-  {id:'m1',name:'Midtrain 1',tokens:600,ctx:32768,steps:'',color:'--teal',detail:'Context extended from 8K to 32K. Post-training-style data (reasoning traces, tool calls, agent trajectories) enters here rather than later.'},
-  {id:'m2',name:'Midtrain 2',tokens:500,ctx:131072,steps:'',color:'--teal',detail:'Context extended to 128K. Midtraining totals about 1.82T tokens across its four stages.'},
-  {id:'m3',name:'Midtrain 3',tokens:420,ctx:262144,steps:'',color:'--teal',detail:'Context extended to 256K, with RoPE theta of 10 million supporting the longer positions.'},
-  {id:'m4',name:'Midtrain 4',tokens:300,ctx:524288,steps:'',color:'--teal',detail:'Context reaches its native 512K (524,288 tokens). Every checkpoint from here on supports the full window.'},
-  {id:'sft',name:'SFT ×3',tokens:330,ctx:524288,steps:'3 phases',color:'--amber',detail:'Supervised fine-tuning in three phases, roughly 330B tokens in total: phase 1 for domain coverage, phases 2 and 3 for quality refinement.'},
-  {id:'rl',name:'RL → merge',tokens:120,ctx:524288,steps:'5 experts',color:'--rose',detail:'Five expert models trained with reinforcement learning (knowledge work, instruction following, search, tool use, reasoning), then merged into one. Token count for RL is not published; the bar width here is illustrative.'},
-];
-function drawTrain(){
-  const host=d3.select('#trainDiagram'); host.selectAll('*').remove();
-  const W=920,H=300,m={l:60,r:30}; const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const ink=css('--ink'),ink3=css('--ink-3'),line=css('--line');
-  const total=d3.sum(STAGES,d=>Math.sqrt(d.tokens)); let x=m.l;
-  const x0=[]; STAGES.forEach(s=>{ const w=(W-m.l-m.r)*Math.sqrt(s.tokens)/total; x0.push({s,x,w}); x+=w; });
-  const cy=d3.scaleLog().domain([8192,524288]).range([120,30]);
-  // context line
-  svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(cy).tickValues([8192,32768,131072,524288]).tickFormat(d=>d>=1024*1024?'1M':(d/1024)+'K')).call(g=>g.select('.domain').remove()).selectAll('text').attr('fill',ink3).style('font-family','IBM Plex Mono').style('font-size','10px');
-  svg.append('text').attr('x',m.l-52).attr('y',20).attr('fill',ink3).style('font-size','10px').style('font-family','IBM Plex Mono').text('context');
-  const pts=[]; x0.forEach(d=>{ pts.push([d.x,cy(d.s.ctx)]); pts.push([d.x+d.w,cy(d.s.ctx)]); });
-  svg.append('path').attr('d',d3.line()(pts)).attr('fill','none').attr('stroke',css('--teal')).attr('stroke-width',2.5);
-  svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',cy(8192)).attr('y2',cy(8192)).attr('stroke',line).attr('stroke-dasharray','2 4');
-  // bars
-  const g=svg.selectAll('.st').data(x0).join('g').style('cursor','pointer').on('click',(e,d)=>showStage(d.s));
-  g.append('rect').attr('class','stbar').attr('x',d=>d.x+1).attr('y',150).attr('width',d=>d.w-2).attr('height',60).attr('rx',3).attr('fill',d=>css(d.s.color)).attr('opacity',.85);
-  g.append('text').attr('x',d=>d.x+d.w/2).attr('y',180).attr('text-anchor','middle').attr('fill','#fff').style('font-size','11px').style('font-weight',600).text(d=>d.w>70?d.s.name:d.s.name.split(' ').map(w=>w[0]).join(''));
-  g.append('text').attr('x',d=>d.x+d.w/2).attr('y',232).attr('text-anchor','middle').attr('fill',ink).style('font-family','IBM Plex Mono').style('font-size','10.5px').text(d=>d.s.id==='rl'?'n/a':(d.s.tokens>=1000?(d.s.tokens/1000)+'T':d.s.tokens+'B'));
-  g.append('text').attr('x',d=>d.x+d.w/2).attr('y',248).attr('text-anchor','middle').attr('fill',ink3).style('font-size','9.5px').text(d=>d.s.steps);
-  svg.append('text').attr('x',m.l).attr('y',282).attr('fill',ink3).style('font-size','10.5px').text('bar width ∝ √tokens so the small late stages stay visible · pick a stage below');
-  function showStage(s){ svg.selectAll('.stbar').attr('stroke',d=>d.s===s?ink:'none').attr('stroke-width',2); d3.select('#trainChips').selectAll('button').attr('aria-pressed',d=>d===s); document.getElementById('trainDetail').innerHTML=`<strong>${s.name}</strong> · context ${fmt(s.ctx)} · ${s.detail}`; }
-  d3.select('#trainChips').selectAll('button').data(STAGES).join('button').attr('type','button').text(d=>d.name).on('click',(e,d)=>showStage(d));
-  showStage(STAGES[0]);
-}
-drawTrain();
-
-/* ---------- 6. data donut ---------- */
-function drawData(){
-  const host=d3.select('#dataDiagram'); host.selectAll('*').remove();
-  const W=920,H=260; const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const ink=css('--ink'),ink3=css('--ink-3');
-  const outer=[{k:'Synthetic',v:10,c:'--amber'},{k:'Natural (web, code, books)',v:10,c:'--glacier'}];
-  const inner=[{k:'Reasoning trajectories ~17%',v:3.4,c:'--teal'},{k:'Everything else',v:16.6,c:'--line'}];
-  const g=svg.append('g').attr('transform',`translate(150,${H/2})`);
-  const pie=d3.pie().value(d=>d.v).sort(null);
-  g.selectAll('.o').data(pie(outer)).join('path').attr('d',d3.arc().innerRadius(78).outerRadius(110)).attr('fill',d=>css(d.data.c)).attr('stroke',css('--stage')).attr('stroke-width',2);
-  g.selectAll('.i').data(pie(inner)).join('path').attr('d',d3.arc().innerRadius(45).outerRadius(72)).attr('fill',d=>css(d.data.c)).attr('stroke',css('--stage')).attr('stroke-width',2);
-  g.append('text').attr('text-anchor','middle').attr('y',-4).attr('fill',ink).style('font-family','Bricolage Grotesque').style('font-size','20px').style('font-weight',600).text('~20T');
-  g.append('text').attr('text-anchor','middle').attr('y',14).attr('fill',ink3).style('font-size','10px').text('tokens');
-  const items=[['Outer ring',null],...outer.map(d=>[d.k,d.c]),['Inner ring',null],...inner.map(d=>[d.k,d.c])];
-  items.forEach((it,i)=>{ const y=40+i*34; if(it[1]){ svg.append('rect').attr('x',320).attr('y',y-10).attr('width',14).attr('height',14).attr('rx',2).attr('fill',css(it[1])); svg.append('text').attr('x',344).attr('y',y+2).attr('fill',ink).style('font-size','12.5px').text(it[0]); } else svg.append('text').attr('x',320).attr('y',y+2).attr('fill',ink3).style('font-size','10px').style('letter-spacing','.1em').text(it[0].toUpperCase()); });
-  svg.append('text').attr('x',320).attr('y',H-16).attr('fill',ink3).style('font-size','11px').text('Tool definitions in the data appear in JSON, XML and Markdown; 100M+ unique synthesised tasks feed the synthetic half.');
-}
-drawData();
-
-/* ---------- 7. benchmarks ---------- */
-const sel=document.getElementById('benchModel');
-Object.keys(BENCH).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent='K2-Horizon-'+k; sel.appendChild(o); });
-sel.value='7B';
-function drawBench(){
-  const b=BENCH[sel.value]; document.getElementById('benchNote').textContent=b.note;
-  const host=d3.select('#benchChart'); host.selectAll('*').remove();
-  const W=920,rowH=34,m={l:190,r:60,t:10,b:10},H=m.t+m.b+b.rows.length*rowH;
-  const svg=host.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  const ink=css('--ink'),ink3=css('--ink-3'),line=css('--line');
-  const pal=[css('--glacier'),css('--amber'),css('--teal'),css('--rose')];
-  const isElo=r=>r[0].includes('Elo');
-  const nC=b.comps.length,bh=(rowH-8)/nC;
-  const tip=host.append('div').attr('class','tip');
-  b.rows.forEach((r,ri)=>{
-    const y=m.t+ri*rowH; const max=isElo(r)?1700:100;
-    const x=d3.scaleLinear().domain([0,max]).range([m.l,W-m.r]);
-    svg.append('text').attr('x',m.l-10).attr('y',y+rowH/2+4).attr('text-anchor','end').attr('fill',ink).style('font-size','12px').text(r[0]);
-    svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y+rowH-2).attr('y2',y+rowH-2).attr('stroke',line);
-    b.comps.forEach((c,ci)=>{ const v=r[ci+1]; const best=v===d3.max(r.slice(1));
-      svg.append('rect').attr('x',m.l).attr('y',y+4+ci*bh).attr('width',Math.max(0,x(v)-m.l)).attr('height',bh-1.5).attr('fill',pal[ci]).attr('opacity',ci===0?1:.55)
-        .on('mousemove',ev=>tip.style('opacity',1).style('left',(ev.offsetX+12)+'px').style('top',(ev.offsetY-8)+'px').text(`${c}: ${v}${isElo(r)?'':'%'}`)).on('mouseleave',()=>tip.style('opacity',0));
-      svg.append('text').attr('x',x(v)+4).attr('y',y+4+ci*bh+bh/2+3).attr('fill',best?ink:ink3).style('font-family','IBM Plex Mono').style('font-size','9.5px').style('font-weight',best?600:400).text(v);
-    });
-  });
-  d3.select('#benchLegend').selectAll('span').data(b.comps).join('span').attr('style',(d,i)=>`--sw:${pal[i]}`).text(d=>d);
-}
-sel.addEventListener('change',drawBench); drawBench();
-
-/* redraw on theme change */
-document.addEventListener('themechange',()=>{ drawFleet(); drawLayer(false); drawMova(); drawUno(); drawTrain(); drawData(); drawBench(); });
-</script>
+<script src="k2.js"></script>
 </body>
 </html>
