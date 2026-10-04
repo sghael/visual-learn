@@ -216,7 +216,7 @@
   })();
 
   /* ---------------- Figure 5: Uno decoding, simulated ---------------- */
-  const WORDS = 'Uno drafts a block of tokens in one pass and the base model checks them in the next pass so every round adds at least two tokens and at most one more than the block size'.split(' ');
+  const WORDS = 'Uno drafts a block of tokens in one pass and verifies their probabilities in the next pass accepting a prefix then adding a corrected replacement or a bonus token while preserving the base model distribution exactly'.split(' ');
   const ALTS = ['the', 'a', 'it', 'then', 'one', 'model', 'token', 'each', 'and', 'more', 'first', 'next', 'with'];
   const alt = (i) => { let k = (i * 7 + 3) % ALTS.length; while (ALTS[k] === WORDS[i]) k = (k + 1) % ALTS.length; return ALTS[k]; };
   function mulberry32(seed) {
@@ -266,6 +266,12 @@
     };
     return run;
   }
+  // Expected accepted prefix: 1 + p + … + p^(B−1), plus one verification token.
+  function expectedPerPass(B, p) {
+    let accepted = 0;
+    for (let i = 0; i < B; i++) accepted += p ** i;
+    return (accepted + 1) / 2;
+  }
   function simulate(B, p, seed) { const r = makeRun(B, p, seed); while (r.tick()); return { tokens: r.uno.pos, passes: r.uno.passes, rejected: r.uno.out.filter((t) => t.kind === 'rej').length }; }
 
   (function uno() {
@@ -291,6 +297,7 @@
       unoText.innerHTML = html.join(' ');
       arCount.textContent = `${a.pos} tokens · ${a.passes} passes`;
       unoCount.textContent = `${u.pos} tokens · ${u.passes} passes · ${u.passes ? f2(u.pos / u.passes) : '–'} per pass`;
+      document.getElementById('unoExpectation').textContent = `Expected over full rounds: ${f2(expectedPerPass(B, p))} tokens per pass (simplified model)`;
     }
     const redrawChart = responsive(chartHost, (w) => drawChart(w));
     function drawChart(w) {
@@ -484,5 +491,5 @@
   })();
 
   // Exposed for the browser tests: pure functions only.
-  window.K2 = { simulate, summary, WORDS_N: WORDS.length };
+  window.K2 = { simulate, expectedPerPass, summary, WORDS_N: WORDS.length };
 })();
