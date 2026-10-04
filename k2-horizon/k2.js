@@ -281,6 +281,7 @@
     const arText = document.getElementById('arText'), unoText = document.getElementById('unoText');
     const arCount = document.getElementById('arCount'), unoCount = document.getElementById('unoCount');
     const chartHost = document.getElementById('unoChart');
+    const expectation = document.getElementById('unoExpectation');
     let B = 4, p = 0.7, seed = 1, run, timer = null;
 
     const span = (w, cls) => `<span class="tok ${cls}">${w}</span>`;
@@ -297,7 +298,8 @@
       unoText.innerHTML = html.join(' ');
       arCount.textContent = `${a.pos} tokens · ${a.passes} passes`;
       unoCount.textContent = `${u.pos} tokens · ${u.passes} passes · ${u.passes ? f2(u.pos / u.passes) : '–'} per pass`;
-      document.getElementById('unoExpectation').textContent = `Expected over full rounds: ${f2(expectedPerPass(B, p))} tokens per pass (simplified model)`;
+      const expectedText = `Expected over full rounds: ${f2(expectedPerPass(B, p))} tokens per pass (simplified model)`;
+      if (expectation.textContent !== expectedText) expectation.textContent = expectedText;
     }
     const redrawChart = responsive(chartHost, (w) => drawChart(w));
     function drawChart(w) {
