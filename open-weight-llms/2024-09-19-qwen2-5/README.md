@@ -23,7 +23,7 @@ Qwen2.5 shows how data selection, longer training, and deployment memory shape a
 
 Release date: 2024-09-19. Official public launch date; the technical report appeared in December 2024.
 
-- The training-budget widget is a rough dense-model compute model, not a scaling-law fit.
+- The training-budget widget approximates dense weight-matrix work; it omits attention’s dependence on sequence length and is not a scaling-law fit.
 - Qwen2.5-Turbo was an API model; its million-token configuration is not attributed to the September open checkpoints.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.

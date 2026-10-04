@@ -44,11 +44,11 @@
     {
       "id": "pipeline",
       "title": "R1 adds a curriculum around reinforcement learning",
-      "html": "<p>R1-Zero and R1 are distinct experiments. The final R1 recipe adds readable cold-start examples, reasoning-focused RL, a rejection-sampled supervised stage, and broader RL. The paper reports that this addresses problems such as poor readability and mixed languages seen in R1-Zero. <a href=\"#source-paper\">[2]</a></p><p>The flow makes the feedback loop explicit. Successful sampled solutions become teaching material after filtering; the model then undergoes further training. Supervised learning and reinforcement learning can therefore support one another. It is misleading to summarize the final R1 checkpoint as trained by reinforcement learning alone.</p><p>Imagine a student first learning how to write a solution clearly, then practicing with a checker, then studying a curated collection of successful attempts. The analogy captures the different feedback types. It does not imply the model has a human student’s understanding, intentions or private experience.</p>",
+      "html": "<p>R1-Zero and R1 are distinct experiments. The final R1 recipe adds readable cold-start examples, reasoning-focused RL, a rejection-sampled supervised stage, and broader RL. The paper reports that this addresses problems such as poor readability and mixed languages seen in R1-Zero. <a href=\"#source-paper\">[2]</a></p><p>The flow includes a transfer through data. The reasoning-RL checkpoint generates candidates; the authors filter them and combine about 600,000 reasoning examples with 200,000 general examples. They then fine-tune DeepSeek-V3-Base for two epochs on this collection before broader RL. This supervised stage starts from the base model, rather than simply continuing the preceding RL checkpoint. <a href=\"#source-paper\">[2]</a></p><p>Imagine a student first learning how to write a solution clearly, then practicing with a checker, then studying a curated collection of successful attempts. The analogy captures the different feedback types. It does not imply the model has a human student’s understanding, intentions or private experience.</p>",
       "figure": {
         "kind": "flow",
         "title": "The released R1 recipe has several stages",
-        "caption": "Simplified R1 post-training pipeline. R1-Zero is a separate pure-RL post-training experiment from a pretrained base.",
+        "caption": "Simplified R1 post-training recipe. The curated-data stage transfers examples to a new fine-tune of V3-Base; it is not one uninterrupted chain of weight updates. R1-Zero is a separate experiment.",
         "takeaway": "The final checkpoint combines examples, outcome feedback and further alignment.",
         "config": {
           "steps": [
@@ -57,16 +57,16 @@
               "detail": "Pretrained language model"
             },
             {
-              "label": "Cold start",
-              "detail": "Readable reasoning examples"
+              "label": "Cold start + RL",
+              "detail": "Train a reasoning checkpoint"
             },
             {
-              "label": "Reasoning RL",
-              "detail": "Outcome feedback"
+              "label": "Curate examples",
+              "detail": "Filter its samples; add general data"
             },
             {
-              "label": "Curate + SFT",
-              "detail": "Selected reasoning and general data"
+              "label": "SFT V3-Base",
+              "detail": "Fine-tune the base on curated examples"
             },
             {
               "label": "Broader RL",

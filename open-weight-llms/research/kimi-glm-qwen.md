@@ -85,7 +85,7 @@ Dates describe public weight releases where identifiable, not paper submission d
 - [Weight history](https://huggingface.co/moonshotai/Kimi-K3/commits/main): first weight commit July 27.
 - [Kimi Linear component report](https://arxiv.org/html/2510.26692v1): KDA channel-wise gating, chunkwise computation, hybrid recurrence/MLA. Component work and earlier open Kimi Linear checkpoint predate K3.
 - [Attention Residuals component paper](https://arxiv.org/pdf/2603.15031): learned softmax attention over preceding layer outputs; block-level form and memory/communication rationale.
-- The full K3 technical-report GitHub link and two raw URL forms failed retrieval. The lesson discloses this limitation rather than asserting the report was read. It uses the model card plus the read component papers.
+- Second-pass update: the full K3 report was retrieved from https://raw.githubusercontent.com/MoonshotAI/Kimi-K3/main/k3_tech_report.pdf. Architecture §§2.1–2.3, Table 1 and training §3 support the added bounded KDA decay, Block AttnRes, 3,584-dimensional expert latent space and post-SFT quantization details.
 
 ### GLM-4.5
 

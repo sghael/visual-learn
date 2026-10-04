@@ -16,7 +16,7 @@ GLM-4.5 joins repository-scale training, tool use, and reasoning with a difficul
 ## Figures
 
 - **Expose relationships before teaching actions** (`flow`): Simplified GLM-4.5 training progression; individual stages contain additional data and optimization choices. Longer training examples can reveal dependencies that snippets omit.
-- **When relative feedback disappears** (`grpo`): Pedagogical GRPO-style signal. Omits clipping, KL regularization, token-level loss and the release’s training implementation. Perfect success and complete failure can both erase within-group comparison.
+- **When relative feedback disappears** (`grpo`): Pedagogical GRPO-style signal. Omits probability ratios, clipping and token-level loss. The GLM-4.5 report’s reasoning-RL recipe excludes the KL penalty used in some GRPO formulations. Perfect success and complete failure can both erase within-group comparison.
 
 ## Accuracy and scope
 

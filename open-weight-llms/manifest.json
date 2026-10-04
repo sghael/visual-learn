@@ -252,6 +252,7 @@
     "category": "Sparse compute",
     "figures": [
       "moe",
+      "sink",
       "precision",
       "flow"
     ]

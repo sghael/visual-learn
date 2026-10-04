@@ -3,33 +3,56 @@
   "date": "2025-08-05",
   "model": "gpt-oss-20b and gpt-oss-120b",
   "family": "OpenAI",
-  "subtitle": "How sparse weights, low precision, and a conversation protocol make reasoning deployable",
+  "subtitle": "How expert routing, attention, weight precision, and tool handoffs divide the work",
   "summary": "Separate storage, active computation, and reasoning effort in OpenAI’s open-weight models.",
   "category": "Sparse compute",
   "parameters": "20b: about 21B total / 3.6B active; 120b: about 117B total / 5.1B active",
   "license": "Apache 2.0; consult the published model card and usage policy.",
-  "lead": "<p>A model must fit in memory before it can answer anything. It must then execute the right computation and communicate with tools in the format it learned. gpt-oss combines sparse expert layers, quantized expert weights, and explicit message boundaries. Those are three different engineering problems, and each requires its own explanation.</p>",
+  "lead": "<p>A model needs storage for its weights, memory for the conversation, and a way to hand work to tools. These costs come from different parts of the system. gpt-oss makes the distinction visible: experts limit work within a token, attention handles the context, low precision reduces weight storage, and a message protocol connects generation to the host application.</p>",
   "sections": [
     {
       "id": "storage",
       "title": "Stored weights and active weights are different",
-      "html": "<p>A <strong>mixture of experts</strong> replaces a single feed-forward network with a bank of networks and a router. The router selects only a few for each token. OpenAI’s release lists 128 experts with four selected in gpt-oss-120b, and 32 with four selected in gpt-oss-20b. The larger model has 36 layers; the smaller has 24. Both are text-only models. <a href=\"#source-release\">[1]</a></p><p>Imagine a workshop with 128 workbenches. A particular job visits four of them. Counting the visited benches estimates part of the work, but all 128 benches still occupy floor space. Likewise, inactive experts save arithmetic for that token without disappearing from memory. Attention and shared operations also contribute to the active parameter count, so four divided by 128 is not the active fraction of the entire model.</p>",
+      "html": "<p>A <strong>mixture of experts</strong> replaces a single feed-forward network with a bank of networks and a router. The router selects only a few for each token. OpenAI’s release lists 128 experts with four selected in gpt-oss-120b, and 32 with four selected in gpt-oss-20b. The larger model has 36 layers; the smaller has 24. Both are text-only models. <a href=\"#source-release\">[1]</a></p><p>Imagine a workshop with 128 workbenches. A particular job visits four of them. Counting the visited benches estimates part of the work, but all 128 benches still occupy floor space. Likewise, inactive experts save arithmetic for that token without disappearing from memory. Attention and shared operations also contribute to the active parameter count, so four divided by 128 is not the active fraction of the entire model.</p><p>The release names round the sizes. The model card gives the following counts; “active” counts parameters used for one token, not how many weights are stored. <a href=\"#source-card\">[5]</a></p><table><thead><tr><th scope=\"col\">Quantity</th><th scope=\"col\" class=\"n\">gpt-oss-20b</th><th scope=\"col\" class=\"n\">gpt-oss-120b</th></tr></thead><tbody><tr><th scope=\"row\">Total parameters</th><td class=\"n\">20.91B</td><td class=\"n\">116.83B</td></tr><tr><th scope=\"row\">Active per token</th><td class=\"n\">3.61B</td><td class=\"n\">5.13B</td></tr><tr><th scope=\"row\">Experts in each layer</th><td class=\"n\">32</td><td class=\"n\">128</td></tr><tr><th scope=\"row\">Selected per token</th><td class=\"n\">4</td><td class=\"n\">4</td></tr><tr><th scope=\"row\">Layers</th><td class=\"n\">24</td><td class=\"n\">36</td></tr><tr><th scope=\"row\">Reported checkpoint size</th><td class=\"n\">12.8 GiB</td><td class=\"n\">60.8 GiB</td></tr></tbody></table><p>A checkpoint is a set of stored tensors. Its file size excludes the additional working memory needed while answering.</p>",
       "figure": {
         "kind": "moe",
         "title": "Visit a few experts; keep the whole bank",
         "config": {
           "experts": 8,
-          "active": 2,
+          "active": 4,
           "shared": 0
         },
-        "caption": "Simplified eight-expert router. Actual gpt-oss counts are given above; the displayed routes are illustrative.",
+        "caption": "Simplified eight-expert router with four experts initially selected. Real gpt-oss selects four from 32 or 128; the displayed routes are illustrative.",
         "takeaway": "Sparse activation reduces selected work, not the need to store the expert bank."
+      }
+    },
+    {
+      "id": "attention",
+      "title": "Attention can use less history—or less weight",
+      "html": "<p>Routing experts does not remove the need to read the conversation. gpt-oss alternates full causal attention with a local window of 128 tokens. Both sizes use 64 query heads sharing eight sets of keys and values. Local windows reduce visible positions in some layers; grouped-query attention reduces the number of key/value sets. Those are separate savings. Full-attention layers still retain a path to earlier context. <a href=\"#source-card\">[5]</a></p><p>There is another, subtler choice. Ordinary attention normalizes its weights to sum to one across the visible tokens. Even an unhelpful set of tokens must receive that whole unit of weight. gpt-oss adds a learned <strong>attention sink</strong>: an extra score in each head’s normalization, with no corresponding value contribution. The real-token weights can then sum to less than one. The reference implementation includes the sink in the softmax and drops its entry before combining the value vectors. <a href=\"#source-reference\">[6]</a></p><p>Try three equally scored tokens with scalar values 2, 6, and 10. Without a sink, their weights are one-third each and the output is 6. Give a fourth, zero-contribution option the same score: every weight becomes one-quarter and the output is 4.5. This is not retrieval of an extra token, and it does not shrink the cache. It changes how much this head contributes to the residual stream.</p>",
+      "figure": {
+        "kind": "sink",
+        "title": "Leave some attention weight unused",
+        "config": {
+          "logits": [
+            0,
+            0,
+            0
+          ],
+          "values": [
+            2,
+            6,
+            10
+          ]
+        },
+        "caption": "Simplified single-head softmax with invented scalar values. The slider varies a hypothetical learned sink score; it is not a user setting in gpt-oss. Real attention operates on vectors.",
+        "takeaway": "A zero-contribution option lets attention reduce its total weight on the visible tokens."
       }
     },
     {
       "id": "numbers",
       "title": "Store expert weights in fewer bits",
-      "html": "<p>The expert weights were released in <strong>MXFP4</strong>, a microscaled four-bit floating-point format. Groups of low-precision values share scaling information. Inference code must interpret that representation correctly; it is not interchangeable with an arbitrary four-bit integer format. OpenAI provides reference implementations and recommends checking implementations for agreement. <a href=\"#source-verify\">[2]</a></p><p>The simplest memory estimate is a useful lower bound. Twenty-one billion weights at sixteen bits require 42 billion bytes. At four bits they require 10.5 billion bytes, if every weight used that format and there were no metadata. Neither assumption describes the complete gpt-oss runtime. Some weights remain at other precisions, and the KV cache, activations, scales, and working buffers require additional memory.</p><p>Move between bit widths below. The arithmetic changes exactly; accuracy does not appear on this plot because memory arithmetic cannot predict quantization error. OpenAI’s deployment guide discusses actual supported implementations and their larger memory requirements. <a href=\"#source-runtime\">[3]</a></p>",
+      "html": "<p>The expert weights were released in <strong>MXFP4</strong>, a microscaled four-bit floating-point format. Groups of low-precision values share scaling information. The model card reports 4.25 bits per expert parameter after this overhead, and says quantization was included during post-training. <a href=\"#source-card\">[5]</a> Inference code must interpret that representation correctly; it is not interchangeable with an arbitrary four-bit integer format. OpenAI provides reference implementations and recommends checking implementations for agreement. <a href=\"#source-verify\">[2]</a></p><p>The simplest memory estimate is a useful lower bound. Twenty-one billion weights at sixteen bits require 42 billion bytes. At four bits they require 10.5 billion bytes, if every weight used that format and there were no metadata. Neither assumption describes the complete gpt-oss runtime. Some weights remain at other precisions, and the KV cache, activations, scales, and working buffers require additional memory.</p><p>Move between bit widths below. The arithmetic changes exactly; accuracy does not appear on this plot because memory arithmetic cannot predict quantization error. OpenAI’s deployment guide discusses actual supported implementations and their larger memory requirements. <a href=\"#source-runtime\">[3]</a></p>",
       "figure": {
         "kind": "precision",
         "title": "A lower bound for storing 21 billion numbers",
@@ -43,38 +66,42 @@
     {
       "id": "protocol",
       "title": "A tool call needs a boundary",
-      "html": "<p>A text model can emit the words “I used a calculator” without any calculator running. A working tool system needs an unambiguous handoff: who speaks, which tool receives the request, when the model yields control, and how the result returns. The model generates a request; application code performs the action.</p><p><strong>Harmony</strong> is the conversation format used by gpt-oss. It distinguishes roles, channels, recipients, and endings. Analysis and final-answer messages occupy different channels. A tool handoff is distinct from ending an ordinary message or finishing the assistant turn. <a href=\"#source-harmony\">[4]</a> The value of these distinctions is operational: the host knows whether to call a function, resume generation, or return an answer.</p><p>For a toy arithmetic task, the host might receive a calculator request, run the calculation, append the result as a tool message, and resume the model. The host must still validate arguments and decide which tools are permitted. A structured request is a format guarantee only to the extent the surrounding system enforces it.</p>",
+      "html": "<p>A text model can emit the words “I used a calculator” without any calculator running. A working tool system needs an unambiguous handoff: who speaks, which tool receives the request, when the model yields control, and how the result returns. The model generates a request; application code performs the action.</p><p><strong>Harmony</strong> is the conversation format used by gpt-oss. It distinguishes roles, channels, recipients, and endings. Analysis and final-answer messages occupy different channels. A tool handoff is distinct from ending an ordinary message or finishing the assistant turn. <a href=\"#source-harmony\">[4]</a> The value of these distinctions is operational: the host knows whether to call a function, resume generation, or return an answer.</p><p>For a toy arithmetic task, the host might receive a calculator request, run the calculation, append the result as a tool message, and resume the model. The host must still validate arguments and decide which tools are permitted. A structured request is a format guarantee only to the extent the surrounding system enforces it.</p><table><thead><tr><th scope=\"col\">Boundary</th><th scope=\"col\">What the host does next</th></tr></thead><tbody><tr><th scope=\"row\">Message ends</th><td>May keep sampling another assistant message.</td></tr><tr><th scope=\"row\">Tool handoff</th><td>Stops sampling, validates the request, and runs the permitted tool.</td></tr><tr><th scope=\"row\">Assistant turn finishes</th><td>Stops sampling and delivers the final answer.</td></tr></tbody></table><p>These are semantic labels, not literal token spellings. A subtle implementation rule matters: keep the current turn’s analysis while completing its tool round trips; omit earlier completed turns’ analysis when a new user turn begins. Losing the current reasoning context can damage tool behavior. Raw analysis is also not intended as the user-facing answer. <a href=\"#source-history\">[7]</a></p>",
       "figure": {
         "kind": "flow",
         "title": "One model turn can contain a tool round trip",
         "config": {
           "steps": [
             {
-              "label": "Read the conversation",
-              "detail": "Encode roles and channels in Harmony."
+              "label": "Model requests a tool",
+              "detail": "An assistant message identifies the recipient and yields control."
             },
             {
-              "label": "Request a tool",
-              "detail": "The model emits a recipient, arguments, and a control handoff."
+              "label": "Host runs the tool",
+              "detail": "Application code validates the request and performs the permitted action."
             },
             {
-              "label": "Run the tool",
-              "detail": "Host software validates and executes the request."
+              "label": "Tool result enters the conversation",
+              "detail": "Append a tool message while preserving this unfinished turn’s context."
             },
             {
-              "label": "Return an answer",
-              "detail": "The tool result becomes context for further generation."
+              "label": "Model resumes",
+              "detail": "Continue generation with the result; another tool call is possible."
+            },
+            {
+              "label": "Model finishes the turn",
+              "detail": "A distinct completion boundary ends sampling; deliver the final answer."
             }
           ]
         },
         "caption": "Simplified host/model protocol. No tool is executed by this tutorial.",
-        "takeaway": "Tool use belongs to a model-and-runtime loop."
+        "takeaway": "A tool reply returns control to the model; it does not itself finish the assistant turn."
       }
     },
     {
       "id": "effort",
       "title": "More reasoning changes the inference budget",
-      "html": "<p>The released models support low, medium, and high reasoning effort. Their post-training includes supervised learning and reinforcement learning for reasoning and tool use. The model card describes these capabilities and their limits. <a href=\"#source-card\">[5]</a> A higher effort setting changes how the model is asked to work; it does not swap in a larger weight file.</p><p>Suppose two settings produce the same final sentence, but one generates many more intermediate tokens and makes two tool calls. They can have very different latency and cost. The relevant budget includes generated tokens, attention over the expanding context, external tool latency, and any retries. Total parameter count hides those differences.</p><p>Longer output is not a proof of better reasoning. An intermediate explanation may be mistaken, or fail to describe the computation that produced the answer. Judge the result on a task with a dependable check, compare the same task at each setting, and include unsuccessful attempts in the measurement.</p>"
+      "html": "<p>The released models support low, medium, and high reasoning effort. Their post-training includes supervised learning and reinforcement learning for reasoning and tool use. The model card describes these capabilities and their limits. <a href=\"#source-card\">[5]</a> The levels are instructions the models were trained to respond to. They influence average reasoning length; they are neither exact token budgets nor switches to a larger weight file.</p><p>Suppose two settings produce the same final sentence, but one generates many more intermediate tokens and makes two tool calls. They can have very different latency and cost. The relevant budget includes generated tokens, attention over the expanding context, external tool latency, and any retries. Total parameter count hides those differences.</p><p>Longer output is not a proof of better reasoning. An intermediate explanation may be mistaken, or fail to describe the computation that produced the answer. Judge the result on a task with a dependable check, compare the same task at each setting, and include unsuccessful attempts in the measurement.</p><p>To compare implementations, hold the model, prompt, effort setting, tools, and sampling choices constant. Check both tool-call formatting and task results: a response with valid structure can still be wrong. OpenAI’s compatibility checks and evaluation harnesses address these different failure modes. <a href=\"#source-verify\">[2]</a></p>"
     }
   ],
   "sources": [
@@ -107,12 +134,26 @@
       "title": "gpt-oss model card",
       "url": "https://deploymentsafety.openai.com/gpt-oss",
       "detail": "Architecture and post-training sections; variable effort and limitations."
+    },
+    {
+      "id": "reference",
+      "title": "OpenAI gpt-oss reference attention implementation",
+      "url": "https://github.com/openai/gpt-oss/blob/main/gpt_oss/torch/model.py",
+      "detail": "sdpa and AttentionBlock: learned sink normalization, zero value contribution, GQA, and alternating local/full masks."
+    },
+    {
+      "id": "history",
+      "title": "Handling raw chain of thought in gpt-oss",
+      "url": "https://developers.openai.com/cookbook/articles/gpt-oss/handle-raw-cot",
+      "detail": "Current-turn reasoning across tool calls, completed-turn history, and separation from final user-facing output."
     }
   ],
   "caveats": [
     "The two sizes share this tutorial because the mechanism is shared; their parameter and expert counts differ.",
     "The four-bit chart is an ideal lower bound, not a claim that the whole model uses four bits or fits in a particular device.",
-    "This tutorial does not infer an undisclosed full training-data recipe from the released weights."
+    "This tutorial does not infer an undisclosed full training-data recipe from the released weights.",
+    "The attention sink changes normalized value mixing; it is not an extra cached token, a context compressor, or a guarantee of faithful reasoning.",
+    "Reported checkpoint sizes, ideal packed-weight bytes, and peak serving memory describe different quantities."
   ],
   "dateNote": "Official public launch date.",
   "related": [
@@ -120,5 +161,5 @@
     "2024-12-26-deepseek-v3",
     "2025-01-20-deepseek-r1"
   ],
-  "readingMinutes": 9
+  "readingMinutes": 12
 }

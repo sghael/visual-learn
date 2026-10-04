@@ -21,7 +21,7 @@ V4 combines sequence compression, sparse retrieval and local attention to make v
 
 ## Accuracy and scope
 
-Release date: 2026-04-24. Public V4-Pro and V4-Flash preview weights appeared April 24, 2026. The June technical report documents the architecture; later 0731 and 0813 revisions are not new architecture introductions.
+Release date: 2026-04-24. Public V4-Pro and V4-Flash preview weights appeared April 24, 2026. The technical report documents the architecture; later 0731 and 0813 revisions are not new architecture introductions.
 
 - Toy token counts and compression ratios are illustrative, not V4 configurations.
 - The sparse widget models selection after compression and omits the local path.

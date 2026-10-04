@@ -14,6 +14,7 @@ The collection covers training data, grouped-query and latent attention, expert 
 
 - **KV cache:** vary context length and MHA/GQA/MQA head sharing; compute bf16 cache bytes for one sequence.
 - **Experts:** change toy token routing and number of selected experts; separate selected work from stored capacity.
+- **Attention sink:** compare normalization with and without a learned extra score; the toy shows how probability mass can contribute no value vector.
 - **Attention:** inspect causal full/local masks; the explicitly named toy hybrid is not a model's actual layer pattern.
 - **Sparse indexing:** choose a query and top-k budget; the indexer scores every key while expensive attention reads the selected set.
 - **Latent/cache/state:** compare a smaller per-token representation, cross-layer cache reuse, and constant recurrent state. These are separate compression axes.
@@ -27,6 +28,8 @@ The collection covers training data, grouped-query and latent attention, expert 
 - **Recurrence/diffusion:** manually step a scalar gated state or a scripted unmasking schedule. Example changes and Reset return to a labeled initial state.
 - **Static figures:** directly labeled bars compare commensurate quantities; ordered stage diagrams explain training or inference paths.
 
+Desktop prose uses a 54rem column. Captions move below figures below 1280px, preserving the wider reading area on tablets.
+
 All figures start in a labeled state. Nothing animates automatically. Controls support keyboard and touch, with visible focus; wide figures scroll within their own region. Colors have accompanying labels.
 
 ## Research and limitations
@@ -37,4 +40,4 @@ All figures start in a labeled state. Nothing animates automatically. Controls s
 
 `lesson.json` is the editable source for each tutorial. Shared authoring files are copied into each delivered page so the model folder remains self-contained. Run `pnpm author` after changing lesson content or authoring templates. Commit the generated static files; deployment performs no build.
 
-Install the pinned tooling with `pnpm install --frozen-lockfile`, then run `pnpm test`. Tests use installed Google Chrome locally and fall back to Playwright Chromium in CI. Web fonts are stubbed for repeatable, offline tests. `CAPTURE=1 pnpm test` also writes viewport-sized QA captures under `/private/tmp/open-weight-qa` on macOS (or the system temporary directory on other platforms).
+Install the pinned tooling with `pnpm install --frozen-lockfile`, then run `pnpm test`. Behavior checks exercise every instance of each widget, including model-specific defaults. Layout checks cover every tutorial at desktop and phone widths, plus the caption breakpoint. Tests use installed Google Chrome locally and fall back to Playwright Chromium in CI. Web fonts are stubbed for repeatable, offline tests. `CAPTURE=1 pnpm test` also writes viewport-sized QA captures under `/private/tmp/open-weight-qa` on macOS (or the system temporary directory on other platforms).

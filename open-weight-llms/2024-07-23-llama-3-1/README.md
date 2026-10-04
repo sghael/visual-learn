@@ -25,7 +25,7 @@ Release date: 2024-07-23. Public 3.1 weight release; the earlier Llama 3 8B/70B 
 
 - The compute widget is an approximation, not a fitted scaling law or hardware benchmark.
 - The paper’s multimodal research models are not counted as Llama 3.1 released weights.
-- 128K supported input length does not guarantee reliable use of every detail.
+- The 128K context budget covers prompt and continuation and does not guarantee reliable use of every detail.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

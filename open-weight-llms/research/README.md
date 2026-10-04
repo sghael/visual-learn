@@ -13,6 +13,8 @@ Research cutoff: **October 3, 2026**. The collection covers roughly three years 
 
 ## Research memos
 
+- [Second correctness and clarity pass](second-pass.md)
+
 - [Llama, Gemma, Phi](llama-gemma-phi.md)
 - [DeepSeek, Mistral, Mixtral](deepseek-mistral.md)
 - [Kimi, GLM, Qwen](kimi-glm-qwen.md)

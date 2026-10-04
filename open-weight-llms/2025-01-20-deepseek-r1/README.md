@@ -17,7 +17,7 @@ Group-relative reinforcement learning turns verifiable outcomes into a training 
 ## Figures
 
 - **A reward becomes meaningful relative to alternatives** (`grpo`): Simplified pedagogical GRPO signal using population standard deviation. It omits clipping, KL regularization, token-level loss and release-specific training details. A group supplies both examples and a baseline; identical rewards provide no relative ranking.
-- **The released R1 recipe has several stages** (`flow`): Simplified R1 post-training pipeline. R1-Zero is a separate pure-RL post-training experiment from a pretrained base. The final checkpoint combines examples, outcome feedback and further alignment.
+- **The released R1 recipe has several stages** (`flow`): Simplified R1 post-training recipe. The curated-data stage transfers examples to a new fine-tune of V3-Base; it is not one uninterrupted chain of weight updates. R1-Zero is a separate experiment. The final checkpoint combines examples, outcome feedback and further alignment.
 
 ## Accuracy and scope
 
