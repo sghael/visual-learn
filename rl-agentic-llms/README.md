@@ -36,7 +36,7 @@ Nothing animates.
 | 5 | GRPO advantage by solve count (`grpo-curve`) | Advantage of each correct and each wrong response for 0–6 correct of 6 | Static |
 | 6 | Bradley–Terry reward model (`rlhf`, `rlhf-curve`) | Two scores per pair trained by clicking preferences; the current point on the logistic curve with earlier positions in grey | Prefer A or B, next pair, reset |
 | 7 | KL-regularized optimum (`kl`) | The exact optimum π_ref · exp(r/β) / Z over ten tokens, with expected reward, KL and objective | One β slider, log scale 0.05–5 |
-| 8 | Coding-agent trajectory (`trajectory`) | Model turns (trained), tool output (masked) and the hidden grader, with the advantage each model turn receives | Pass/fail outcome; outcome-only versus per-turn shaping |
+| 8 | Coding-agent trajectory (`trajectory`) | Model turns (trained), tool output (masked) and the hidden grader, with the advantage each model turn receives | Pass/fail outcome; outcome-only versus tool-call rewards accumulated as return-to-go |
 | 9 | Proxy versus true reward (`goodhart`) | Three graders of increasing quality, simulated with the functional form from Gao, Schulman and Hilton (2022) | Static small multiples |
 
 Tables: training phases, the RL vocabulary in both settings, agent reward
@@ -55,9 +55,16 @@ chronological order.
 - Figure 9 is a simulation. It uses the RL functional form Gao et al. fit to
   their experiments, R(d) = d(α − β ln d) with d = √KL, but the coefficients
   are chosen for illustration.
-- Figure 8's token counts are approximate and its baseline (0.45) is an
-  assumed group solve rate. The design (outcome reward, masked tool output) is
+- Figure 8 uses undiscounted return-to-go minus a fixed baseline of 0.45.
+  Tool-call mode pays 0.10 after each of four search, test or edit calls, so
+  earlier turns include later rewards, while later turns exclude rewards
+  already received. The baseline stays fixed to make the arithmetic visible;
+  it is not a learned estimate for the shaped reward. Paying for calls can
+  encourage unnecessary calls. Token counts are approximate; the design is
   representative, not any one lab's recipe.
+- A zero-variance GRPO group has no reward-based policy gradient under the
+  explicit zero-advantage convention. A separately applied KL penalty can
+  still update the policy. The page uses population standard deviation.
 - The published-methods table summarizes public statements through mid-2026
   and links each source. Complete recipes and compute allocations are not
   public. Rows without a date or link restate claims from the earlier version
@@ -74,8 +81,9 @@ label under 11 px; the top bar's links fit at 1440 px and track the current
 section; GRPO's zero-variance case, the exact ±1 case, and that every
 verdict and reward matches its text; keyboard operation of the verdict
 buttons and the β slider; a policy-gradient update and the shrinking second
-update; the trajectory's sign flip, masking and shaping; the reward model's
-shrinking steps and reset; the KL readouts against the exact solution; that
+update; the trajectory's sign flip, masking and returns-to-go in both reward modes;
+the reward model's shrinking steps, reset and correct plotted positions after
+repeated preferences expand the score axis; the KL readouts against the exact solution; that
 every organization links a source and no source link from the previous
 version was dropped; and that the page loads no external scripts.
 

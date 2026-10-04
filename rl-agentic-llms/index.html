@@ -17,7 +17,7 @@
   --wash: #f3f1ea;
   --ink: #1c1b18;
   --ink-2: #57544c;
-  --ink-3: #8a867b;
+  --ink-3: #716d63;
   --rule: #e2ded3;
   --rule-2: #c9c4b6;
   --link: #1f4e79;
@@ -54,7 +54,7 @@ body {
   counter-reset: sidenote figure;
 }
 ::selection { background: #e8dfc3; }
-:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
 
 .page { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem 6rem; }
 .page > :not(section), section > * { max-width: var(--text); }
@@ -95,7 +95,7 @@ p, li, figure { position: relative; }
 
 figure { margin: 2.25rem 0 2.5rem; padding: 0; }
 .fig { counter-increment: figure; }
-.fig figcaption { font-size: 0.875rem; line-height: 1.45; color: var(--ink-2); margin-top: 0.7rem; max-width: var(--text); }
+.fig figcaption { font-size: 0.9375rem; line-height: 1.5; color: var(--ink-2); margin-top: 0.85rem; max-width: var(--text); }
 .fig figcaption .fig-n::before { content: "Figure " counter(figure) ". "; font-family: var(--sans); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--ink); }
 .fig .takeaway { font-style: italic; color: var(--ink); }
 .graphic { position: relative; }
@@ -127,7 +127,7 @@ input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: va
 input[type="range"]::-moz-range-track { height: 2px; background: var(--rule-2); }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
 input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
-input[type="range"]:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+input[type="range"]:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
 select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.4rem 0.5rem; }
 
 table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: 0.9rem; line-height: 1.35; margin: 0 0 1.25rem; }
@@ -144,15 +144,16 @@ td.n, th.n { text-align: right; }
 .label.muted { fill: var(--ink-2); }
 .annot { font-family: var(--serif); font-style: italic; font-size: 13.5px; fill: var(--ink-2); }
 
-.topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
 .topbar-inner { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1.25rem; height: 2.75rem; }
 .topbar .home { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
 .topbar .home:hover { color: var(--ink); }
 .topbar .title { color: var(--ink); font-weight: 600; white-space: nowrap; }
-.topbar nav { display: flex; gap: 1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; mask-image: linear-gradient(to right, #000 92%, transparent); }
-.topbar nav::-webkit-scrollbar { display: none; }
-.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0; }
+.topbar nav { display: flex; gap: 1rem; min-width: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--rule-2) var(--paper); margin-left: auto; scroll-padding-inline: 0.25rem; }
+.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0.2rem; }
 .topbar nav a:hover, .topbar nav a[aria-current="true"] { color: var(--ink); }
+.topbar nav a[aria-current="true"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.35em; }
+.topbar nav a:focus-visible { outline-offset: -3px; }
 .progress { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--ink); width: 0; }
 
 .colophon { margin-top: 5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
@@ -352,9 +353,9 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
   <!-- 2 ============================================================ -->
   <section id="policy">
     <h2>Policy gradients: make what scored well more likely</h2>
-    <p>A <strong>policy</strong> π<sub>θ</sub> is a probability distribution over actions, set by the model’s weights θ. A policy-gradient method samples an action, scores it, and adjusts θ to change the log-probability of that action in proportion to its <em>advantage</em>: how much better its reward was than expected. A positive advantage raises the action’s probability; a negative one lowers it.</p>
+    <p>A <strong>policy</strong> π<sub>θ</sub> is a probability distribution over actions, set by the model’s weights θ. A policy-gradient method samples an action, scores it, and adjusts θ to change the log-probability of that action in proportion to its <em>advantage</em>: how much better its return was than expected. A <strong>return</strong> is the sum of rewards from that action onward, with optional discounting of later rewards. A positive advantage pushes up the sampled action’s log-probability; a negative one pushes it down. Shared model weights mean a batch update can also affect other actions and contexts.</p>
     <div class="eq">∇J(θ) ≈ E[ Σ<sub>t</sub> A<sub>t</sub> · ∇<sub>θ</sub> log π<sub>θ</sub>(a<sub>t</sub> | s<sub>t</sub>) ]<span class="note">REINFORCE with a baseline</span></div>
-    <p>The expected reward is called the <strong>baseline</strong>, and the advantage is reward minus baseline. Subtracting a baseline reduces the variance of the gradient estimate without changing its expected value.<span class="sn-ref"></span><span class="sidenote">The estimator comes from Williams’s REINFORCE (1992). The baseline may depend on the state but not on the action taken; that condition keeps the expected gradient unchanged.</span></p>
+    <p>A <strong>baseline</strong> is a reference value subtracted from the sampled return, often an estimate of the expected return from that state. A well-chosen baseline reduces the variance of the gradient estimate without changing its expected value. In the one-action example below, return and reward are the same.<span class="sn-ref"></span><span class="sidenote">The estimator comes from Williams’s REINFORCE (1992). The baseline may depend on the state but not on the action taken; that condition keeps the expected gradient unchanged.</span></p>
 
     <figure class="fig" id="fig-pg">
       <div class="controls">
@@ -371,7 +372,7 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
     </figure>
 
     <h3>PPO’s clipped objective</h3>
-    <p><strong>Proximal Policy Optimization</strong> (PPO) reuses each batch of samples for several gradient steps. During those steps the policy drifts away from the one that generated the samples, π<sub>old</sub>. PPO measures the drift for each sampled action with the probability ratio <em>r</em> and clips the objective, so moving <em>r</em> beyond 1 ± ε earns nothing more.</p>
+    <p><strong>Proximal Policy Optimization</strong> (PPO) reuses each batch of samples for several gradient steps. During those steps the policy drifts away from the one that generated the samples, π<sub>old</sub>. PPO measures the drift for each sampled action with the probability ratio <em>r</em> and clips the objective in the direction favored by the advantage: above 1 + ε for a positive advantage, below 1 − ε for a negative one.</p>
     <div class="eq">L<sup>CLIP</sup> = E[ min( r<sub>t</sub>·A<sub>t</sub>, clip(r<sub>t</sub>, 1−ε, 1+ε)·A<sub>t</sub> ) ]<br>r<sub>t</sub> = π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>) / π<sub>old</sub>(a<sub>t</sub>|s<sub>t</sub>)</div>
 
     <figure class="fig" id="fig-ppo">
@@ -387,7 +388,7 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
   <!-- 3 ============================================================ -->
   <section id="grpo">
     <h2>GRPO: a baseline from a group of samples</h2>
-    <p><strong>Group Relative Policy Optimization</strong> (GRPO), introduced with DeepSeekMath in 2024, removes the value model. It samples a group of <em>G</em> responses to the same prompt, scores each, and normalizes the rewards within the group. Every token of response <em>i</em> receives the same advantage Â<sub>i</sub>. Responses above the group mean are reinforced; those below it are suppressed.</p>
+    <p><strong>Group Relative Policy Optimization</strong> (GRPO), introduced with DeepSeekMath in 2024, removes the value model. It samples a group of <em>G</em> responses to the same prompt, scores each, and normalizes the rewards within the group. With a single outcome reward, every token of response <em>i</em> receives the same advantage Â<sub>i</sub>. Responses above the group mean are reinforced; those below it are suppressed.</p>
     <div class="eq">Â<sub>i</sub> = ( r<sub>i</sub> − mean(r<sub>1..G</sub>) ) / std(r<sub>1..G</sub>)<span class="note">one advantage per response</span></div>
 
     <figure class="fig" id="fig-grpo">
@@ -397,16 +398,16 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
       </div>
       <div>
         <div class="graphic" id="grpo-samples" data-widget="grpo"></div>
-        <p class="readouts">mean <b id="grpo-mean">–</b><span class="sep">|</span>std <b id="grpo-std">–</b><span class="sep">|</span>signal <b id="grpo-signal">–</b></p>
+        <p class="readouts">mean <b id="grpo-mean">–</b><span class="sep">|</span>std <b id="grpo-std">–</b><span class="sep">|</span>reward signal <b id="grpo-signal">–</b></p>
       </div>
       <figcaption><span class="fig-n"></span>Six sampled answers to “What is 17 × 24? Put the final answer in <code>\boxed{}</code>.” A verifier gives 1 for 408 and 0 otherwise. Click a verdict to swap that response for a version with the other outcome. Std is the population standard deviation. <span class="takeaway" id="grpo-note"></span></figcaption>
     </figure>
 
-    <p>A group in which every response scores the same has zero standard deviation, and every advantage is zero. That prompt contributes no gradient: the compute spent sampling it is wasted. The next figure shows the advantages for every possible outcome of a six-response group.</p>
+    <p>When every response scores the same, the standard deviation is zero and the written formula is undefined. Implementations use a small denominator offset or explicitly set these advantages to zero, as this figure does. The group then supplies no reward-based policy gradient. A separate KL penalty can still contribute a gradient.<span class="sn-ref"></span><span class="sidenote">The original <a href="https://arxiv.org/html/2402.03300v1#S4.SS1">DeepSeekMath objective</a>, equation 3, adds KL regularization separately from the normalized reward term.</span> The next figure shows the reward advantages for every possible outcome of a six-response group.</p>
 
     <figure class="fig" id="fig-grpo-k">
       <div class="graphic" id="grpo-curve" data-widget="grpo-curve"></div>
-      <figcaption><span class="fig-n"></span>GRPO advantages in a group of six with 0/1 rewards, by the number of correct responses. Green: each correct response; red: each wrong one. <span class="takeaway">Any mixed group produces a gradient, and the rare outcome gets the large advantage. A prompt the model always or never solves produces none.</span></figcaption>
+      <figcaption><span class="fig-n"></span>GRPO advantages in a group of six with 0/1 rewards, by the number of correct responses. Green: each correct response; red: each wrong one. <span class="takeaway">A mixed group provides a reward-based learning signal, and the rare outcome gets the large advantage. Uniform rewards provide no such signal.</span></figcaption>
     </figure>
 
     <p>GRPO’s main costs and fixes, as reported in the papers that introduced them:</p>
@@ -435,13 +436,13 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
       </div>
       <div class="pair" id="rlhf-pair" data-widget="rlhf"></div>
       <div class="graphic" id="rlhf-curve" data-widget="rlhf-curve"></div>
-      <figcaption><span class="fig-n"></span>A reward model with one free score per response (simplified), trained by one gradient step on the Bradley–Terry loss per click, learning rate 1.2. Grey dots are earlier positions. <span class="takeaway">Each agreeing click moves the scores less than the one before, because the gradient is 1 − P.</span></figcaption>
+      <figcaption><span class="fig-n"></span>A reward model with one free score per response (simplified), trained by one gradient step on the Bradley–Terry loss per click, learning rate 1.2. Grey dots are earlier positions; the horizontal scale expands to keep every score difference visible. <span class="takeaway">Each agreeing click moves the scores less than the one before, because the gradient is 1 − P.</span></figcaption>
     </figure>
 
     <h3>Keeping the policy near a reference</h3>
     <p>The policy is then trained to score well under the learned reward, with a penalty for drifting from a <strong>reference policy</strong> π<sub>ref</sub>, usually the supervised model it started from. The penalty is the KL divergence, a measure of how different two probability distributions are, scaled by a coefficient β.</p>
     <div class="eq">maximize  E[ r<sub>φ</sub>(y) ] − β · KL( π<sub>θ</sub> ‖ π<sub>ref</sub> )</div>
-    <p>The penalty keeps outputs close to the text the reward model was trained on, where its scores are meaningful. The objective has an exact solution: the optimal policy is the reference reweighted by exp(r/β) and renormalized.<span class="sn-ref"></span><span class="sidenote">π*(y) = π<sub>ref</sub>(y) · exp(r(y)/β) / Z, where Z normalizes the distribution. This is equation 4 in the DPO paper (<a href="https://arxiv.org/abs/2305.18290">Rafailov et al., 2023</a>), which builds its loss on it.</span> The figure applies that formula to one next-token distribution.</p>
+    <p>The penalty discourages moving into regions where the reward model has little training evidence, but it does not guarantee reliable scores. With fixed rewards, a fixed reference and β > 0, optimization over all output distributions has an exact solution: the optimal policy is the reference reweighted by exp(r/β) and renormalized.<span class="sn-ref"></span><span class="sidenote">π*(y) = π<sub>ref</sub>(y) · exp(r(y)/β) / Z, where Z normalizes the distribution. This is equation 4 in the DPO paper (<a href="https://arxiv.org/abs/2305.18290">Rafailov et al., 2023</a>), which builds its loss on it.</span> The figure applies that formula to one next-token distribution.</p>
 
     <figure class="fig" id="fig-kl">
       <div class="controls">
@@ -482,14 +483,16 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
     <figure class="fig" id="fig-traj">
       <div class="controls">
         <span class="seg" role="group" aria-label="Outcome" id="traj-outcome"><button type="button" aria-pressed="true" data-v="pass">Hidden tests pass</button><button type="button" aria-pressed="false" data-v="fail">Hidden tests fail</button></span>
-        <span class="seg" role="group" aria-label="Credit assignment" id="traj-credit"><button type="button" aria-pressed="true" data-v="outcome">Outcome only</button><button type="button" aria-pressed="false" data-v="turn">+ per-turn shaping</button></span>
+        <span class="seg" role="group" aria-label="Credit assignment" id="traj-credit"><button type="button" aria-pressed="true" data-v="outcome">Outcome only</button><button type="button" aria-pressed="false" data-v="turn">+ tool-call rewards</button></span>
       </div>
       <div>
         <div class="traj" id="traj" data-widget="trajectory"></div>
         <p class="readouts">policy tokens trained <b id="traj-ptok">–</b><span class="sep">|</span>environment tokens masked <b id="traj-etok">–</b><span class="sep">|</span>advantage <b id="traj-adv">–</b></p>
       </div>
-      <figcaption><span class="fig-n"></span>One coding-agent episode, tokens counted approximately. The advantage is R minus 0.45, the task’s assumed solve rate across a group of attempts. Tool output is masked from the loss because the model did not choose those tokens. <span class="takeaway">With an outcome reward alone, every model turn gets the same credit, the useful search and the final summary alike; flipping the outcome flips the sign of all of them.</span></figcaption>
+      <figcaption><span class="fig-n"></span>One simplified coding-agent episode; token counts are approximate. Each model turn gets its return-to-go minus a fixed baseline of 0.45. With no discounting, return-to-go includes the final outcome and all tool-call rewards at or after that turn. Tool outputs stay in the context but have no direct policy-loss term. <span class="takeaway">A later reward trains earlier decisions too. A reward already received does not enter the return of a later action.</span></figcaption>
     </figure>
+
+    <p>The tool-call option pays +0.10 after each of the four search, test or edit calls, with no bonus for submission. On a failed attempt, the first turn therefore gets 0 + 4 × 0.10 − 0.45 = −0.05; the final submission gets 0 − 0.45 = −0.45. This is a return-to-go estimate with a fixed illustrative baseline, not a learned critic.<span class="sn-ref"></span><span class="sidenote">See <a href="https://spinningup.openai.com/en/latest/spinningup/rl_intro3.html#don-t-let-the-past-distract-you">Spinning Up’s derivation of reward-to-go</a>. Keeping the baseline fixed makes the arithmetic visible; a trained critic would estimate the return under the selected reward scheme.</span> Paying for tool calls can reward unnecessary calls, so denser feedback also changes what the agent is encouraged to do.</p>
 
     <p>Four difficulties dominate:</p>
     <ul>
@@ -657,6 +660,7 @@ dl.gloss { font-size: 1rem; line-height: 1.5; }
       <dt>Policy (π)</dt><dd>The model being trained, viewed as a probability distribution over actions given its observation or context.</dd>
       <dt>Rollout, trajectory</dt><dd>One sampled episode: a sequence of observations, model actions and rewards.</dd>
       <dt>Reward</dt><dd>A scalar signal from the environment, a verifier or a reward model. It can arrive during a trajectory or at the end.</dd>
+      <dt>Return-to-go</dt><dd>The sum of rewards from the current action onward, optionally discounting later rewards. Subtracting a baseline gives a sampled advantage estimate.</dd>
       <dt>Advantage</dt><dd>How much better an action or episode was than expected; the quantity that scales each gradient step.</dd>
       <dt>Baseline, critic, value model</dt><dd>A baseline estimates the expected return for the advantage calculation. PPO is commonly used with a learned value function; GRPO uses group reward statistics.</dd>
       <dt>On-policy, off-policy</dt><dd>Whether the samples used for an update came from the current policy. Stale samples need importance-weight corrections.</dd>
@@ -956,7 +960,7 @@ function seg(group, cb) {
     const nOk = ok.filter(Boolean).length; const note = $('#grpo-note');
     if (std < 1e-9) {
       $('#grpo-signal').textContent = 'none';
-      note.textContent = `Every response scored the same, so std = 0 and every advantage is 0: this prompt contributes no gradient. DAPO’s dynamic sampling would drop it and sample another.`;
+      note.textContent = `Every response scored the same, so std = 0 and every advantage is 0: this group supplies no reward-based gradient. A separate KL penalty can still update the policy.`;
     } else {
       $('#grpo-signal').textContent = 'yes';
       const big = Math.max(...adv.map(Math.abs));
@@ -1017,18 +1021,20 @@ function seg(group, cb) {
   const P = () => { const [sa, sb] = scores[idx]; return 1 / (1 + Math.exp(-(sa - sb))); };
   const redraw = chart($('#rlhf-curve'), 190, (svg, w, h) => {
     const m = { l: 40, r: 12, t: 12, b: 40 };
-    const x = scale(-4, 4, m.l, w - m.r); const y = scale(0, 1, h - m.b, m.t);
+    const d = scores[idx][0] - scores[idx][1];
+    const extent = Math.max(4, Math.ceil(Math.max(Math.abs(d), ...hist[idx].map(Math.abs)) / 2) * 2);
+    const x = scale(-extent, extent, m.l, w - m.r); const y = scale(0, 1, h - m.b, m.t);
     const gg = svgEl('g', { class: 'grid' }, svg); svgEl('line', { x1: m.l, x2: w - m.r, y1: y(0.5), y2: y(0.5) }, gg);
-    axisX(svg, x, h - m.b + 6, [-4, -2, 0, 2, 4], (t) => (t > 0 ? '+' : '') + fmt(t, 0));
+    axisX(svg, x, h - m.b + 6, [-extent, -extent / 2, 0, extent / 2, extent], (t) => (t > 0 ? '+' : '') + fmt(t, 0));
     svgEl('text', { x: (m.l + w - m.r) / 2, y: h - 4, 'text-anchor': 'middle', class: 'axis-title' }, svg, 'score difference r(A) − r(B)');
     axisY(svg, y, m.l - 0.5, [0, 0.5, 1], (t) => fmt(t, 1));
-    const xs = []; for (let d = -4; d <= 4.001; d += 0.05) xs.push(d);
+    const xs = []; for (let i = 0; i <= 160; i++) xs.push(-extent + i * extent / 80);
     svgEl('path', { d: pathD(xs.map((d) => [x(d), y(1 / (1 + Math.exp(-d)))])), fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 1.25 }, svg);
-    svgEl('text', { x: x(-4) + 4, y: y(0.92), class: 'label muted', style: 'font-size:11.5px' }, svg, 'P(A ≻ B) = σ(difference)');
-    hist[idx].forEach((d) => svgEl('circle', { cx: x(Math.max(-4, Math.min(4, d))), cy: y(1 / (1 + Math.exp(-d))), r: 3, fill: 'var(--c-grey)' }, svg));
-    const d = scores[idx][0] - scores[idx][1]; const p = P();
-    const cx = x(Math.max(-4, Math.min(4, d))), cy = y(p);
-    svgEl('circle', { cx, cy, r: 5, fill: 'var(--ink)' }, svg);
+    svgEl('text', { x: x(-extent) + 4, y: y(0.92), class: 'label muted', style: 'font-size:11.5px' }, svg, 'P(A ≻ B) = σ(difference)');
+    hist[idx].forEach((d) => svgEl('circle', { cx: x(d), cy: y(1 / (1 + Math.exp(-d))), r: 3, fill: 'var(--c-grey)' }, svg));
+    const p = P();
+    const cx = x(d), cy = y(p);
+    svgEl('circle', { class: 'current-score', 'data-difference': d, 'data-extent': extent, cx, cy, r: 5, fill: 'var(--ink)' }, svg);
     const pos = d > 0; // on the upper half, the curve's upper-left is empty; on the lower half, its lower-right
     const lab = svgEl('text', { x: cx + (pos ? -10 : 10), y: cy + (pos ? -10 : 20), 'text-anchor': pos ? 'end' : 'start', class: 'label', 'font-weight': 600 }, svg, 'P(A ≻ B) = ');
     svgEl('tspan', { id: 'rlhf-p' }, lab, fmt(p));
@@ -1120,11 +1126,16 @@ function seg(group, cb) {
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   function render() {
     const R = outcome === 'pass' ? 1 : 0; const A = R - BASE;
-    let ptok = 0, etok = 0;
-    host.innerHTML = turns.map((t) => {
+    let ptok = 0, etok = 0, futureReward = R;
+    const returns = Array(turns.length);
+    for (let i = turns.length - 1; i >= 0; i--) {
+      if (credit === 'turn' && turns[i].kind === 'policy') futureReward += turns[i].shaping;
+      returns[i] = futureReward;
+    }
+    host.innerHTML = turns.map((t, i) => {
       let cred = '', sub = '';
       if (t.kind === 'policy') {
-        ptok += t.tok; const a = A + (credit === 'turn' ? t.shaping : 0);
+        ptok += t.tok; const a = returns[i] - BASE;
         cred = `<div class="cred" style="color:${a >= 0 ? 'var(--good)' : 'var(--bad)'}">A = ${signed(a)}</div>`; sub = 'trained';
       } else if (t.grader) {
         cred = `<div class="cred" style="color:${R ? 'var(--good)' : 'var(--bad)'}">R = ${R}</div>`; sub = 'reward';
@@ -1134,7 +1145,9 @@ function seg(group, cb) {
       return `<div class="turn ${t.kind}"><div class="role">${t.role}<small>${sub}</small></div><div class="body">${esc(body)}</div>${cred}</div>`;
     }).join('');
     $('#traj-ptok').textContent = ptok; $('#traj-etok').textContent = etok;
-    $('#traj-adv').textContent = `${signed(A)} on every policy token` + (credit === 'turn' ? ' (+0.10 per valid tool call)' : '');
+    $('#traj-adv').textContent = credit === 'turn'
+      ? 'return-to-go − 0.45; +0.10 after each search, test or edit call'
+      : `${signed(A)} on every policy token`;
   }
   seg($('#traj-outcome'), (v) => { outcome = v; render(); });
   seg($('#traj-credit'), (v) => { credit = v; render(); });
