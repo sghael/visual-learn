@@ -28,7 +28,7 @@ offline.
 | 2 | Configuration table | Layers, width, heads, experts, vocabulary and context from each `config.json`, plus stored tensor counts from the Hugging Face API | none |
 | 3 | Three layer types, small multiples | Dense, MoE (375B-A23B) and MoE + MoVA (36B-A4B) side by side; every expert drawn as a square, the ones a token uses in orange | none |
 | 4 | 36B-A4B parameter ledger | Stored and used parameters by component: routed FFN experts, value experts, attention, shared and dense FFNs | none |
-| 5 | Uno decoding, simulated | The same sentence written by autoregressive decoding and by Uno's draft-and-verify rounds, with tokens against forward passes below | Play/Pause, Step, Reset, block size (4, 8, 16), draft agreement slider |
+| 5 | Uno decoding, simulated | The same sentence written by autoregressive decoding and by Uno's draft-and-verify rounds, with tokens against forward passes and an expected full-round rate | Play/Pause, Step, Reset, block size (4, 8, 16), draft agreement slider |
 | 6 | 7B-Uno efficiency table | Tokens per pass, system and per-request throughput, and two accuracy rows from the 7B-Uno card | none |
 | 7 | 375B training stages | Every stage's tokens (with bars on one linear scale), steps and sequence length | none |
 | 8 | Reported benchmark scores | Dot plot on one 0–100 scale (GDPVal-AA Elo on its own axis): K2 in blue, each comparison model in grey, K2 versus the best other score as text; a disclosure holds the full table | model selector |
@@ -77,8 +77,15 @@ either setting stops any run and redraws a finished run for the new setting.
   token. The "draft agreement" slider is an invented probability that each
   drafted token after the first passes verification. The simulation follows the
   paper's accounting (two forward passes per round; the first drafted token is
-  always accepted; one token sampled by the base model per round), so tokens
-  per pass stay between 1 and (B + 1)/2. It ignores adapter overhead, batching
+  always accepted; a corrected replacement or bonus token at verification).
+  The paper’s 1 to (B + 1)/2 bound applies to full rounds before end-of-sequence
+  truncation. The simulation illustrates pass accounting, not lossless
+  sampling: actual Ψ-Spec samples a rejected token’s replacement from the
+  normalized positive part of base probability minus draft probability.
+  A worked two-token example explains why this correction is necessary.
+  For independent agreement probability a, the expected rate over full rounds
+  is (2 + a + a² + … + a^(B−1)) / 2; the short displayed run may differ.
+  It ignores adapter overhead, batching
   and hardware utilization, and treats a pass over a block as costing the same
   as a one-token pass.
 - The 7B-Uno numbers in Figure 6 are from the model card. The paper's own
@@ -99,7 +106,8 @@ overflow and no chart text under 11 px; that the configuration table and layer
 multiples carry the configured values; that the ledger labels match the prose;
 that the Uno simulation rests on a finished run, stops cleanly on Reset, Pause
 and a mid-run block-size switch (with a fake clock), and never leaves the
-paper's 1 ≤ tokens-per-pass ≤ (B + 1)/2 range; that every benchmark "best
+full-run bounds for the displayed sentence; that the expected full-round rate
+matches the two-token minimum, perfect agreement and a worked geometric sum; that every benchmark "best
 other" label equals the maximum in the data table; and that the controls are
 keyboard reachable.
 

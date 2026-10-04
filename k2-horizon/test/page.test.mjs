@@ -174,6 +174,26 @@ test('Uno readout per pass matches the simulation bounds for every setting', asy
   await context.close();
 });
 
+test('Uno distinguishes the expected full-round rate from a finite simulated run', async () => {
+  const { page, context, errors } = await open();
+  const expected = async (B, p) => page.evaluate(([b, a]) => window.K2.expectedPerPass(b, a), [B, p]);
+  assert.equal(await expected(4, 0), 1, 'no later draft survives: two tokens in two passes');
+  assert.equal(await expected(16, 1), 8.5, 'perfect agreement: 17 tokens in two passes');
+  assert.ok(Math.abs(await expected(4, 0.7) - 1.7665) < 1e-10,
+    'full round adds 2 + 0.7 + 0.49 + 0.343 tokens');
+  assert.match(await page.locator('#unoExpectation').innerText(), /1.77 tokens per pass/);
+  await page.locator('#unoBlock button[data-block="8"]').click();
+  assert.match(await page.locator('#unoExpectation').innerText(), /2.07 tokens per pass/);
+  await page.locator('#unoAcc').fill('95');
+  assert.match(await page.locator('#unoExpectation').innerText(), /3.87 tokens per pass/);
+  await page.locator('#unoReset').click();
+  assert.match(await page.locator('#unoCount').innerText(), /^0 tokens · 0 passes/);
+  assert.match(await page.locator('#unoExpectation').innerText(), /3.87 tokens per pass/,
+    'reset clears the sample without changing the theoretical rate');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('benchmark figure covers all six models and its labels match the data', async () => {
   const { page, context, errors } = await open();
   const buttons = page.locator('#benchModel button');
