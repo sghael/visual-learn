@@ -217,8 +217,8 @@ td.n, th.n { text-align: right; }
 
 /* small multiples of 14 x 14 maps */
 .multiples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; }
-.multiples h3, .multiples .panel-title, .depth h3, .where h3 { font: 600 0.8125rem/1.3 var(--sans); color: var(--ink); margin: 0 0 0.4rem; }
-.multiples h3 span, .multiples .panel-title span, .depth h3 span { font-weight: 400; color: var(--ink-2); }
+.multiples h3, .multiples .panel-title, .depth .panel-title, .where h3 { font: 600 0.8125rem/1.3 var(--sans); color: var(--ink); margin: 0 0 0.4rem; }
+.multiples h3 span, .multiples .panel-title span, .depth .panel-title span { font-weight: 400; color: var(--ink-2); }
 .map svg { display: block; width: 100%; height: auto; shape-rendering: crispEdges; }
 .map .note { font: 0.8125rem/1.3 var(--sans); color: var(--ink-2); margin-top: 0.35rem; }
 .key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.2rem; margin-top: 0.8rem; font: 0.8125rem/1.3 var(--sans); color: var(--ink-2); }
@@ -234,7 +234,7 @@ td.n, th.n { text-align: right; }
 .depth { display: grid; grid-template-columns: 6.5rem repeat(4, minmax(0, 1fr)); gap: 0.9rem 0.7rem; align-items: end; }
 .depth .rowlab { font: 0.8125rem/1.3 var(--sans); color: var(--ink); align-self: center; }
 .depth .rowlab span { display: block; color: var(--ink-2); }
-.depth h3 { font-weight: 400; color: var(--ink-2); margin-bottom: 0.25rem; }
+.depth .panel-title { font-weight: 400; color: var(--ink-2); margin-bottom: 0.25rem; }
 .depth .note.has { color: var(--ink); font-weight: 600; }
 
 /* tables */
@@ -260,7 +260,7 @@ td.down .v { color: var(--c-red); }
   .depth { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem 0.5rem; }
   .depth .rowlab { grid-column: 1 / -1; margin-top: 0.6rem; }
   .depth .rowlab span { display: inline; margin-left: 0.4rem; }
-  .depth h3, .map .note { font-size: 0.75rem; }
+  .depth .panel-title, .map .note { font-size: 0.75rem; }
   .where .map { flex-basis: 11rem; }
   .tablewrap table { min-width: 21rem; font-size: 0.8125rem; }
   #results-table td:first-child .dir { display: block; }

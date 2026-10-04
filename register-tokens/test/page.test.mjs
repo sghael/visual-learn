@@ -147,8 +147,11 @@ test('Figure 3: artifacts are the tokens above the 150 cutoff, in the sky, and t
 
 test('Figure 4: no artifacts in DINOv2 ViT-S or ViT-B at any depth; ViT-L has them only from the middle layers (paper Fig. 4)', async () => {
   const { page, context, errors } = await open();
-  const maps = await page.$$eval('#depth-grid .map', (els) => els.map((e) => ({ ...e.dataset, head: e.querySelector('h3').textContent, note: e.querySelector('.note').textContent })));
+  const maps = await page.$$eval('#depth-grid .map', (els) => els.map((e) => ({ ...e.dataset, head: e.querySelector('.panel-title').textContent, note: e.querySelector('.note').textContent })));
   assert.equal(maps.length, 12);
+  assert.equal(await page.locator('#depth-grid').getByRole('heading').count(), 0, 'depth labels do not become document subsections');
+  assert.equal(await page.locator('#depth-grid p.panel-title').count(), 12, 'all layer labels use paragraph semantics');
+  assert.equal(await page.locator('#fig-where h3').count(), 2, 'the neighboring figure keeps its headings');
   for (const m of maps) {
     assert.equal(m.head, `layer ${m.layer}`, 'heading matches the layer simulated');
     assert.equal(m.note, +m.artifacts ? `${m.artifacts} above 150` : 'none above 150', 'note matches the count');
