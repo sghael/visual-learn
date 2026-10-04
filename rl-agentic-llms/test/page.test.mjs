@@ -159,9 +159,14 @@ test('trajectory: flipping the outcome flips the sign of every policy-turn advan
   assert.ok((await creds()).every((c) => c === `A = ${MINUS}0.45`));
   assert.equal(await page.locator('#traj .turn.env .cred', { hasText: 'masked' }).count(), 3, 'the three tool outputs are masked; the grader turn shows R');
   assert.equal(await page.locator('#traj .turn.env .cred', { hasText: 'R = 0' }).count(), 1);
-  await page.locator('#traj-credit button', { hasText: 'shaping' }).click();
-  assert.match(await page.locator('#traj-adv').innerText(), /\+0\.10 per valid tool call/);
-  assert.ok((await creds()).includes(`A = ${MINUS}0.35`), 'shaping adds 0.10 to tool-calling turns');
+  await page.locator('#traj-credit button', { hasText: 'tool-call rewards' }).click();
+  assert.match(await page.locator('#traj-adv').innerText(), /return-to-go/);
+  assert.deepEqual(await creds(), ['0.05', '0.15', '0.25', '0.35', '0.45'].map((v) => `A = ${MINUS}${v}`),
+    'earlier turns include all remaining tool rewards; later turns exclude past rewards');
+  await page.locator('#traj-outcome button', { hasText: 'pass' }).click();
+  assert.deepEqual(await creds(), ['0.95', '0.85', '0.75', '0.65', '0.55'].map((v) => `A = +${v}`));
+  await page.locator('#traj-credit button', { hasText: 'Outcome only' }).click();
+  assert.ok((await creds()).every((c) => c === 'A = +0.55'), 'switching back removes every intermediate reward');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -180,6 +185,27 @@ test('reward model: preferring A moves P(A ≻ B) up by less each time, and rese
   assert.equal(await P(), 0.5, 'the next pair starts untrained');
   await page.click('#rlhf-reset');
   assert.equal((await page.locator('#rlhf-p').textContent()), '0.50');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('reward model: repeated preferences expand the score axis instead of clamping the point', async () => {
+  const { page, context, errors } = await open({ width: 390 });
+  for (const winner of ['0', '1']) {
+    await page.locator('#rlhf-reset').click();
+    await page.evaluate((w) => {
+      for (let i = 0; i < 65; i++) document.querySelector(`#rlhf-pair button[data-w="${w}"]`).click();
+    }, winner);
+    const state = await page.$eval('#rlhf-curve .current-score', (dot) => {
+      const svg = dot.ownerSVGElement, d = +dot.dataset.difference, extent = +dot.dataset.extent;
+      const width = svg.viewBox.baseVal.width;
+      return { d, extent, x: +dot.getAttribute('cx'), expectedX: 40 + (d + extent) / (2 * extent) * (width - 40 - 12) };
+    });
+    assert.ok(Math.abs(state.d) > 4, 'preferences should move past the original axis limit');
+    assert.ok(state.extent > Math.abs(state.d), 'the axis contains the true score difference');
+    assert.ok(Math.abs(state.x - state.expectedX) < 1e-6, 'point uses the expanded linear scale');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+  }
   assert.deepEqual(errors, []);
   await context.close();
 });
