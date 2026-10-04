@@ -547,14 +547,18 @@ window.QAT = { quantizeArray, quantizeOne, steGrad };
   }
   const cosLR = (t, T) => LR * 0.5 * (1 + Math.cos(Math.PI * t / T));
   const clone = (p) => ({ w1: p.w1.slice(), b1: p.b1.slice(), w2: p.w2.slice(), b2: p.b2 });
-  /** The whole experiment for one seed: fp32 pretraining, then PTQ and QAT at 2, 3 and 4 bits. */
+  /** The whole experiment for one seed: unquantized pretraining (JavaScript binary64), then PTQ and QAT at 2, 3 and 4 bits. */
   function train(seed) {
     const fp = init(seed), o = makeOpt();
     for (let t = 0; t < FP_STEPS; t++) step(fp, o, 0, cosLR(t, FP_STEPS));
     const l0 = loss(fp, 0), res = { seed, fp, l0, bits: {} };
     for (const b of BITS) {
       const qp = clone(fp), oq = makeOpt(), l1 = loss(fp, b), hist = [l1];
-      for (let k = 0; k < QAT_STEPS; k++) { const L = step(qp, oq, b, cosLR(k, QAT_STEPS)); if (k % EVERY === EVERY - 1) hist.push(L); }
+      for (let k = 0; k < QAT_STEPS; k++) {
+        step(qp, oq, b, cosLR(k, QAT_STEPS));
+        // The x-axis counts completed optimizer updates, so sample the updated model.
+        if ((k + 1) % EVERY === 0) hist.push(loss(qp, b));
+      }
       const l2 = loss(qp, b);
       res.bits[b] = { l1, l2, hist, qat: qp, ratio: l1 / l2 };
     }
@@ -577,7 +581,7 @@ window.QAT = { quantizeArray, quantizeOne, steGrad };
 
   function drawFit(host, res, b) {
     const Hh = 150;
-    const { svg, w } = sized(host, Hh, `Fitted functions at ${b} bits: fp32 model, PTQ and QAT, against the training points.`);
+    const { svg, w } = sized(host, Hh, `Fitted functions at ${b} bits: unquantized model, PTQ and QAT, against the training points.`);
     const L = 24, R = w - 4, T = 6, B = Hh - 20, x = lin(-1, 1, L, R), y = lin(-1.7, 1.7, B, T);
     const cid = 'fitclip' + b;
     E(E(E(svg, 'defs'), 'clipPath', { id: cid }), 'rect', { x: L, y: T, width: R - L, height: B - T });
@@ -593,7 +597,7 @@ window.QAT = { quantizeArray, quantizeOne, steGrad };
   function drawLoss(host, res, b, dom) {
     const Hh = 150;
     const r = res.bits[b];
-    const { svg, w } = sized(host, Hh, `Loss during QAT at ${b} bits on a log scale: fp32 ${fmtL(res.l0)}, PTQ ${fmtL(r.l1)}, QAT ends at ${fmtL(r.l2)}.`);
+    const { svg, w } = sized(host, Hh, `Loss during QAT at ${b} bits on a log scale: unquantized ${fmtL(res.l0)}, PTQ ${fmtL(r.l1)}, QAT ends at ${fmtL(r.l2)}.`);
     const L = 34, R = w - 84, T = 8, B = Hh - 34;
     const x = lin(0, QAT_STEPS, L, R), y = logScale(dom[0], dom[1], B, T);
     for (let e = Math.ceil(Math.log10(dom[0])); e <= Math.floor(Math.log10(dom[1])); e++) {
@@ -609,7 +613,7 @@ window.QAT = { quantizeArray, quantizeOne, steGrad };
     const labels = spread([
       { y: y(r.l1) + 4, t: 'PTQ ' + fmtL(r.l1), c: 'var(--quant)', k: 'ptq' },
       { y: y(r.l2) + 4, t: 'QAT ' + fmtL(r.l2), c: 'var(--qat)', k: 'qat' },
-      { y: y(res.l0) + 4, t: 'fp32 ' + fmtL(res.l0), c: 'var(--fp)', k: 'fp' },
+      { y: y(res.l0) + 4, t: 'FP ' + fmtL(res.l0), c: 'var(--fp)', k: 'fp' },
     ], 13, T + 8, B + 4);
     labels.forEach((l) => E(svg, 'text', { x: R + 6, y: l.y, class: 'label', style: `fill: ${l.c}`, 'data-k': l.k }, l.t));
   }
@@ -650,7 +654,7 @@ window.QAT = { quantizeArray, quantizeOne, steGrad };
     const part = (b) => `${ratioText(res.bits[b].ratio)} at ${b} bits`;
     const lose = BITS.filter((b) => res.bits[b].ratio < 1);
     let s = `Seed ${res.seed}: compared with PTQ, QAT's final loss is ${part(2)}, ${part(3)} and ${part(4)}.`;
-    if (lose.length) s += ` At ${lose.join(' and ')} bits this QAT run ends worse than rounding once; the grid is too coarse for it to recover.`;
+    if (lose.length) s += ` At ${lose.join(' and ')} bits this QAT run ends worse than rounding once; these training settings did not recover the PTQ loss.`;
     else s += ' Seed 3 shows a run where QAT ends worse at 2 bits.';
     $('#labTakeaway').textContent = s;
     drawSeeds();

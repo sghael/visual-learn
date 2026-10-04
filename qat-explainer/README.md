@@ -30,7 +30,7 @@ system fallbacks.
 | 4 | One QAT step | Forward pass down the left, backward pass up the right, for one linear layer | None |
 | 5 | Gradients through a staircase | The quantizer, its true derivative and the straight-through estimate, on one *x*-axis | None: three small multiples |
 | 6 | Master weight trace | A simulated master weight drifting across rounding boundaries, with the value the forward pass sees | None |
-| 7 | Training lab | Trains a 97-parameter network in fp32, then compares PTQ and QAT at 2, 3 and 4 bits: fitted functions and QAT loss curves, directly labeled | Seed buttons retrain in the browser (about 0.2 s) |
+| 7 | Training lab | Trains an unquantized 97-parameter network, then compares PTQ and QAT at 2, 3 and 4 bits: fitted functions and QAT loss curves, directly labeled | Seed buttons retrain in the browser (about 0.2 s) |
 | 8 | All seeds | PTQ loss ÷ QAT loss for all eight seeds at each bit width | Highlights the seed chosen in Figure 7 |
 
 Tables cover which tensors a transformer quantizes (with parameter shares
@@ -41,9 +41,17 @@ computed for Llama 3 8B) and five published QAT recipes.
 - The training lab is a 1 → 32 tanh → 1 regression network, not a language
   model. It quantizes weights only, per tensor, with the scale recomputed
   from the current master weights every step (so no weight is ever clipped),
-  a straight-through gradient, full-batch Adam and a cosine learning-rate
-  decay. There is no activation quantization and no distillation. The page
-  says "simulated and simplified" in the figure caption.
+  a straight-through gradient that holds the scale fixed during each backward
+  pass, full-batch Adam and a cosine learning-rate decay. There is no activation quantization and no distillation. The page
+  says "simulated and simplified" in the figure caption. All arithmetic uses
+  JavaScript `Number`/`Float64Array` (binary64), not fp32; FP means the
+  unquantized reference. See the [ECMAScript Number specification](https://tc39.es/ecma262/multipage/ecmascript-data-types-and-values.html#sec-ecmascript-language-types-number-type).
+- Loss is training-set mean squared error, not held-out quality. QAT gets 2,000
+  extra updates while the FP/PTQ references stay fixed; there is no matched
+  unquantized continuation. A failed QAT run does not establish an irreducible
+  error floor for its bit width.
+- The loss trace samples the updated model every 20 completed optimizer steps.
+  Its endpoints are exactly the PTQ loss (step 0) and final QAT loss (step 2,000).
 - The lab is trained on page load for seed 2 and on each seed click. Nothing
   animates. Figure 8's ratios for all eight seeds are precomputed with the
   same code (running all eight takes over a second); a test recomputes them.
@@ -79,6 +87,6 @@ chart text that runs outside its SVG. They also check the quantizer, the
 number line (drag and keyboard, rounding versus clipping), the best-α label
 against the computed minimum, the heatmap numbers, the step diagram's layout
 on a phone, the straight-through gradient, the drift trace's annotations,
-every direct label in the training lab against the computed losses, rapid
+every direct label and loss-trace endpoint against the computed losses, rapid
 seed changes, the precomputed all-seed ratios, and the top bar's section
 tracking.

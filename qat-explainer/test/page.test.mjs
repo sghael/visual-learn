@@ -195,7 +195,7 @@ test('training lab: the resting state is already trained, and every direct label
       const labels = Object.fromEntries([...document.querySelectorAll(`#labLoss${b} svg text[data-k]`)].map((t) => [t.dataset.k, t.textContent]));
       out.rows.push({
         b, labels, gain: document.querySelector('#labGain' + b).textContent,
-        want: { ptq: 'PTQ ' + fmt(res.bits[b].l1), qat: 'QAT ' + fmt(res.bits[b].l2), fp: 'fp32 ' + fmt(res.l0) },
+        want: { ptq: 'PTQ ' + fmt(res.bits[b].l1), qat: 'QAT ' + fmt(res.bits[b].l2), fp: 'FP ' + fmt(res.l0) },
         wantGain: `QAT loss ${lab.ratioText(res.bits[b].ratio)} than PTQ`,
         l1: res.bits[b].l1, l2: res.bits[b].l2,
         recomputed: { l1: lab.loss(res.fp, b), l2: lab.loss(res.bits[b].qat, b) },
@@ -235,14 +235,16 @@ test('training lab: rapid seed changes end on the last seed clicked, with every 
 test('training lab: the precomputed all-seed ratios in Figure 8 match a fresh run of every seed', async () => {
   const { page, context } = await open();
   const r = await page.evaluate(() => {
-    const lab = window.QAT.lab, bad = [];
+    const lab = window.QAT.lab, bad = [], ptqOrder = [];
     for (let s = 1; s <= 8; s++) {
       const res = lab.train(s);
+      ptqOrder.push({ seed: s, losses: [2, 3, 4].map((b) => res.bits[b].l1) });
       for (const b of [2, 3, 4]) { const want = lab.SEED_RATIOS[b][s - 1], got = res.bits[b].ratio; if (Math.abs(got / want - 1) > 0.005) bad.push({ s, b, want, got }); }
     }
-    return { bad, wins3: lab.SEED_RATIOS[3].every((v) => v > 1), wins4: lab.SEED_RATIOS[4].every((v) => v > 1), wins2: lab.SEED_RATIOS[2].filter((v) => v > 1).length };
+    return { bad, ptqOrder, wins3: lab.SEED_RATIOS[3].every((v) => v > 1), wins4: lab.SEED_RATIOS[4].every((v) => v > 1), wins2: lab.SEED_RATIOS[2].filter((v) => v > 1).length };
   });
   assert.deepEqual(r.bad, []);
+  for (const { seed, losses } of r.ptqOrder) assert.ok(losses[0] > losses[1] && losses[1] > losses[2], `PTQ loss should rise as bits are removed for seed ${seed}: ${losses}`);
   assert.ok(r.wins3 && r.wins4, 'the caption says QAT wins on every seed at 3 and 4 bits');
   assert.equal(r.wins2, 7, 'the caption says QAT wins on seven of eight seeds at 2 bits');
   await context.close();
@@ -255,5 +257,19 @@ test('top bar: scrolling marks the current section and advances the progress lin
   assert.equal(await page.locator('.topbar nav a[aria-current="true"]').innerText(), 'Lab');
   const w = await page.evaluate(() => parseFloat(document.getElementById('progress').style.width));
   assert.ok(w > 20 && w < 100, `progress ${w}%`);
+  await context.close();
+});
+
+test('training lab: sampled loss belongs to the displayed update count, including the final model', async () => {
+  const { page, context } = await open();
+  const rows = await page.evaluate(() => [2, 3, 4].map((b) => {
+    const r = window.QAT.lab.result.bits[b];
+    return { b, samples: r.hist.length, initial: r.hist[0], ptq: r.l1, final: r.hist.at(-1), qat: r.l2 };
+  }));
+  for (const r of rows) {
+    assert.equal(r.samples, 101, `0 through 2,000 updates, sampled every 20, at ${r.b} bits`);
+    assert.equal(r.initial, r.ptq, `zero updates is exactly PTQ at ${r.b} bits`);
+    assert.equal(r.final, r.qat, `the point at 2,000 updates must use the final model at ${r.b} bits`);
+  }
   await context.close();
 });
