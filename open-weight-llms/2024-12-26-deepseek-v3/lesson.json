@@ -1,0 +1,122 @@
+{
+  "slug": "2024-12-26-deepseek-v3",
+  "model": "DeepSeek-V3",
+  "family": "DeepSeek",
+  "date": "2024-12-26",
+  "dateNote": "Original DeepSeek-V3 public release, December 26, 2024. Later V3-0324 and V3.1 checkpoints are separate revisions.",
+  "subtitle": "Make sparse training efficient all the way through the system",
+  "summary": "Routing biases, mixed-precision arithmetic and multi-token prediction complement the MLA and MoE inherited from V2.",
+  "category": "Training",
+  "readingMinutes": 9,
+  "parameters": "671B total · 37B active",
+  "license": "DeepSeek Model License for original weights; MIT for code",
+  "lead": "<p>DeepSeek-V3 inherits latent attention and fine-grained experts, then asks a systems question: can a very large sparse model keep its hardware productively occupied? Its original release reports 671B total parameters with 37B active for each token. Several coordinated choices make the architecture trainable at that scale. <a href=\"#source-repo\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "traffic",
+      "title": "A sparse model can still have a traffic jam",
+      "html": "<p>Suppose eight expert devices receive 80 token assignments in one step. If each receives ten, they can finish together. If one receives 45 while several receive five, the busiest device becomes a queue. Work can be sparse in total while uneven distribution wastes the available parallel hardware.</p><p>Routers naturally face a tension. Choosing the strongest-scoring expert for every token may concentrate traffic. Adding a strong balancing penalty to the training objective can instead push the model away from the transformations that best predict text. V3 uses a routing-bias mechanism to manage this trade. <a href=\"#source-balance\">[2]</a></p><p>The relevant quantity is the distribution of assignments across a batch, not whether one isolated token lights up a small number of boxes. A demonstration of top-k routing explains selection; it cannot by itself establish good system utilization.</p>"
+    },
+    {
+      "id": "bias",
+      "title": "Adjust access without redefining the expert’s contribution",
+      "html": "<p>V3 adds a per-expert bias when deciding which experts enter the selected set. It decreases a busy expert’s bias and increases an underused expert’s bias. The contribution weights still come from the original affinity scores. A small sequence-level balancing loss remains, so “auxiliary-loss-free” names the main strategy rather than the absence of every auxiliary term. <a href=\"#source-paper\">[3]</a></p><p>Consider an invented choice between experts A and B. Their raw scores are 0.62 and 0.60. If A receives a −0.04 selection bias and B receives +0.01, the adjusted values become 0.58 and 0.61. B can enter the selected set even though A had the larger raw score. The bias is a traffic-control input, not a claim that B’s learned transformation changed.</p><p>A serving analogy is choosing a slightly less preferred checkout because the favorite queue is overloaded. The real algorithm updates numerical routing incentives during training; it does not consult a human interpretation of token topics.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Separate selection from contribution",
+        "caption": "Simplified routing-bias sequence. The figure omits top-k normalization, distributed implementation and the small complementary sequence loss.",
+        "takeaway": "Load feedback changes who is selected; original affinity scores still weight selected outputs.",
+        "config": {
+          "steps": [
+            {
+              "label": "Score experts",
+              "detail": "Raw affinity for this token"
+            },
+            {
+              "label": "Add bias",
+              "detail": "Traffic correction for selection"
+            },
+            {
+              "label": "Select top-k",
+              "detail": "Choose expert membership"
+            },
+            {
+              "label": "Combine",
+              "detail": "Weight using original affinities"
+            },
+            {
+              "label": "Update bias",
+              "detail": "Observe batch loads"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "precision",
+      "title": "Use fewer bits where they remain reliable",
+      "html": "<p>V3’s released implementation includes FP8 weights and supports conversion to bf16. Its training system uses mixed precision: smaller numerical formats where appropriate, with higher precision retained for sensitive operations. FP8 means an eight-bit floating-point representation, not that every intermediate value in the model uses eight bits. <a href=\"#source-repo\">[1]</a></p><p>The slider isolates the simplest storage arithmetic. Twenty billion numbers at 16 bits occupy 40 decimal GB; at eight bits, 20 GB; at four bits, 10 GB. These are invented uniform weight arrays. Their storage ratios say nothing about whether a particular quantized checkpoint retains its quality.</p><p>A small format has fewer representable values. Scaling groups of numbers helps use that limited range, while accumulation can require a more precise format to avoid losing small contributions. The practical gain depends on kernels, hardware support and numerical error together, not the bit count alone.</p>",
+      "figure": {
+        "kind": "precision",
+        "title": "Bits change the size of an ideal weight array",
+        "caption": "Simplified uniform weight-storage model for an invented 20B-parameter array. It excludes scales, mixed precision, activations, KV cache, sharding and accuracy.",
+        "takeaway": "Halving bits halves ideal stored bytes; it does not automatically halve training time.",
+        "config": {
+          "billions": 20
+        }
+      }
+    },
+    {
+      "id": "prediction",
+      "title": "Train a representation to look farther ahead",
+      "html": "<p>V3 also uses a <strong>multi-token prediction</strong> objective. Extra sequential prediction modules train representations to support additional future-token predictions while preserving causal dependencies. The report distinguishes its sequential construction from earlier independent-head designs. <a href=\"#source-paper\">[3]</a></p><p>For an original example, imagine the training text “the brass key opened the door.” Ordinary next-token training can ask the representation after “brass” to predict “key.” A sequential additional module can combine that representation with the next token’s embedding and learn to predict “opened.” That embedding is a training input to the extra stage, not secret future information available to the main model at inference.</p><p>Additional prediction modules can also help draft tokens for speculative decoding, where a main model verifies proposed continuations. Faster generation still depends on acceptance rates and implementation. Multiple training targets do not mean an autoregressive model can ignore causal order. <a href=\"#source-mtp\">[4]</a></p>"
+    },
+    {
+      "id": "accounting",
+      "title": "A training report is not a company budget",
+      "html": "<p>The V3 report’s widely discussed training-cost estimate describes the reported training run under its stated GPU-hour assumptions. It does not include all prior research, ablations, data acquisition, hardware procurement or the continuing cost of serving users. Treating that estimate as the total cost of creating the organization’s capabilities changes the denominator. <a href=\"#source-paper\">[3]</a></p><p>The general lesson is to measure the whole path relevant to your question. For training, inspect useful arithmetic, expert traffic, numerical stability and hardware idle time. For deployment, inspect weight memory, conversation caches and latency at the intended load. V3’s contributions work together because improving one resource can expose a different bottleneck.</p>"
+    }
+  ],
+  "caveats": [
+    "The precision widget is a generic ideal weight-storage calculation, not the full V3 training recipe.",
+    "Auxiliary-loss-free balancing coexists with a small sequence-level auxiliary loss.",
+    "The original December 2024 weights use the DeepSeek Model License; later family revisions may have different licensing."
+  ],
+  "sources": [
+    {
+      "id": "repo",
+      "title": "Official DeepSeek-V3 repository",
+      "url": "https://github.com/deepseek-ai/DeepSeek-V3",
+      "detail": "Original specifications, downloadable FP8 weights and license distinction."
+    },
+    {
+      "id": "balance",
+      "title": "Auxiliary-Loss-Free Load Balancing Strategy for Mixture-of-Experts",
+      "url": "https://arxiv.org/abs/2408.15664",
+      "detail": "Routing biases and load-balancing motivation."
+    },
+    {
+      "id": "paper",
+      "title": "DeepSeek-V3 technical report",
+      "url": "https://arxiv.org/html/2412.19437v2",
+      "detail": "Sections 2.1–2.2 and 3.3; bias selection, complementary loss, MTP and cost scope."
+    },
+    {
+      "id": "mtp",
+      "title": "Better & Faster Large Language Models via Multi-token Prediction",
+      "url": "https://arxiv.org/abs/2404.19737",
+      "detail": "Earlier multi-token prediction formulation; distinction from V3’s sequential modules."
+    },
+    {
+      "id": "date",
+      "title": "DeepSeek official change log",
+      "url": "https://api-docs.deepseek.com/updates/",
+      "detail": "December 26, 2024 V3 release entry."
+    }
+  ],
+  "related": [
+    "2024-05-06-deepseek-v2",
+    "2025-01-20-deepseek-r1",
+    "2025-09-29-deepseek-v3-2"
+  ]
+}

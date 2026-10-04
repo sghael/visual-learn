@@ -1,0 +1,100 @@
+{
+  "slug": "2023-09-27-mistral-7b",
+  "model": "Mistral 7B",
+  "family": "Mistral",
+  "date": "2023-09-27",
+  "dateNote": "Initial Mistral 7B v0.1 public release on September 27, 2023; the technical paper followed in October. This lesson describes v0.1.",
+  "subtitle": "Share the memory; move the window",
+  "summary": "Grouped-query attention and a rolling attention window reduce the cost of remembering a conversation.",
+  "category": "Memory",
+  "readingMinutes": 8,
+  "parameters": "7B-class dense model",
+  "license": "Apache 2.0",
+  "lead": "<p>A language model can be small enough to fit in memory and still become expensive when a conversation grows. Mistral 7B makes that distinction visible: its weights stay fixed, while the working memory used to remember previous tokens can grow. Its original release combined two existing attention ideas in a compact, downloadable model. <a href=\"#source-release\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "remember",
+      "title": "Why yesterday’s tokens cost memory",
+      "html": "<p>Imagine completing the sentence “Maya put the red notebook beside the blue notebook; she picked up the red …” To predict the next token, an attention layer compares a new <strong>query</strong> with stored <strong>keys</strong> and blends their associated <strong>values</strong>. A key helps decide where to look; a value supplies information from that location.</p><p>The stored keys and values form the <strong>KV cache</strong>. Caching avoids rebuilding the entire past for every generated token. The trade is storage: another token means another set of entries, repeated at many layers. Model weights are the learned machinery; the cache is temporary state for this particular conversation. Two simultaneous conversations share weights but need separate caches.</p><p>This distinction suggests two independent questions: how many versions of each token must we store, and how far back must each attention operation look? Mistral addresses both. Neither change implies that a model has perfect recall.</p>"
+    },
+    {
+      "id": "share",
+      "title": "Many questions can share the same records",
+      "html": "<p>In ordinary multi-head attention, separate attention heads have separate key and value representations. <strong>Grouped-query attention</strong>, or GQA, keeps multiple query heads but lets a group share keys and values. The GQA paper places this design between fully separate heads and multi-query attention, which shares one KV set across every query head. <a href=\"#source-gqa\">[2]</a></p><p>A teaching example makes the arithmetic concrete. Suppose 32 query heads share eight KV heads: four query heads consult each stored representation. They may still ask different questions because their queries differ. Sharing the filing cabinet does not require every reader to ask for the same file.</p><p>Move the context slider. Doubling the number of stored tokens doubles this cache estimate. Switching from 32 KV heads to eight quarters it at the same length and precision. The widget uses Mistral v0.1 dimensions, but deliberately excludes its rolling-window eviction: it isolates head sharing. <a href=\"#source-paper\">[3]</a></p>",
+      "figure": {
+        "kind": "kv",
+        "title": "Two independent multipliers: length and KV heads",
+        "caption": "Simplified bf16 KV-only calculation, using v0.1 head and layer dimensions. It omits sliding-window eviction, weights, batch size, allocator overhead and sharding.",
+        "takeaway": "GQA reduces memory per retained token; it does not by itself limit how many tokens are retained.",
+        "config": {
+          "heads": 32,
+          "kvHeads": 8,
+          "headDim": 128,
+          "layers": 32,
+          "tokens": 4096
+        }
+      }
+    },
+    {
+      "id": "window",
+      "title": "A local window changes the pattern of work",
+      "html": "<p>Mistral v0.1 uses a 4,096-token sliding attention window. Each layer reads a recent neighborhood instead of every prior position. A rolling cache can reuse old storage slots as tokens leave that neighborhood. These are the original model’s settings, not a promise that every later Mistral checkpoint uses the same attention pattern. <a href=\"#source-paper\">[3]</a></p><p>The small diagram uses 16 positions and a four-position window. Choose a query near the end, then compare full and local attention. Full attention keeps adding visible predecessors. Local attention moves a fixed-size group across the sequence. The missing cells represent work that this layer does not perform.</p><p>Local access does not mean earlier information vanishes immediately from the whole network. A recent token’s representation may already contain information gathered at a previous layer. Picture a relay: one person carries a message to the next. Repeated short hops permit a longer path, although details may be lost along it.</p>",
+      "figure": {
+        "kind": "attention",
+        "title": "Watch the neighborhood move",
+        "caption": "Simplified single-layer causal mask. Four positions stand in for the release’s much larger window. The generic hybrid preset is only a teaching pattern, not Mistral v0.1’s architecture.",
+        "takeaway": "Direct access is local; information can also travel indirectly through successive layers.",
+        "config": {
+          "tokens": 16,
+          "window": 4,
+          "mode": "local"
+        }
+      }
+    },
+    {
+      "id": "combine",
+      "title": "Savings multiply, while quality still needs testing",
+      "html": "<p>Consider an invented workload with 32,768 retained positions before any eviction. A window of 4,096 would reduce retained positions eightfold. Eight KV heads instead of 32 reduce head storage fourfold. In this ideal cache arithmetic, applying both gives 8 × 4 = 32 times fewer stored elements than full-history, fully separate KV heads. This is a calculation about the cache, not a measured speedup or total GPU-memory reduction.</p><p>The two controls remove different redundancy: GQA shares representations across heads; the window bounds access across time. Sparse attention patterns predate Mistral, as the Sparse Transformer work illustrates. Mistral’s contribution here is a practical combination, rather than the invention of locality. <a href=\"#source-sparse\">[4]</a></p><p>A useful evaluation must ask whether the model can retrieve the particular information a task needs. A theoretical path through many layers is weaker evidence than a correct answer about a distant detail. The original paper’s benchmark results describe its evaluation setup; they do not turn the cache calculation into a guarantee of accuracy.</p>"
+    },
+    {
+      "id": "release",
+      "title": "What became easier to build",
+      "html": "<p>The September release made both base and instruction-tuned weights available under Apache 2.0. That gave developers a model they could inspect, adapt and host, with the release’s licensing conditions. The attention changes helped make serving a smaller model an architectural subject rather than merely a question of buying more memory. <a href=\"#source-release\">[1]</a></p><p>When comparing a new model, carry three separate numbers forward: weight storage, per-conversation cache storage, and work per generated token. A change can improve one while leaving another almost untouched. Those distinctions become even more important in Mixtral and DeepSeek, where parameter sparsity and cache compression take different paths.</p>"
+    }
+  ],
+  "caveats": [
+    "All widgets are teaching calculations, not benchmarks.",
+    "The GQA widget intentionally omits v0.1 sliding-window eviction so head sharing can be inspected independently.",
+    "Reachability through stacked local layers does not guarantee long-range retrieval quality."
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Mistral: Mistral 7B release",
+      "url": "https://mistral.ai/news/announcing-mistral-7b/",
+      "detail": "September 27 release, public weights and Apache 2.0."
+    },
+    {
+      "id": "gqa",
+      "title": "GQA: Training Generalized Multi-Query Transformer Models",
+      "url": "https://arxiv.org/abs/2305.13245",
+      "detail": "GQA mechanism and its position between MHA and MQA."
+    },
+    {
+      "id": "paper",
+      "title": "Mistral 7B technical report",
+      "url": "https://arxiv.org/html/2310.06825v1",
+      "detail": "Section 2, Table 1, sliding windows and rolling buffer cache."
+    },
+    {
+      "id": "sparse",
+      "title": "Generating Long Sequences with Sparse Transformers",
+      "url": "https://arxiv.org/abs/1904.10509",
+      "detail": "Prior sparse-attention work; establishes that attention locality predates this release."
+    }
+  ],
+  "related": [
+    "2023-12-08-mixtral-8x7b",
+    "2024-05-06-deepseek-v2"
+  ]
+}

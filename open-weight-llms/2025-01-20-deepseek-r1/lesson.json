@@ -1,0 +1,120 @@
+{
+  "slug": "2025-01-20-deepseek-r1",
+  "model": "DeepSeek-R1",
+  "family": "DeepSeek",
+  "date": "2025-01-20",
+  "dateNote": "Public R1, R1-Zero and distilled checkpoint release on January 20, 2025; the first paper version followed on January 22.",
+  "subtitle": "Reward successful attempts, then teach a smaller model to imitate them",
+  "summary": "Group-relative reinforcement learning turns verifiable outcomes into a training signal for extended reasoning.",
+  "category": "Reasoning",
+  "readingMinutes": 9,
+  "parameters": "671B total · 37B active; smaller distilled companions",
+  "license": "MIT for R1; distilled models also retain base-model license obligations",
+  "lead": "<p>A worked solution is easy to imitate when someone has already written it. A different training route lets a model attempt a problem, checks the result, and adjusts the probability of producing similar attempts. DeepSeek-R1 made this route tangible through public reasoning-model weights and smaller distilled companions. <a href=\"#source-release\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "check",
+      "title": "A checker can be cheaper than a teacher",
+      "html": "<p>Take the equation 3x + 5 = 20. A checker can verify x = 5 by substitution without supplying every intermediate sentence of a solution. In a coding task, tests can check whether a generated function returns the required outputs. Neither checker automatically knows whether the accompanying prose explains the true reason for success.</p><p>This creates a useful learning setup: sample several attempts and reward their outcomes. The R1-Zero experiment used accuracy and formatting rewards, starting reinforcement learning from a pretrained base model without an initial supervised reasoning fine-tune. “Without supervised fine-tuning” does not mean without pretraining, task prompts or designed rewards. <a href=\"#source-paper\">[2]</a></p><p>Checking also has limits. A weak test suite can reward a program that fails on untested inputs. A parser can misread an answer. The learner optimizes the implemented feedback, so the reliability and coverage of the checker become part of the training problem.</p>"
+    },
+    {
+      "id": "relative",
+      "title": "Compare attempts at the same problem",
+      "html": "<p><strong>Group Relative Policy Optimization</strong>, or GRPO, was introduced in DeepSeekMath before R1. It uses the rewards from a group of responses to estimate a baseline, avoiding a separate learned value model of the kind used in many PPO systems. The central teaching signal is how an attempt scores relative to its peers. <a href=\"#source-math\">[3]</a></p><p>Suppose four attempts receive rewards [0, 0, 1, 1]. Their mean is 0.5, and their population standard deviation is 0.5. Subtracting the mean and dividing by that deviation produces advantages [−1, −1, +1, +1]. Successful attempts receive a positive relative signal; failures receive a negative one.</p><p>Now select “all equal.” The widget shows zero advantage because there is no within-group distinction to learn from. A production implementation must handle the zero-variance case numerically, and other objective terms may still act. The diagram isolates this one piece of the update.</p>",
+      "figure": {
+        "kind": "grpo",
+        "title": "A reward becomes meaningful relative to alternatives",
+        "caption": "Simplified pedagogical GRPO signal using population standard deviation. It omits clipping, KL regularization, token-level loss and release-specific training details.",
+        "takeaway": "A group supplies both examples and a baseline; identical rewards provide no relative ranking.",
+        "config": {
+          "rewards": [
+            0,
+            0,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "update",
+      "title": "A reward changes probabilities, not a line of code",
+      "html": "<p>The model is a probability distribution over continuations. A positive advantage encourages the sampled continuation; a negative one discourages it. The complete GRPO objective also restricts how abruptly the policy changes and penalizes drifting from a reference distribution. These stabilizers are absent from the arithmetic widget. <a href=\"#source-math\">[3]</a></p><p>For an invented probability example, imagine one useful solution currently has probability 0.02. Training can make similar successful paths more likely across future samples. It does not copy a symbolic rule called “always check substitution” into a designated memory cell. Useful checking behavior must emerge in the learned distribution.</p><p>Longer reasoning can provide more opportunities to test an idea, notice a contradiction, or revise an approach. It also consumes generated tokens and can contain unsupported steps. More text alone is neither a proof of correctness nor evidence that the text faithfully reveals every internal computation.</p>"
+    },
+    {
+      "id": "pipeline",
+      "title": "R1 adds a curriculum around reinforcement learning",
+      "html": "<p>R1-Zero and R1 are distinct experiments. The final R1 recipe adds readable cold-start examples, reasoning-focused RL, a rejection-sampled supervised stage, and broader RL. The paper reports that this addresses problems such as poor readability and mixed languages seen in R1-Zero. <a href=\"#source-paper\">[2]</a></p><p>The flow makes the feedback loop explicit. Successful sampled solutions become teaching material after filtering; the model then undergoes further training. Supervised learning and reinforcement learning can therefore support one another. It is misleading to summarize the final R1 checkpoint as trained by reinforcement learning alone.</p><p>Imagine a student first learning how to write a solution clearly, then practicing with a checker, then studying a curated collection of successful attempts. The analogy captures the different feedback types. It does not imply the model has a human student’s understanding, intentions or private experience.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "The released R1 recipe has several stages",
+        "caption": "Simplified R1 post-training pipeline. R1-Zero is a separate pure-RL post-training experiment from a pretrained base.",
+        "takeaway": "The final checkpoint combines examples, outcome feedback and further alignment.",
+        "config": {
+          "steps": [
+            {
+              "label": "V3-Base",
+              "detail": "Pretrained language model"
+            },
+            {
+              "label": "Cold start",
+              "detail": "Readable reasoning examples"
+            },
+            {
+              "label": "Reasoning RL",
+              "detail": "Outcome feedback"
+            },
+            {
+              "label": "Curate + SFT",
+              "detail": "Selected reasoning and general data"
+            },
+            {
+              "label": "Broader RL",
+              "detail": "Reasoning and helpful behavior"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "distill",
+      "title": "A smaller model can learn from generated solutions",
+      "html": "<p>The accompanying distilled models fine-tune existing Qwen and Llama checkpoints using R1-curated examples. They are separate architectures trained on generated sequences, not smaller files produced by compressing the original MoE weights. The repository documents 800,000 curated samples and the base-model license differences. <a href=\"#source-repo\">[4]</a></p><p>Sequence imitation transfers patterns in the teacher’s written solutions. It does not require the student to copy the teacher’s internal attention states or receive its full next-token probability distribution. This distinction matters because “distillation” is a family of methods, not one universal algorithm.</p><p>R1’s release made both the large model and compact descendants available for experimentation. To compare them fairly, track the student’s base model, training data, sampling settings and reasoning-token budget. A shared family name does not make those variables equivalent.</p>"
+    }
+  ],
+  "caveats": [
+    "R1-Zero starts from a pretrained base; final R1 additionally uses supervised stages.",
+    "The GRPO widget demonstrates relative advantage only, not the complete optimization objective.",
+    "Distilled checkpoints inherit obligations from their Qwen or Llama base licenses."
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Official DeepSeek-R1 release",
+      "url": "https://api-docs.deepseek.com/news/news250120/",
+      "detail": "January 20 release and downloadable original and distilled models."
+    },
+    {
+      "id": "paper",
+      "title": "DeepSeek-R1 technical report",
+      "url": "https://arxiv.org/html/2501.12948v1",
+      "detail": "Sections 2.2–2.4: R1-Zero rewards, cold start and staged final recipe."
+    },
+    {
+      "id": "math",
+      "title": "DeepSeekMath technical report",
+      "url": "https://arxiv.org/html/2402.03300v1",
+      "detail": "Section 4.1: GRPO origin, group baseline, clipping and KL terms."
+    },
+    {
+      "id": "repo",
+      "title": "Official DeepSeek-R1 repository",
+      "url": "https://github.com/deepseek-ai/DeepSeek-R1",
+      "detail": "Distillation dataset, downloadable checkpoints and license inheritance."
+    }
+  ],
+  "related": [
+    "2024-12-26-deepseek-v3",
+    "2025-09-29-deepseek-v3-2"
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "slug": "2025-07-28-glm-4-5",
+  "model": "GLM-4.5",
+  "family": "GLM",
+  "date": "2025-07-28",
+  "dateNote": "Public weight release July 28, 2025; report submitted August 8.",
+  "subtitle": "How a curriculum keeps reinforcement learning informative",
+  "summary": "GLM-4.5 joins repository-scale training, tool use, and reasoning with a difficulty-aware learning curriculum.",
+  "category": "Training",
+  "readingMinutes": 8,
+  "parameters": "355B total · 32B active; Air 106B · 12B",
+  "license": "MIT model weights",
+  "lead": "<p>A learner improves when its attempts reveal what to change. Exercises that always succeed or always fail can provide little relative feedback. GLM-4.5 makes this curriculum problem explicit while combining reasoning, coding and tool use in one sparse model.</p>",
+  "sections": [
+    {
+      "id": "context",
+      "title": "Learn relationships that cross file boundaries",
+      "html": "<p>Software engineering requires more than completing a function. A test imports a module; a module depends on a configuration; a change in one interface may break several callers. Training on isolated snippets does not directly expose that entire relationship.</p><p>The GLM-4.5 report describes mid-training on related repository files and linked issues, pull requests and commits. It extends training contexts as these examples grow. Here mid-training means domain-focused training between broad pretraining and the final behavior-shaping stages, not a distinct neural-network component.</p> <a href=\"#source-paper\">[1]</a><p>As a teaching example, place a function definition, its caller and a failing test together. The test expects a sorted result, while the implementation preserves input order. Seeing all three permits a reasoned repair. Seeing only the implementation may reward a completion that remains syntactically valid but fails the intended contract.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Expose relationships before teaching actions",
+        "caption": "Simplified GLM-4.5 training progression; individual stages contain additional data and optimization choices.",
+        "takeaway": "Longer training examples can reveal dependencies that snippets omit.",
+        "config": {
+          "steps": [
+            {
+              "label": "General pretraining",
+              "detail": "Broad language and code"
+            },
+            {
+              "label": "Mid-training",
+              "detail": "Related files and longer examples"
+            },
+            {
+              "label": "Supervised examples",
+              "detail": "Reasoning and tool trajectories"
+            },
+            {
+              "label": "Reinforcement learning",
+              "detail": "Feedback on sampled attempts"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "reward",
+      "title": "A group needs differences to supply a relative signal",
+      "html": "<p>In group-relative reinforcement learning, several attempts at the same prompt are scored and compared. In our teaching version, subtract the group mean from each reward and divide by the population standard deviation. Positive values mark above-average attempts; negative values mark below-average attempts. This is an illustrative signal calculation, not the complete GLM training objective.</p><p>For rewards 0, 0, 1, 1, the mean is 0.5 and the standard deviation is 0.5. The normalized values are −1, −1, +1, +1. If every reward is 1, all attempts are equally successful and the differences vanish. If every reward is 0, the group also supplies no ranking.</p><p>GLM-4.5’s report identifies this problem and uses a difficulty-based curriculum: tasks should remain challenging but learnable as the policy improves. Its experiments support this training choice; the widget isolates the underlying arithmetic.</p> <a href=\"#source-paper\">[1]</a>",
+      "figure": {
+        "kind": "grpo",
+        "title": "When relative feedback disappears",
+        "caption": "Pedagogical GRPO-style signal. Omits clipping, KL regularization, token-level loss and the release’s training implementation.",
+        "takeaway": "Perfect success and complete failure can both erase within-group comparison.",
+        "config": {
+          "rewards": [
+            0,
+            0,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "curriculum",
+      "title": "Difficulty belongs to the learner, not just the question",
+      "html": "<p>An exercise is not permanently easy or hard. Suppose a learner succeeds on one out of four sampled attempts. A successful trace exists, so the group can favor it. Later the same learner succeeds four times out of four. The task may remain useful for evaluation, but it offers less information for this relative learning signal.</p><p>Conversely, a task that nobody can solve is not automatically a good teaching example. Increasing difficulty beyond the learner’s reach can spend a large sampling budget without discovering any positive trajectory. A curriculum must distinguish a rare attainable success from an impossible or incorrectly specified target.</p><p>The widget’s presets let you compare these regimes directly. The all-equal case uses zero advantages rather than dividing by zero. Real training also uses other losses and safeguards, so zero signal in this particular component does not mean that every part of an optimizer is inactive.</p>"
+    },
+    {
+      "id": "integration",
+      "title": "Reasoning and tool use share the same checkpoint",
+      "html": "<p>GLM-4.5 and GLM-4.5-Air are released as hybrid reasoning models with thinking and direct-answer modes. The flagship has about 355 billion total parameters with 32 billion active; Air has 106 billion with 12 billion active. Base and post-trained variants are available under MIT model-weight terms.</p> <a href=\"#source-card\">[2]</a><p>The release’s contribution is the integrated training recipe and working open checkpoints. Sparse experts, grouped-query attention and reinforcement learning each have prior histories. The useful question is how their combination supports complete task trajectories.</p><p>Later GLM-4.7 work added preserved reasoning across turns and turn-level thinking control. That is a later interaction policy, not a feature to silently attribute to every GLM-4.5 runtime.</p> <a href=\"#source-repo\">[3]</a><p>An evaluation should inspect the entire task: was the correct file changed, did the tests run, and did the observed result support the final claim? A fluent explanation of a repair is weaker evidence than a repair tested against the intended behavior.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "paper",
+      "title": "GLM-4.5 technical report",
+      "url": "https://arxiv.org/html/2508.06471v1",
+      "detail": "Sections 2.3 and 3.2; repository-scale mid-training and difficulty-based curriculum."
+    },
+    {
+      "id": "card",
+      "title": "GLM-4.5 official model card",
+      "url": "https://huggingface.co/zai-org/GLM-4.5",
+      "detail": "Release sizes, hybrid reasoning and MIT weights."
+    },
+    {
+      "id": "repo",
+      "title": "GLM family official repository",
+      "url": "https://github.com/zai-org/GLM-4.5",
+      "detail": "Version-separated GLM-4.5 and GLM-4.7 capabilities, including preserved thinking."
+    }
+  ],
+  "caveats": [
+    "The reward widget is a group-relative teaching calculation, not an implementation of GLM-4.5’s complete optimizer.",
+    "Parameter accounting follows the release; compare counting conventions before comparing families."
+  ],
+  "related": [
+    "2026-02-11-glm-5"
+  ]
+}

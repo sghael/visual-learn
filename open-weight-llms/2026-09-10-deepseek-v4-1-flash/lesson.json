@@ -1,0 +1,114 @@
+{
+  "slug": "2026-09-10-deepseek-v4-1-flash",
+  "model": "DeepSeek-V4.1-Flash",
+  "family": "DeepSeek",
+  "date": "2026-09-10",
+  "dateNote": "Official public release and Hugging Face weight link on September 10, 2026. The technical report was submitted September 17. Verified before the October 3, 2026 research cutoff.",
+  "subtitle": "Share cached history across layers and do less work when reading input",
+  "summary": "A causal encoder–decoder and cross-layer cache reuse reduce distinct costs of input-heavy agent workloads.",
+  "category": "Memory",
+  "readingMinutes": 10,
+  "parameters": "552B backbone · 8B active prefill / 16B active decode",
+  "license": "MIT",
+  "lead": "<p>An assistant may read thousands of tokens from a tool before writing a short next action. In that workload, reading and storing input can dominate writing the answer. DeepSeek-V4.1-Flash reorganizes those costs with a causal encoder–decoder, reused attention caches and lower-precision cached values. The release also accepts images natively. <a href=\"#source-release\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "phases",
+      "title": "Reading the prompt and writing a reply are different jobs",
+      "html": "<p><strong>Prefill</strong> processes tokens already present in the input and prepares state for generation. <strong>Decode</strong> produces new tokens one after another. In an agent loop, a long tool result creates new prefill work even when the next generated instruction is short.</p><p>Consider an invented workflow that receives 10,000 input tokens and writes 100 output tokens each round. Reducing work per input token affects many more token-processing events than reducing work per output token. That does not predict total latency: prefill and decode have different parallelism and hardware constraints. It identifies where measurement should begin.</p><p>The V4.1 launch describes an asymmetric allocation: 8B active parameters during prefill versus 16B during decode. These are computational participation counts, not the storage size of the 552B-parameter backbone. <a href=\"#source-release\">[1]</a></p>"
+    },
+    {
+      "id": "ced",
+      "title": "Construct decoder memory from the encoder’s output",
+      "html": "<p>The model card describes 40 layers divided into a 20-layer causal encoder and 20-layer decoder. Decoder global KV entries are projected from the encoder’s final hidden states, rather than requiring full decoder processing of every old prompt token. Local sliding-window state still requires additional computation. <a href=\"#source-card\">[2]</a></p><p>In a teaching analogy, a research team prepares a structured dossier once, then several readers consult derived views of it. The dossier-building work must preserve what those readers will later need. Here the representations and projections are learned, and the encoder remains causal: it cannot use future positions when processing an earlier one.</p><p>This arrangement lets most long-prompt tokens bypass the full decoder path. Generated tokens still traverse the processing needed to produce the next answer. It therefore changes the balance between input and output work instead of making every token uniformly cheaper.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Separate prompt preparation from full generation",
+        "caption": "Simplified causal encoder–decoder flow. Layer-local sliding-window work and bounded replay remain outside this abbreviated global-cache path.",
+        "takeaway": "The model can prepare decoder history from encoder states without fully decoding every prompt token.",
+        "config": {
+          "steps": [
+            {
+              "label": "Known input",
+              "detail": "Prompt and tool results"
+            },
+            {
+              "label": "Causal encoder",
+              "detail": "Build contextual representations"
+            },
+            {
+              "label": "Project global KV",
+              "detail": "Prepare decoder memory"
+            },
+            {
+              "label": "Decoder + local state",
+              "detail": "Process required recent detail"
+            },
+            {
+              "label": "Generate next token",
+              "detail": "Full decoding path"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "reuse",
+      "title": "A third compression axis runs through depth",
+      "html": "<p>V4 compressed across sequence positions. V4.1’s <strong>Compressed Sparse Attention 2</strong>, or CSA2, also shares global KV entries across layers. Its Full mode computes cache and selections; Reindex mode shares cache but makes fresh selections; Reuse mode shares both. Every layer retains its own query and local-window state. <a href=\"#source-paper\">[3]</a></p><p>Use the widget to inspect a deliberately uniform toy cache. Sixteen layers each storing 4,096 entries of width 128 at eight bits need 8,388,608 bytes. If each group of four layers shares one copy, the modeled global cache falls to 2,097,152 bytes. The calculation assumes exact uniform sharing; actual layer assignments and side channels differ.</p><p>Sharing selected indices saves search work. Sharing KV entries saves stored data. They are separate decisions: a layer can reuse the same records yet ask a fresh question about which records matter. That is why the model distinguishes Reindex from Reuse.</p>",
+      "figure": {
+        "kind": "cache",
+        "title": "Share across layers; reduce bits per cached number",
+        "caption": "Simplified uniform global-cache accounting. It omits local KV, indexer keys, scales, tail states, nonuniform sharing and allocator overhead; it is not a V4.1 memory estimator.",
+        "takeaway": "Depth sharing and bit width multiply their effects because they reduce different factors.",
+        "config": {
+          "tokens": 4096,
+          "layers": 16,
+          "width": 128,
+          "sharedLayers": 4,
+          "bits": 8
+        }
+      }
+    },
+    {
+      "id": "storage",
+      "title": "Keep persistent memory distinct from working memory",
+      "html": "<p>The release distinguishes memory resident in accelerator HBM from persistent cache stored in host memory or on SSD. Its reported improvements compare those separate footprints against V4-Flash. Combining the two into one undifferentiated “memory saved” number would erase an important systems distinction. <a href=\"#source-release\">[1]</a></p><p>CSA2 works with FP4 main KV caching. The model also uses <strong>bounded replay</strong>: when local-window state is missing, it recomputes a recent segment instead of storing every such state persistently. This reconstruction is approximate, not mathematically identical to replaying all layer dependencies. <a href=\"#source-paper\">[3]</a></p><p>An invented bookkeeping example shows the trade. Saving one gigabyte of reusable global state may let a server avoid rereading a long document. Saving additional local state could further reduce recomputation but consume more persistent storage. Recomputing a short recent segment spends arithmetic to save storage and transfer bandwidth. Whether that wins depends on reuse patterns.</p>"
+    },
+    {
+      "id": "limits",
+      "title": "Several mechanisms contribute to the release",
+      "html": "<p>The model card also documents a vision encoder and projector, Engram conditional memory accessed through token-based lookup, revised residual mixing, and DSpark speculative decoding. These are separate components: image input, sparse memory lookup, stream mixing and generation drafting should not be attributed to cache sharing alone. <a href=\"#source-card\">[2]</a></p><p>The lesson’s cache formula is entries × width × stored layer copies × bits per number. It provides a checklist for understanding what an optimization changes. It deliberately excludes model-weight storage, because a smaller conversation cache does not make hundreds of billions of parameters vanish.</p><p>For a workload with many long tool results, input processing and cache persistence can matter enormously. For a short question with a long generated answer, decoding may dominate instead. The same model can occupy different operating regimes, so performance claims need the workload, cache-hit assumptions and numerical precision beside them.</p>"
+    }
+  ],
+  "caveats": [
+    "The cache widget uses invented uniform dimensions and cannot estimate the release’s complete runtime memory.",
+    "Bounded replay approximately reconstructs local state; it is not exact full-history recomputation.",
+    "Prefill/decode active counts do not equal total weight-storage requirements."
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Official DeepSeek-V4.1-Flash release",
+      "url": "https://deepseek.com/en/news/deepseek-v4-1-flash/",
+      "detail": "September 10 release, open-weight link, active parameter counts and separate HBM/SSD comparisons."
+    },
+    {
+      "id": "card",
+      "title": "Official DeepSeek-V4.1-Flash model card",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash",
+      "detail": "Causal encoder–decoder layout, multimodal input, additional components and MIT license."
+    },
+    {
+      "id": "paper",
+      "title": "DeepSeek-V4.1-Flash technical report",
+      "url": "https://arxiv.org/html/2609.19969v1",
+      "detail": "Sections 2.2–2.4 and 3.2: CSA2 modes, FP4 main KV and approximate bounded replay."
+    }
+  ],
+  "related": [
+    "2024-05-06-deepseek-v2",
+    "2025-09-29-deepseek-v3-2",
+    "2026-04-24-deepseek-v4"
+  ]
+}

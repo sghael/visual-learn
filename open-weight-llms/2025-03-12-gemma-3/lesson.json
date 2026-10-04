@@ -1,0 +1,122 @@
+{
+  "slug": "2025-03-12-gemma-3",
+  "model": "Gemma 3 · 1B, 4B, 12B, 27B",
+  "family": "Gemma",
+  "date": "2025-03-12",
+  "dateNote": "Public Gemma 3 weight release March 12, 2025; this lesson distinguishes the 1B and larger variants.",
+  "subtitle": "How mostly local attention makes room for images and long inputs",
+  "summary": "Gemma 3 uses many short-window attention layers and fewer global layers, alongside an image encoder, to control inference memory.",
+  "category": "Memory",
+  "readingMinutes": 8,
+  "parameters": "1B text-only · 4B, 12B, 27B image/text",
+  "license": "Gemma Terms of Use; custom terms and use restrictions",
+  "lead": "<p>Extending a conversation can consume memory even when a model’s weights never change. Adding images introduces another source of input representations. Gemma 3 makes these costs concrete by treating local attention, global attention and visual encoding as separate design decisions.</p>",
+  "sections": [
+    {
+      "id": "budget",
+      "title": "A model’s memory bill has more than one line",
+      "html": "<p>Gemma 3 launched on March 12, 2025. Google offered 1B, 4B, 12B and 27B versions. The 1B checkpoint is text-only with a shorter context allowance; the 4B, 12B and 27B models support image/text input and a 128K-token context. The distinction between variants matters when interpreting the family announcement. <a href=\"#source-card\">[1]</a></p><p>Think of a deployment’s memory budget as several boxes: stored weights, cached conversation, temporary activations, and runtime overhead. Reducing one box does not eliminate the others. A model with modest weights can still need a large cache when many users send long conversations.</p><p>An attention layer stores keys and values for earlier tokens so that each new token can consult them. If every layer retains the entire history, adding one more token enlarges many caches at once. The design question is whether every layer needs direct access to the entire history.</p>"
+    },
+    {
+      "id": "local",
+      "title": "Use a small neighborhood most of the time",
+      "html": "<p>Gemma 3’s report describes five local attention layers for each global layer, with a 1,024-token local window. Gemma 2 had alternated one local with one global layer. Only global layers need to attend directly across the long context. This is an evolution of an existing local/global design. <a href=\"#source-paper\">[2]</a></p><p>The figure shows a single layer’s allowed connections, not the whole network. Move the query position to the right. In local mode, old positions leave the visible neighborhood. In full mode, they remain eligible. Compare these two views when thinking about Gemma’s alternating layer types; the generic hybrid option is not its architecture.</p><p>For an illustrative six-layer model and a 16,384-token input, six global layers retain six full histories. Replacing five with 1,024-token windows changes the token-position budget from 98,304 to 21,504. This arithmetic ignores differing head sizes, sharing and runtime policy. It isolates why the slope becomes smaller.</p>",
+      "figure": {
+        "kind": "attention",
+        "title": "Which past positions can this layer see?",
+        "caption": "Simplified 16-token mask; local/full represent individual layer types. Hybrid is a generic toy and is not Gemma 3’s five-local/one-global layer schedule.",
+        "takeaway": "Fewer global layers mean fewer places storing the entire growing history.",
+        "config": {
+          "tokens": 16,
+          "window": 4,
+          "mode": "local"
+        }
+      }
+    },
+    {
+      "id": "global",
+      "title": "A local layer can still receive distant information",
+      "html": "<p>Imagine the first paragraph defines “the blue plan”, while the final paragraph asks which plan satisfies a budget. A global layer can bring distant information into the current representation. Later local layers can work with that representation without rereading the original distant token directly. This is a conceptual path, not proof of successful retrieval.</p><p>Capacity and use are separate. A large supported context gives the model an opportunity to use a distant passage. It does not certify that the passage dominates an answer, that contradictions are resolved, or that retrieval is equally reliable at every position.</p><p>The technical report evaluates its architectural choices with ablations: change the local/global ratio or the window, then measure validation behavior and memory. That experimental separation is more informative than attributing every improvement to a single architectural feature. <a href=\"#source-paper\">[2]</a></p>"
+    },
+    {
+      "id": "image",
+      "title": "An image needs an information-preserving route",
+      "html": "<p>SigLIP learns image and text representations using a pairwise matching objective. Its purpose as a vision encoder is to convert visual patterns into useful vectors. It is not an optical-character-recognition guarantee or a complete reasoning system on its own. <a href=\"#source-siglip\">[3]</a></p><p>Gemma 3 uses a tailored SigLIP encoder and compresses each encoded image view to 256 soft tokens. Pan-and-scan processing can create additional crops to preserve details that would disappear when a large or wide image is resized. More crops can improve the opportunity to read small details while adding visual input work. <a href=\"#source-paper\">[2]</a></p><p>Picture a wide restaurant menu. Shrinking the whole page into a small square may make the section headings readable while destroying prices. Processing local crops gives those prices more pixels. The language model still has to associate each price with the correct item. Perception and reasoning are consecutive opportunities for error.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Preserve detail before asking a question",
+        "caption": "Simplified Gemma 3 image path; crop choice and view counts vary. The diagram does not imply one fixed token total per original image.",
+        "takeaway": "Useful visual reasoning first requires useful visual evidence.",
+        "config": {
+          "steps": [
+            {
+              "label": "Image",
+              "detail": "Full scene and fine print"
+            },
+            {
+              "label": "Views",
+              "detail": "Overview and optional crops"
+            },
+            {
+              "label": "SigLIP",
+              "detail": "Visual representations"
+            },
+            {
+              "label": "Soft tokens",
+              "detail": "Vectors enter the language model"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "weights",
+      "title": "Lower precision addresses a different memory box",
+      "html": "<p>Google’s launch also highlighted quantized variants. <strong>Quantization</strong> represents stored numbers with fewer bits. It can reduce weight storage, but it does not automatically solve long-context caching or preserve quality in every setting. <a href=\"#source-release\">[4]</a></p><p>The storage widget takes a hypothetical 12-billion-weight array. At sixteen bits per number, its ideal storage is 24 decimal GB; at four bits it is 6 GB. That is arithmetic on weights only. Scales, mixed-precision tensors, visual components and working memory can make an actual checkpoint and runtime larger.</p><p>Use the two interactive figures together. One changes which past representations a layer retains; the other changes how many bits store a weight. They act on different parts of the memory bill, so their benefits can coexist without being interchangeable.</p>",
+      "figure": {
+        "kind": "precision",
+        "title": "Weight precision is a separate knob",
+        "caption": "Illustrative ideal storage for twelve billion weights, not an actual Gemma 3 checkpoint footprint. Excludes scales, mixed precision, KV cache, visual components, activations and accuracy effects.",
+        "takeaway": "Fewer bits shrink weights; attention design controls another source of memory.",
+        "config": {
+          "billions": 12
+        }
+      }
+    }
+  ],
+  "sources": [
+    {
+      "id": "card",
+      "title": "Google’s Gemma 3 model card",
+      "url": "https://huggingface.co/google/gemma-3-4b-it",
+      "detail": "Model variants, modalities, context limits, weights and license."
+    },
+    {
+      "id": "paper",
+      "title": "Gemma 3 Technical Report",
+      "url": "https://arxiv.org/html/2503.19786v1",
+      "detail": "Sections 2, 2.1 and 5.2–5.3: 5:1 attention, 1,024-token windows, soft visual tokens and crop handling."
+    },
+    {
+      "id": "siglip",
+      "title": "Sigmoid Loss for Language Image Pre-Training",
+      "url": "https://arxiv.org/html/2303.15343v1",
+      "detail": "Sections 2–3: pairwise image/text objective and image representation learning."
+    },
+    {
+      "id": "release",
+      "title": "Introducing Gemma 3",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-3/",
+      "detail": "March 12 release, supported family and quantized deployment options."
+    }
+  ],
+  "caveats": [
+    "1B is text-only and does not share the larger models’ full context and image feature set.",
+    "Neither toy represents measured Gemma throughput or device fit.",
+    "A nominal context limit does not guarantee reliable retrieval."
+  ],
+  "related": [
+    "2024-06-27-gemma-2",
+    "2026-04-02-gemma-4"
+  ]
+}

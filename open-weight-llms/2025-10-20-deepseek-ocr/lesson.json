@@ -1,0 +1,137 @@
+{
+  "slug": "2025-10-20-deepseek-ocr",
+  "model": "DeepSeek-OCR",
+  "family": "DeepSeek",
+  "date": "2025-10-20",
+  "dateNote": "The official repository records the public model and weight release on October 20, 2025; the arXiv paper appeared October 21.",
+  "subtitle": "Can a page stand in for a long string of tokens?",
+  "summary": "A visual encoder compresses a page into a shorter sequence from which a language decoder reconstructs its text.",
+  "category": "Multimodal",
+  "readingMinutes": 8,
+  "parameters": "~380M vision encoder · 3B MoE decoder / 570M active",
+  "license": "MIT",
+  "lead": "<p>A page of writing has two forms: a sequence of text tokens and an image containing letters arranged in space. DeepSeek-OCR explores whether the image can become a shorter sequence of learned representations while retaining readable text. The released weights make that optical-compression experiment inspectable. <a href=\"#source-release\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "representation",
+      "title": "Count positions before counting savings",
+      "html": "<p>Imagine a page whose transcription occupies 1,000 text tokens. An alternative system renders the page, encodes the image into 100 vision tokens, then supplies those vectors to a decoder. The input sequence would have ten times fewer positions. These numbers are an invented example, not a DeepSeek benchmark.</p><p>A vision token is a learned vector summarizing an image region or features. It is not one word, one character, or one byte. A single vector can carry evidence about several characters, but decoding it may make mistakes. The ratio 1,000/100 describes sequence length; it says nothing by itself about information loss, vector precision, or encoding cost.</p><p>The distinction matters because attention operates over positions. A shorter representation can reduce downstream work, while building that representation adds its own work. Reconstructing all 1,000 output tokens still requires generating those tokens.</p>",
+      "figure": {
+        "kind": "bars",
+        "title": "The same page, two hypothetical input lengths",
+        "caption": "Illustrative input-position counts for a hypothetical page. Text and vision positions encode different representations. This is neither a measured compression result nor a comparison of file sizes.",
+        "takeaway": "A shorter input sequence is a useful quantity, but it does not measure fidelity or total latency.",
+        "config": {
+          "unit": "input positions",
+          "bars": [
+            {
+              "label": "Text representation",
+              "value": 1000
+            },
+            {
+              "label": "Vision representation",
+              "value": 100
+            }
+          ],
+          "note": "Invented 10:1 example; output length and encoder work are excluded."
+        }
+      }
+    },
+    {
+      "id": "encoder",
+      "title": "Compress before the expensive global stage",
+      "html": "<p>DeepEncoder combines a SAM-based visual stage using window attention, a convolutional compression bridge, and a CLIP-based stage using global attention. The approximately 380M-parameter encoder feeds a 3B mixture-of-experts decoder with about 570M active parameters. The components are inherited; their arrangement is the contribution to study. <a href=\"#source-paper\">[2]</a></p><p>For a 1,024 × 1,024 image, 16-pixel patches initially yield 4,096 positions. The bridge reduces this count sixteenfold to 256 before global processing. Local perception therefore examines a richer grid than the later globally connected stage receives. <a href=\"#source-paper\">[2]</a></p><p>Picture reading a newspaper. First inspect nearby marks carefully enough to distinguish letters; then assemble those observations into the page’s larger structure. This analogy explains the order of operations. It does not imply that the network explicitly stores words or follows a human reading strategy.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Where the sequence gets shorter",
+        "caption": "Simplified DeepEncoder-to-decoder path. The bridge compresses the sequence before the global vision stage; the decoder emits text tokens.",
+        "takeaway": "The costly globally connected stage receives an already compressed visual sequence.",
+        "config": {
+          "steps": [
+            {
+              "label": "Page image",
+              "detail": "Pixels and layout"
+            },
+            {
+              "label": "Local vision",
+              "detail": "Window-based perception"
+            },
+            {
+              "label": "Compression",
+              "detail": "Convolutional bridge"
+            },
+            {
+              "label": "Global vision",
+              "detail": "Shorter sequence"
+            },
+            {
+              "label": "Text decoder",
+              "detail": "OCR reconstruction"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "resolution",
+      "title": "A resolution budget is a reading budget",
+      "html": "<p>Try enlarging the abstract patches below. Covering the same image with larger patches yields fewer positions. In the toy grid, reducing positions from 48 to 12 reduces a dense all-pairs attention matrix from 2,304 entries to 144: sixteen times fewer pairs. This is arithmetic about an attention matrix, not a full-model FLOP calculation.</p><p>Smaller writing makes the tradeoff concrete. If two nearly identical symbols occupy only a few pixels, removing spatial detail can erase the evidence distinguishing them. A language decoder might complete a plausible phrase despite reading a symbol incorrectly. Plausibility and faithful transcription are different tests.</p><p>The released model offers multiple resolution settings and a crop-based mode. Its card specifies 512-, 640-, 1,024-, and 1,280-pixel square modes. The widget is an abstract grid, not a reimplementation of those modes or DeepEncoder’s tokenizer. <a href=\"#source-card\">[3]</a></p>",
+      "figure": {
+        "kind": "patches",
+        "title": "Change the number of visual positions",
+        "caption": "Illustrative patch-count exercise on a 16 × 12 grid. The N² readout counts dense vision-attention pairs only; actual DeepEncoder uses local attention, a learned compression bridge, and a global stage.",
+        "takeaway": "Reducing spatial positions can sharply reduce pairwise work while making fine details harder to preserve.",
+        "config": {
+          "width": 16,
+          "height": 12,
+          "patch": 2
+        }
+      }
+    },
+    {
+      "id": "reconstruct",
+      "title": "Reading back is only the first test",
+      "html": "<p>The paper evaluates OCR reconstruction under visual compression. It explicitly leaves general long-context reasoning validation to further work. A system that can reproduce a paragraph has passed a different test from one that can combine facts distributed across many compressed pages. <a href=\"#source-paper\">[2]</a></p><p>An independent follow-up compared optical compression with alternative autoencoding approaches. In its experiments, successful reconstruction did not translate into better language modeling than truncation, while a hierarchical alternative did improve that task. This is evidence about that experimental setup, not a universal verdict on every future visual memory system. <a href=\"#source-followup\">[4]</a></p>"
+    },
+    {
+      "id": "interpret",
+      "title": "Ask what survived the bottleneck",
+      "html": "<p>A useful experiment would vary the same document’s font size, layout and visual-token budget, then separately score exact transcription and questions requiring distant evidence. Track errors in dates, negations and table alignment, not just whether the answer sounds fluent.</p><p>DeepSeek-OCR contributes a concrete architecture and open weights for studying this tradeoff. Its public examples include document-to-Markdown and free OCR prompts. Those are the appropriate starting points; broader claims about replacing a language model’s long-term memory require additional evidence. <a href=\"#source-card\">[3]</a></p><p>For example, keep every word in a two-column table correct but swap the row association between a name and an amount. Character accuracy can remain high while the answer to “how much did this person pay?” becomes wrong. Representation quality must therefore be measured against the task that will consume it, including layout-dependent relationships.</p>"
+    }
+  ],
+  "caveats": [
+    "The input-position bar chart is hypothetical, not a published quality or speed result.",
+    "The patch widget is an abstract counting exercise, not DeepEncoder tokenization.",
+    "OCR reconstruction does not establish general long-context reasoning performance."
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "DeepSeek-OCR official repository",
+      "url": "https://github.com/deepseek-ai/DeepSeek-OCR",
+      "detail": "Release news records October 20, 2025 public weights; usage and supported modes read."
+    },
+    {
+      "id": "paper",
+      "title": "DeepSeek-OCR: Contexts Optical Compression",
+      "url": "https://arxiv.org/html/2510.18234v1",
+      "detail": "DeepEncoder architecture, compression bridge, decoder, resolution modes, experiments and limitations read."
+    },
+    {
+      "id": "card",
+      "title": "DeepSeek-OCR public model card",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-OCR",
+      "detail": "MIT weights, image resolutions and OCR/document prompts."
+    },
+    {
+      "id": "followup",
+      "title": "Optical Context Compression Is Just (Bad) Autoencoding",
+      "url": "https://arxiv.org/html/2512.03643v1",
+      "detail": "Independent primary experiments separating reconstruction quality from downstream language-modeling utility; results are setup-specific."
+    }
+  ],
+  "related": [
+    "2024-05-06-deepseek-v2",
+    "2026-04-24-deepseek-v4"
+  ]
+}

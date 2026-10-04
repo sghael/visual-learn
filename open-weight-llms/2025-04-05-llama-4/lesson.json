@@ -1,0 +1,114 @@
+{
+  "slug": "2025-04-05-llama-4",
+  "model": "Llama 4 · Scout and Maverick",
+  "family": "Llama",
+  "date": "2025-04-05",
+  "dateNote": "Scout and Maverick weights became available April 5, 2025; Behemoth was only previewed.",
+  "subtitle": "How sparse experts and image tokens share one model",
+  "summary": "Llama 4 brought shared-and-routed experts plus joint image/text processing to Meta’s released model family.",
+  "category": "Sparse compute",
+  "readingMinutes": 8,
+  "parameters": "Scout 109B / 17B active · Maverick 400B / 17B active",
+  "license": "Llama 4 Community License; custom terms and use restrictions",
+  "lead": "<p>A model can hold many more weights than it uses for one token. It can also turn an image into vectors that participate in a text conversation. Llama 4 combines those ideas, making the difference between capacity, computation and input representation especially visible.</p>",
+  "sections": [
+    {
+      "id": "released",
+      "title": "Start with the weights that were released",
+      "html": "<p>Meta released Scout and Maverick on April 5, 2025. The model card lists Scout at 109B total and 17B active parameters, and Maverick at 400B total and 17B active. Their advertised context allowances are 10M and 1M tokens respectively. Both accept images and text and produce text. <a href=\"#source-card\">[1]</a></p><p>Behemoth appeared in the announcement as a teacher model still in training. This tutorial does not count it as public weights. Likewise, an experimental chat configuration’s leaderboard result is not automatically a result for the downloadable checkpoint. The useful object to study is a named release with a specific architecture and evaluation setup. <a href=\"#source-release\">[2]</a></p><p>First consider what a feedforward layer does. It transforms each token’s current vector into another vector. A dense layer applies the same transformation weights to every token. A mixture-of-experts layer has several alternative transformations and a learned router that chooses which ones to apply.</p>"
+    },
+    {
+      "id": "routing",
+      "title": "One specialist route plus a shared route",
+      "html": "<p>Maverick alternates dense and mixture-of-experts layers. In an MoE layer, each token goes to one of 128 routed experts and also to a shared expert. The shared computation happens for every token. This is Meta’s first released Llama generation using MoE, rather than the invention of sparse expert routing. <a href=\"#source-release\">[2]</a></p><p>The toy diagram reduces the expert count to eight so that every route is visible. Change the token example and watch the selected branch move. “Expert” means a learned mathematical transformation; it is not a separate chatbot, a human profession, or a guaranteed topic label. A router can distribute related tokens in ways that do not match an intuitive subject taxonomy.</p><p>The sparse-gating literature explains the basic separation: add representational capacity by adding experts, while limiting how many execute for one token. Training also needs to avoid sending almost everything to the same branch. That collapse would waste capacity and create uneven work. <a href=\"#source-moe\">[3]</a></p>",
+      "figure": {
+        "kind": "moe",
+        "title": "Follow one token through a sparse layer",
+        "caption": "Simplified eight-expert routing toy with one always-active shared expert. Maverick actually has 128 routed experts and selects one per token. Changing active count explores the general mechanism, not a runtime setting of Llama 4.",
+        "takeaway": "Sparse execution reduces selected work while all expert weights still exist.",
+        "config": {
+          "experts": 8,
+          "active": 1,
+          "shared": 1
+        }
+      }
+    },
+    {
+      "id": "cost",
+      "title": "Active parameters do not measure total memory",
+      "html": "<p>Imagine eight expert matrices, each holding one million numbers, and a shared matrix of the same size. Selecting one routed expert plus the shared matrix touches two million expert numbers for one token, but the collection still contains nine million numbers. Add attention and other layers and even this fraction no longer equals the fraction of the entire model that executes.</p><p>This explains why “17B active” does not mean “load the model as if it had 17B weights.” A deployment may distribute experts across devices, and different tokens in a batch may choose different experts. Moving activations between devices, balancing their load, and reading weights all affect speed. The toy’s selected fraction is not a wall-clock speedup.</p><p>The model card’s total/active distinction is therefore more informative than either number alone. Use total parameters when starting a weight-storage estimate; use active parameters only as one clue about computation. Then measure the actual batch, precision, hardware and context length. <a href=\"#source-card\">[1]</a></p>"
+    },
+    {
+      "id": "vision",
+      "title": "Images become vectors before language generation",
+      "html": "<p>Llama 4 uses an image encoder based on MetaCLIP and integrates image and text tokens through what Meta calls early fusion. The backbone is jointly trained with multimodal data. Early fusion here does not mean that raw pixels require no encoder; the announcement explicitly describes one. <a href=\"#source-release\">[2]</a></p><p>An image encoder converts visual input into learned numerical representations. MetaCLIP’s underlying research studies image-text training data and its curation. Such representations make visual information available to a model, but they are not literal text captions that perfectly preserve every pixel. <a href=\"#source-clip\">[4]</a></p><p>For a concrete example, a photograph contains a red cup beside a ruler. The prompt asks whether the cup is taller than ten centimeters. The model needs the visual relation between cup and ruler and the meaning of the question. Combining their representations permits attention between them. Correctly reading a tiny tick mark remains a perceptual challenge.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Bring visual information into the conversation",
+        "caption": "Simplified conceptual path for Llama 4 image/text input; omits image tiling, projections, layer details and training losses.",
+        "takeaway": "A shared token space permits interaction between visual evidence and language.",
+        "config": {
+          "steps": [
+            {
+              "label": "Image",
+              "detail": "Pixels from the scene"
+            },
+            {
+              "label": "Vision encoder",
+              "detail": "Learned visual vectors"
+            },
+            {
+              "label": "Joint backbone",
+              "detail": "Image vectors and text tokens"
+            },
+            {
+              "label": "Text output",
+              "detail": "An autoregressive answer"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "questions",
+      "title": "Measure each benefit on its own terms",
+      "html": "<p>Ask three separate questions about this design. Does sparse routing produce a useful model at the chosen training budget? Does the serving system execute its routes efficiently? Does multimodal training preserve the visual evidence needed for the task? A single leaderboard rank cannot settle all three.</p><p>A long context allowance adds another independent question: how well does the model use information across that span? The release is an architectural and product milestone for the Llama family. Its teaching value is the decomposition into mechanisms that can be inspected separately, then combined in a real system.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "card",
+      "title": "Meta’s Llama 4 model card",
+      "url": "https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+      "detail": "Model information table: Scout/Maverick totals, active parameters, context, modalities, release and license."
+    },
+    {
+      "id": "release",
+      "title": "The Llama 4 herd",
+      "url": "https://ai.meta.com/blog/llama-4-multimodal-intelligence/",
+      "detail": "April 5 announcement: routed/shared expert topology, early fusion, encoder and Behemoth release status."
+    },
+    {
+      "id": "moe",
+      "title": "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer",
+      "url": "https://arxiv.org/abs/1701.06538",
+      "detail": "Foundational sparse gating, conditional computation and load balancing; preceding work, not a Llama 4 invention."
+    },
+    {
+      "id": "clip",
+      "title": "Demystifying CLIP Data",
+      "url": "https://arxiv.org/html/2309.16671v1",
+      "detail": "MetaCLIP data curation and image/text representation learning; does not specify all Llama 4 encoder details."
+    }
+  ],
+  "caveats": [
+    "No Behemoth public-weight release is asserted.",
+    "The routing diagram is scaled down and does not name experts by topic.",
+    "No speedup follows directly from dividing total by active parameters.",
+    "The tutorial does not claim every supported-context token is used reliably."
+  ],
+  "related": [
+    "2024-07-23-llama-3-1",
+    "2023-12-08-mixtral-8x7b"
+  ]
+}

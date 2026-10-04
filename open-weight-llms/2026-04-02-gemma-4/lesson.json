@@ -1,0 +1,112 @@
+{
+  "slug": "2026-04-02-gemma-4",
+  "model": "Gemma 4 · E2B, E4B, 26B-A4B, 31B, later 12B",
+  "family": "Gemma",
+  "date": "2026-04-02",
+  "dateNote": "First Gemma 4 weights April 2, 2026. The 12B addition launched June 3; QAT checkpoints launched June 5. Research includes the July technical report.",
+  "subtitle": "How a family separates weight memory, token computation and sensory encoding",
+  "summary": "Gemma 4 combines sparse and dense models, compression-aware training, and a later encoder-free 12B variant under Apache 2.0.",
+  "category": "Multimodal",
+  "readingMinutes": 8,
+  "parameters": "E2B · E4B · 26B/3.8B active · 31B · later 12B",
+  "license": "Apache 2.0",
+  "lead": "<p>A model name with a “B” suffix no longer tells the whole resource story. Some parameters execute selectively, some embeddings can be managed separately, and some models add large sensory encoders. Gemma 4 is a useful exercise in reading those distinctions before comparing models.</p>",
+  "sections": [
+    {
+      "id": "family",
+      "title": "One family contains different architectures",
+      "html": "<p>Google released the first Gemma 4 weights on April 2, 2026 under Apache 2.0. The initial family included E2B, E4B, a 26B mixture-of-experts model and a 31B dense model. The encoder-free 12B model was a separate June 3 addition. Keeping those dates separate avoids projecting the later architecture back onto the initial release. <a href=\"#source-release\">[1]</a> <a href=\"#source-twelve\">[2]</a></p><p>The technical report calls the MoE model 26B-A4B and gives about 3.8B active parameters. E2B and E4B use per-layer embeddings inherited from Gemma 3n; their effective 2.3B/4.5B accounting differs from their roughly 5B/8B total parameters. “Effective,” “active,” and “total” describe different counting conventions. <a href=\"#source-paper\">[3]</a></p><p>Imagine two inventories. The first lists every stored number. The second lists numbers involved in one token’s computation. Sparse routing changes the second without deleting the first. An embedding table that is stored or accessed differently requires yet another explanation. Compare like with like before drawing a memory or speed conclusion.</p>"
+    },
+    {
+      "id": "unified",
+      "title": "The 12B addition removes separate sensory encoders",
+      "html": "<p>In a conventional encoder-based design, an image network transforms pixels before a language model sees their vectors. Gemma 4 12B instead uses lightweight projections of image patches and raw audio chunks into the language model’s embedding space. The June release describes this as a unified, encoder-free architecture. <a href=\"#source-twelve\">[2]</a></p><p>Encoder-free does not mean preprocessing-free. Inputs still need a numerical shape compatible with the transformer. The report describes 48-by-48 RGB image patches and 40-millisecond audio chunks. A projection changes the dimension of each input vector; positional information preserves where an image patch came from. <a href=\"#source-paper\">[3]</a></p><p>Think of a small picture divided into a grid. Flatten one patch’s red, green and blue values into a list of numbers, then multiply by a learned matrix to obtain a token vector. Repeat for other patches. This invented grid explains the operation without implying that a raw patch is already a recognized object.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "A direct path from sensory chunks to tokens",
+        "caption": "Simplified conceptual path for the June 2026 Gemma 4 12B addition. Other Gemma 4 variants retain modality encoders.",
+        "takeaway": "Removing a separate encoder shifts representation learning into the joint model.",
+        "config": {
+          "steps": [
+            {
+              "label": "Raw input",
+              "detail": "Image patches or audio chunks"
+            },
+            {
+              "label": "Projection",
+              "detail": "Map into token dimensions"
+            },
+            {
+              "label": "Joint transformer",
+              "detail": "Combine sensory and text information"
+            },
+            {
+              "label": "Answer",
+              "detail": "Generate text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tradeoff",
+      "title": "Moving work does not make it disappear",
+      "html": "<p>The direct projection is smaller than a separate deep vision encoder, but the transformer must now learn to build useful sensory representations. A model may save one component while increasing demands elsewhere in training or inference. “Unified” identifies where the work happens, not a proof that every task becomes cheaper.</p><p>Consider reading a handwritten total on a receipt. The model needs to distinguish ink marks, identify digits, connect the total to a label, and answer the question. An encoder-based system performs part of that transformation before the language backbone; an encoder-free system learns more of it in the backbone.</p><p>This comparison is architectural. The toy flow contains no measured accuracy or runtime, so it cannot determine the best design for a particular camera feed, document collection or device.</p>"
+    },
+    {
+      "id": "quantize",
+      "title": "Train while seeing the rounding error",
+      "html": "<p>On June 5, Google released Gemma 4 checkpoints prepared with quantization-aware training, including Q4_0 and mobile-oriented formats. <strong>QAT</strong> simulates low-precision effects during training so that weights can adapt to the distortion that deployment will introduce. It is an application of an established compression method. <a href=\"#source-qat\">[4]</a></p><p>For an invented weight of 0.37, a coarse allowed grid might force storage as 0.4. Applying that rounding only after training surprises the model. Exposing the rounding during training lets surrounding weights adjust. It cannot preserve an arbitrary real-valued network perfectly, but it changes the optimization problem in a useful way.</p><p>The slider shows only ideal storage for twelve billion weights: 24 GB at sixteen bits, 12 GB at eight, 6 GB at four. Actual Gemma checkpoints include format overhead and mixed-precision components. The figure deliberately avoids a claim that a specific device can run the complete model.</p>",
+      "figure": {
+        "kind": "precision",
+        "title": "What the bit budget buys",
+        "caption": "Illustrative ideal weight storage for 12B numbers, not measured Gemma 4 memory. Excludes scales, mixed precision, KV cache, activations and runtime overhead; the widget does not simulate quantization error.",
+        "takeaway": "QAT addresses the quality consequences that a storage calculator cannot show.",
+        "config": {
+          "billions": 12
+        }
+      }
+    },
+    {
+      "id": "draft",
+      "title": "A small drafter can propose several next tokens",
+      "html": "<p>Gemma 4 also includes a multi-token-prediction drafter for speculative decoding. The report describes a small autoregressive head that uses the main model’s representations and cached attention information. Drafts are proposals to be checked, not permission to bypass the main model’s distribution. <a href=\"#source-paper\">[3]</a></p><p>An illustrative writer proposes “the answer is six” in one draft. If the verifier accepts the first three tokens but rejects “six”, the accepted prefix can be retained and the disagreement handled by the decoding algorithm. The opportunity is to amortize expensive main-model work over several accepted tokens.</p><p>The gain depends on acceptance rate, draft overhead and hardware. Gemma 4 therefore demonstrates several independent routes to efficiency: selective computation, different sensory interfaces, fewer stored bits, and cheaper proposals for generation. A responsible comparison identifies which route changed and measures its effect under the same workload.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Introducing Gemma 4",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/",
+      "detail": "April 2, 2026 public-weight family and Apache 2.0 license."
+    },
+    {
+      "id": "twelve",
+      "title": "Introducing Gemma 4 12B",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/introducing-gemma-4-12b/",
+      "detail": "June 3, 2026 encoder-free addition and downloadable weights."
+    },
+    {
+      "id": "paper",
+      "title": "Gemma 4 Technical Report",
+      "url": "https://arxiv.org/html/2607.02770v1",
+      "detail": "Sections 2, 2.3 and 2.6: parameter accounting, direct projections and MTP drafter; report dated July 2."
+    },
+    {
+      "id": "qat",
+      "title": "Gemma 4 with quantization-aware training",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/quantization-aware-training-gemma-4/",
+      "detail": "June 5 release of QAT weights and explanation of simulated quantization."
+    }
+  ],
+  "caveats": [
+    "The April folder date is the family launch; 12B and QAT additions are explicitly dated June.",
+    "Effective, active and total parameter counts are not interchangeable.",
+    "The precision figure is an ideal calculation and makes no device-fit claim.",
+    "Encoder-free applies to the 12B addition, not every Gemma 4 variant."
+  ],
+  "related": [
+    "2025-03-12-gemma-3",
+    "2026-03-04-phi-4-reasoning-vision"
+  ]
+}
