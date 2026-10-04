@@ -34,7 +34,7 @@ toggle or slider is drawn as small multiples on a shared scale.
 
 | Figure | What it shows |
 |---|---|
-| 1 | Input image beside last-layer `[CLS]` attention maps with 0 and 4 registers, one color scale. The caption computes the share of attention the artifacts take and the bird's share with and without registers. |
+| 1 | Input image beside last-layer `[CLS]` attention maps with 0 and 4 registers, one color scale. The caption computes the artifacts’ and bird’s shares of patch-directed attention; each map is normalized over patches, excluding attention to `[CLS]` and registers. |
 | 2 | The 14 × 14 patch grid and the token strip it becomes: `[CLS]` at position 0, then rows 0, 1, 6 and 13 in row-major order. Four patches carry the same position number in the grid and the strip. |
 | 3 | Last-layer norm map (grey up to 150, orange above) beside a dot plot of the same 196 norms. The caption states the two groups' ranges, computed from the data. |
 | 4 | Norm maps at 1/4, 1/2, 3/4 and full depth for DINOv2 ViT-S, ViT-B and ViT-L, each with its artifact count. |
@@ -56,6 +56,9 @@ norms a grey ramp.
   only in redundant background patches, and none once one or more registers
   are present. Each caption on the page says "simulated". The norms are
   illustrative, not measured.
+- **Attention normalization.** Map values sum to one over the 196 patches. They do not measure how much total attention goes to image patches versus registers or `[CLS]`. A larger bird share here is conditional on attending to a patch.
+- **Evidence and mechanism.** Linear probes measure linearly accessible information, not all information in a token. The register comparisons are separately trained models, not conserved norms moving between slots. The prose explains how intermediate register states affect retained tokens even though final register outputs are discarded.
+- **Compute overhead.** The paper’s below-2% result applies to its configurations. The page separately derives token-wise and quadratic attention growth for its own shorter, 197-token example; neither is a latency measurement.
 - **One register removes the artifacts** in the simulation. This matches the
   paper's Fig. 8, which reports that visible artifacts disappear with at least
   one register; the paper uses four for its main results.

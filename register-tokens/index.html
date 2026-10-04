@@ -36,12 +36,12 @@
 
   <figure class="fig" id="fig-compare">
     <div class="multiples">
-      <div class="map"><h4>Input image <span>14 × 14 patches</span></h4><svg id="map-input" viewBox="0 0 14 14" role="img" aria-label="Simulated input image: a dark bird against pale sky above a green hill"></svg></div>
-      <div class="map"><h4>No registers</h4><svg id="map-attn-0" viewBox="0 0 14 14" role="img" aria-label="Attention map without registers"></svg></div>
-      <div class="map"><h4>4 registers</h4><svg id="map-attn-4" viewBox="0 0 14 14" role="img" aria-label="Attention map with four registers"></svg></div>
+      <div class="map"><p class="panel-title">Input image <span>14 × 14 patches</span></p><svg id="map-input" viewBox="0 0 14 14" role="img" aria-label="Simulated input image: a dark bird against pale sky above a green hill"></svg></div>
+      <div class="map"><p class="panel-title">No registers</p><svg id="map-attn-0" viewBox="0 0 14 14" role="img" aria-label="Attention map without registers"></svg></div>
+      <div class="map"><p class="panel-title">4 registers</p><svg id="map-attn-4" viewBox="0 0 14 14" role="img" aria-label="Attention map with four registers"></svg></div>
     </div>
     <div class="key" id="attn-key"></div>
-    <figcaption><span class="fig-n"></span>Attention from <code>[CLS]</code> to each patch in the last layer of a simulated DINOv2 ViT-L, without and with registers, on one color scale. Orange squares mark artifact tokens. <span class="takeaway" id="attn-takeaway"></span> Simulated, after the paper’s Figure 1.</figcaption>
+    <figcaption><span class="fig-n"></span>Simulated last-layer attention from <code>[CLS]</code> to image patches, without and with registers, on one color scale. Each map is normalized over patches only: its 196 cells sum to 100%. Attention to <code>[CLS]</code> and registers is omitted. Orange squares mark artifact tokens. <span class="takeaway" id="attn-takeaway"></span> Simulated, after the paper’s Figure 1.</figcaption>
   </figure>
 
   <section id="tokens">
@@ -60,12 +60,12 @@
   <section id="artifacts">
     <h2>A few patch tokens with ten times the norm</h2>
     <p>The <b>norm</b> of a token is the length of its vector: the square root of the sum of its squared entries. Darcet and colleagues found that in DINOv2 a few patch tokens leave the network with norms about ten times larger than the rest, and that these tokens are the bright specks in the attention maps.<span class="sn-ref"></span><span class="sidenote">Paper, §1 and Fig. 3. In DINOv2 ViT-g most patch norms lie between 0 and 100, and 2.37% exceed 150, a cutoff the authors chose by hand and note varies between models.</span> The paper calls them high-norm or outlier tokens. This page calls them <b>artifact tokens</b>.</p>
-    <p>They sit in flat background: sky, walls, roads, anywhere a patch looks like its neighbors.<span class="sn-ref"></span><span class="sidenote">Fig. 5a: measured right after patch embedding, patches that become high-norm tokens are very similar to their four neighbors. Appendix A: they are also more common near the image border.</span> A patch that repeats its neighbors carries little information of its own, so overwriting it costs the image representation little.</p>
+    <p>They tend to occur in uniform background, such as sky, walls or roads, where a patch resembles its neighbors.<span class="sn-ref"></span><span class="sidenote">Fig. 5a: measured right after patch embedding, patches that become high-norm tokens are very similar to their four neighbors. Appendix A: they are also more common near the image border.</span> The authors interpret this redundancy as an opportunity to reuse the token while losing little information about the image.</p>
 
     <figure class="fig" id="fig-where">
       <div class="where">
-        <div class="map"><h4>Token norms, last layer</h4><svg id="map-norm" viewBox="0 0 14 14" role="img" aria-label="Map of output token norms"></svg></div>
-        <div class="dots"><h4>The same 196 norms as dots</h4><div class="graphic"><svg id="dots-norm" role="img" aria-label="Dot plot of the 196 output token norms"></svg></div></div>
+        <div class="map"><h3>Token norms, last layer</h3><svg id="map-norm" viewBox="0 0 14 14" role="img" aria-label="Map of output token norms"></svg></div>
+        <div class="dots"><h3>The same 196 norms as dots</h3><div class="graphic"><svg id="dots-norm" role="img" aria-label="Dot plot of the 196 output token norms"></svg></div></div>
       </div>
       <figcaption><span class="fig-n"></span>Output norms of the simulated DINOv2 ViT-L with no registers. Left, one cell per patch: grey from light (norm 0) to dark (150), orange above 150; thin lines trace the bird and the hill. Right, the same norms as dots. <span class="takeaway" id="where-takeaway"></span></figcaption>
     </figure>
@@ -83,7 +83,7 @@
 
   <section id="contents">
     <h2>What the artifact tokens hold</h2>
-    <p>To find out what information a token still carries, the authors trained <b>linear probes</b>: small linear models fitted on frozen token vectors. If a probe can predict a patch’s position from its token, the position is still recoverable from that token. They probed normal and artifact tokens of DINOv2 ViT-g for three things: where the patch was, what pixels it held, and what the whole image showed.</p>
+    <p>To find out what information a token still carries, the authors trained <b>linear probes</b>: small linear models fitted on frozen token vectors. If a probe predicts a patch’s position, that information is accessible through a linear readout. A weaker probe score does not prove that all information about the patch is gone. They probed normal and artifact tokens of DINOv2 ViT-g for three things: where the patch was, what pixels it held, and what the whole image showed.</p>
 
     <figure class="fig" id="probe-table">
       <table>
@@ -96,7 +96,7 @@
           <tr><td>Aircraft class from one token, top-1 (%)</td><td class="n">17.1</td><td class="n">79.1</td><td class="n">87.3</td></tr>
         </tbody>
       </table>
-      <figcaption><span class="fig-n"></span>Reported by the paper for DINOv2 ViT-g (Fig. 5b and Table 1); not simulated. <span class="takeaway">Artifact tokens lose most of what locates and describes their patch, and gain information about the whole image.</span></figcaption>
+      <figcaption><span class="fig-n"></span>Reported by the paper for DINOv2 ViT-g (Fig. 5b and Table 1); not simulated. <span class="takeaway">Linear probes recover less local information and more image-class information from artifact tokens.</span></figcaption>
     </figure>
 
     <p>Artifact tokens do worse on both local tasks and better on both global ones. The gap is widest on fine-grained aircraft classification: a probe on one normal patch token gets 17.1% right, a probe on one artifact token 79.1%, close to the 87.3% of <code>[CLS]</code>, the token built for the job.</p>
@@ -106,15 +106,16 @@
 
   <section id="registers">
     <h2>Registers: extra tokens for global computation</h2>
-    <p>If the model needs scratch space, it can be given some. A <b>register</b> is a learned vector added to the input sequence that corresponds to no image patch. Registers pass through every transformer block like any other token, and their outputs are thrown away at the end: only <code>[CLS]</code> and the patch tokens are used, in training and at inference. The mechanism comes from Memory Transformers, where it improved machine translation.<span class="sn-ref"></span><span class="sidenote">Burtsev et al., 2020, cited in §2.2 of the paper.</span></p>
+    <p>A <b>register</b> starts as a learned vector added to the input sequence, with no image patch of its own. Its initial vector is shared across images; its state becomes image-dependent as transformer blocks update it. Registers pass through every transformer block like any other token, and their outputs are thrown away at the end: only <code>[CLS]</code> and the patch tokens are used, in training and at inference. The mechanism comes from Memory Transformers, where it improved machine translation.<span class="sn-ref"></span><span class="sidenote">Burtsev et al., 2020, cited in §2.2 of the paper.</span></p>
 
     <figure class="fig" id="fig-sequence">
       <div class="graphic" id="sequence-graphic"><svg id="sequence-svg" role="img" aria-label="Diagram: class token, four registers and 196 patch tokens enter unchanged transformer blocks; the register outputs are discarded"></svg></div>
-      <figcaption><span class="fig-n"></span>A ViT-L with four registers. The input grows from 197 to 201 tokens, the blocks are unchanged, and the register outputs are discarded. <span class="takeaway">Registers change the sequence, not the architecture.</span></figcaption>
+      <figcaption><span class="fig-n"></span>A ViT-L with four registers. The input grows from 197 to 201 tokens, the blocks are unchanged, and the register outputs are discarded. <span class="takeaway">Registers add learned inputs; the transformer blocks keep the same operations.</span></figcaption>
     </figure>
 
     <p>In the official DINOv2 code the registers sit after <code>[CLS]</code> and before the patch tokens, and they are inserted after the positional embeddings are added, so they carry no position.<span class="sn-ref"></span><span class="sidenote"><code>prepare_tokens_with_masks</code> in <a href="https://github.com/facebookresearch/dinov2/blob/main/dinov2/models/vision_transformer.py">dinov2/models/vision_transformer.py</a>. The paper’s text says the registers are “appended”. Without positional embeddings, where a register sits in the sequence makes no difference to attention.</span> Their order in the sequence matters only to downstream code, which drops the first 1 + <i>n</i> outputs and reshapes the rest into the patch grid.</p>
-    <p>Models trained with registers no longer have high-norm patch tokens. The high norms move into the registers.</p>
+    <p>Discarding a register’s final output does not erase its earlier influence. In one block it can read from patch tokens; in a later block, patches and <code>[CLS]</code> can read from its updated state. Training can therefore adjust the initial register vector through its effect on the retained outputs.</p>
+    <p>In the paper’s trained models, the high-norm outputs occur among the registers instead of the patch tokens. These are separately trained models: the comparison does not track a fixed quantity moving between slots.</p>
 
     <figure class="fig" id="fig-absorb">
       <div class="graphic"><svg id="absorb-svg" role="img" aria-label="Dot plots of token norms for models with 0, 1 and 4 registers"></svg></div>
@@ -122,13 +123,13 @@
     </figure>
 
     <p>The paper finds the same transfer in what the tokens hold. In a model with one register, a probe on the register classifies aircraft with 71.1% accuracy, close to the 73.3% of an artifact token in the same model trained without registers. The ordinary patch tokens keep the same local information with or without registers.<span class="sn-ref"></span><span class="sidenote">Appendix D, Tables 4 and 5. Position top-1 on normal patches is 66.3% without registers and 65.8% with four; reconstruction L2 error 15.9 and 16.0.</span></p>
-    <p>One register is enough to remove the visible artifacts. Adding more keeps improving ImageNet accuracy, while segmentation and depth have an optimum; the paper uses four for all its main results.<span class="sn-ref"></span><span class="sidenote">Fig. 8: DINOv2 ViT-L/14 trained with 0, 1, 2, 4, 8 and 16 registers.</span> The cost is small. Four registers add less than 2% to the model’s FLOPs and a negligible number of parameters.<span class="sn-ref"></span><span class="sidenote">Appendix B and Fig. 12. Sixteen registers add up to 6% FLOPs.</span></p>
+    <p>In the tested DINOv2 ViT-L models, one register removes the visible artifacts. Adding more keeps improving ImageNet accuracy, while segmentation and depth have an optimum; the paper uses four for all its main results.<span class="sn-ref"></span><span class="sidenote">Fig. 8: DINOv2 ViT-L/14 trained with 0, 1, 2, 4, 8 and 16 registers.</span> The paper reports less than 2% extra model FLOPs with four registers in its configurations. This is not a universal overhead: it depends on the number of patches and the model width.<span class="sn-ref"></span><span class="sidenote">Appendix B and Fig. 12. For this page’s 197-token illustration, four registers add 4 × 1,024 = 4,096 learned parameters to ViT-L. Token-wise work grows by 201/197 − 1 ≈ 2.0%; the attention score matrix grows by (201/197)² − 1 ≈ 4.1%. Those are component costs, not measured latency.</span></p>
     <p>The registers do not all behave alike. In the paper’s attention maps, individual registers attend to different objects or regions of the image, although nothing in training asked them to.<span class="sn-ref"></span><span class="sidenote">Fig. 9 and Appendix D.3. One register of a DINOv2 model attends mostly to the image border on average.</span></p>
   </section>
 
   <section id="results">
     <h2>What registers change downstream</h2>
-    <p>The authors trained three model families with and without four registers: DeiT-III, supervised on ImageNet-22k labels; OpenCLIP, trained on image–text pairs; and DINOv2, self-supervised. The high-norm patch artifacts disappear in all three. The table measures the effect on tasks, using frozen features with linear heads.</p>
+    <p>The authors trained three model families with and without four registers: DeiT-III, supervised on ImageNet-22k labels; OpenCLIP, trained on image–text pairs; and DINOv2, self-supervised. The high-norm patch artifacts disappear in all three. The first three tasks use linear evaluation on frozen features. LOST is a separate object-discovery procedure built from patch-feature similarities; it does not train a linear prediction head.</p>
 
     <figure class="fig" id="results-table">
       <div class="tablewrap">
@@ -160,7 +161,7 @@
     <p>The paper does not establish a general size threshold. In its DINOv2 study, artifacts appear in ViT-L and larger models after enough training, while the tested ViT-S and ViT-B checkpoints stay clean. DeiT-III and OpenCLIP produce artifacts at ViT-B, so model size alone does not decide the outcome.</p>
 
     <h3>Does every vision transformer have them?</h3>
-    <p>No. The original DINO shows none, and its attention maps were known for outlining objects without any labels. Neither does a ViT-L trained as a masked autoencoder (MAE). The authors’ guess is that MAE’s loss is purely local, a pixel reconstruction for each patch, so the model has no reason to gather global information anywhere.<span class="sn-ref"></span><span class="sidenote">Paper, Fig. 2 and Appendix E. The MAE explanation is stated as a hypothesis.</span></p>
+    <p>No. The original DINO shows none, and its attention maps were known for outlining objects without any labels. Neither does a ViT-L trained as a masked autoencoder (MAE). The authors hypothesize that MAE’s patch-reconstruction objective reduces the incentive to create these outliers. A patch-level loss still allows the model to use information from across the image.<span class="sn-ref"></span><span class="sidenote">Paper, Fig. 2 and Appendix E. The MAE explanation is stated as a hypothesis.</span></p>
 
     <h3>Is this the same as attention sinks in language models?</h3>
     <p>They are related observations, but the papers do not establish one shared mechanism. StreamingLLM calls the early tokens that receive large attention scores “attention sinks”. Other work finds massive activations concentrated in a few token positions of language models. ViT registers address high-norm patch artifacts by adding learned token positions. All three involve unusual behavior at a small number of sequence positions.</p>
