@@ -1,0 +1,132 @@
+{
+  "slug": "2026-03-16-leanstral",
+  "model": "Leanstral / 1.5",
+  "family": "Mistral",
+  "date": "2026-03-16",
+  "dateNote": "First Leanstral public weights: March 16, 2026. The July 2 Leanstral 1.5 announcement and report are explicitly identified where their training details are discussed.",
+  "subtitle": "Turn a proposed proof into a checked artifact",
+  "summary": "Formal proof tools turn code-agent attempts into inspectable feedback and verifiable training outcomes.",
+  "category": "Reasoning",
+  "readingMinutes": 8,
+  "parameters": "119B total · 6.5B active (2603 checkpoint)",
+  "license": "Apache 2.0",
+  "lead": "<p>A language model can write a convincing mathematical argument containing a hidden mistake. A proof assistant changes the feedback available: it checks a formal proof against an exact statement and explicit assumptions. Leanstral brings that feedback into a downloadable model trained for proof engineering inside real repositories. <a href=\"#source-release\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "statement",
+      "title": "Begin with something a checker can mean",
+      "html": "<p>Consider the statement “adding zero preserves a number.” Before checking it, specify the objects and operation: natural numbers with ordinary addition. A proof must establish the property for every allowed number, not merely test zero, one and a million.</p><p>Now change the requirement to “incrementing always increases a number.” It holds for unbounded natural numbers, but can fail for fixed-width arithmetic that wraps at its maximum value. The English wording was almost unchanged; the mathematical objects changed the answer. A proof assistant checks the formal claim it receives. Choosing a claim that matches the intended program remains a separate job.</p><p>Lean’s kernel checks proof terms against their types and permitted assumptions. Automated tactics can help construct the proof, but a persuasive explanation alone is not that proof. This division permits a fallible generator to propose candidates for a more tightly specified checker. <a href=\"#source-lean\">[2]</a></p>"
+    },
+    {
+      "id": "loop",
+      "title": "Learn to work inside the feedback loop",
+      "html": "<p>Leanstral’s March release targets Lean 4 repository work through Mistral Vibe, including the Lean language-server tool interface. Its Apache 2.0 checkpoint has 119B total parameters and about 6.5B active parameters. Sparse mixture-of-experts architecture is inherited machinery; the distinctive emphasis here is formal code-agent work. <a href=\"#source-card\">[3]</a></p><p>Imagine the agent needs an auxiliary lemma before the requested theorem can compile. It searches the library, writes a candidate, inspects the remaining proof goal, and revises the missing step. The intermediate error is useful information about what remains to establish.</p><p>A final check also has to preserve the requested statement. Quietly weakening the theorem would make an easy proof of the wrong task. Leanstral’s evaluation uses repository-level proof engineering rather than only isolated competition questions. <a href=\"#source-release\">[1]</a></p>",
+      "figure": {
+        "kind": "flow",
+        "title": "The model proposes; tools make the remaining work visible",
+        "caption": "Simplified proof-engineering loop. Rejected candidates return to editing; acceptance depends on the task’s statement and allowed assumptions.",
+        "takeaway": "Reliable feedback changes both how an agent searches and which trajectories can teach it.",
+        "config": {
+          "steps": [
+            {
+              "label": "Formal goal",
+              "detail": "Statement and assumptions"
+            },
+            {
+              "label": "Edit repository",
+              "detail": "Proofs and helper lemmas"
+            },
+            {
+              "label": "Inspect feedback",
+              "detail": "Types, goals, diagnostics"
+            },
+            {
+              "label": "Revise",
+              "detail": "Repair incomplete work"
+            },
+            {
+              "label": "Verify submission",
+              "detail": "Check the requested artifact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "training",
+      "title": "Reward a completed trajectory",
+      "html": "<p>The July Leanstral 1.5 update <a href=\"#source-update\">[6]</a> and report describe domain mid-training, supervised agent trajectories, and reinforcement learning with CISPO. Training environments include repeated theorem attempts with compiler feedback and longer repository tasks with file access and Lean tools. Final checks include statement preservation and allowed-axiom restrictions. <a href=\"#source-report\">[4]</a></p><p>Think of a trajectory as an entire workshop session: inspect files, try a lemma, receive a diagnostic, repair a proof, and submit. Reinforcement learning can associate the eventual checked result with model-generated choices along that session. It need not pretend that every fluent intermediate sentence deserves a reward.</p><p>Long sessions also need memory management. The 1.5 system compacts context while preserving the original instruction. Its ordinary Vibe evaluation does not require a specialized proof-search scaffold beyond compaction. A long total trajectory therefore does not imply that every earlier token remains in the model’s context simultaneously. <a href=\"#source-report\">[4]</a></p>"
+    },
+    {
+      "id": "budget",
+      "title": "More attempts create more opportunities",
+      "html": "<p>A verifier can recognize a valid candidate among several attempts. Suppose, purely for illustration, each independent attempt succeeds with probability 0.2. Four attempts then succeed at least once with probability 1 − 0.8⁴ ≈ 0.5904. Real attempts may share the same blind spot, so independence is an assumption, not a model property.</p><p>The scheduling widget isolates another distinction. Four independent jobs taking 3, 2, 4 and 1 time units require ten units on one worker. More workers can reduce elapsed time, but the total work remains ten units. Actual model serving adds batching effects, memory limits and tool overhead.</p><p>Leanstral reports results with multiple attempts per problem. The widget represents independent trials, not communicating proof agents or a measured Leanstral speedup. Coordinated multi-agent proof decomposition is future work in the report. <a href=\"#source-report\">[4]</a></p>",
+      "figure": {
+        "kind": "parallel",
+        "title": "Separate the amount of work from elapsed time",
+        "caption": "Illustrative independent-attempt durations in arbitrary units. The generic scheduler is not the Leanstral inference implementation, and it does not predict proof success.",
+        "takeaway": "Parallel attempts can spend more compute within a shorter time budget; verification identifies acceptable outputs.",
+        "config": {
+          "tasks": [
+            3,
+            2,
+            4,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "trust",
+      "title": "A passed check has a precise boundary",
+      "html": "<p>A Lean file can contain an unfinished-proof placeholder, or depend on an extra axiom. Compilation alone is therefore too weak a success criterion. Lean provides mechanisms to inspect a theorem’s assumptions, and the task must say which are allowed. <a href=\"#source-axioms\">[5]</a></p><p>Ask three separate questions of a verified result: did the proof check, were its assumptions permitted, and does its formal statement express the intended requirement? Leanstral’s contribution is a trainable, inspectable agent around this workflow. Human-readable confidence should never substitute for the actual checked artifact.</p>"
+    }
+  ],
+  "caveats": [
+    "March 2603 checkpoint facts and July 1.5 training details are labeled separately.",
+    "A checked proof establishes its formal statement under its assumptions; it does not automatically validate the English specification.",
+    "The parallel widget models independent scheduling only, not actual serving performance or coordinated agents."
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Mistral: Leanstral release",
+      "url": "https://mistral.ai/news/leanstral/",
+      "detail": "March 16 public weights, Lean repository tasks, Vibe scaffold and repeated-attempt evaluation."
+    },
+    {
+      "id": "lean",
+      "title": "Lean reference: Validating Proofs",
+      "url": "https://lean-lang.org/doc/reference/latest/ValidatingProofs/",
+      "detail": "Kernel checking, proof terms and the boundary between proof generation and validation."
+    },
+    {
+      "id": "card",
+      "title": "Leanstral-2603 model card",
+      "url": "https://huggingface.co/mistralai/Leanstral-2603",
+      "detail": "Apache 2.0, 119B total / 6.5B active parameter specification, inherited sparse architecture and tooling."
+    },
+    {
+      "id": "report",
+      "title": "Leanstral technical report (July 2026)",
+      "url": "https://github.com/mistralai/LeanstralSafeVerify/blob/main/LeanstralReport.pdf",
+      "detail": "Full report read: 1.5 training stages, LeanGym verification, CISPO trajectories, context compaction, ordinary Vibe evaluation and multi-agent future work."
+    },
+    {
+      "id": "axioms",
+      "title": "Lean reference: Axioms",
+      "url": "https://lean-lang.org/doc/reference/latest/Axioms/",
+      "detail": "Allowed axioms, unfinished-proof placeholders and assumption auditing."
+    },
+    {
+      "id": "update",
+      "title": "Mistral: Leanstral 1.5",
+      "url": "https://mistral.ai/news/leanstral-1-5/",
+      "detail": "July 2, 2026 announcement; open weights and report link establish the later update discussed here."
+    }
+  ],
+  "related": [
+    "2023-12-08-mixtral-8x7b",
+    "2025-01-20-deepseek-r1"
+  ]
+}

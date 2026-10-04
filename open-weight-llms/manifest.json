@@ -1,0 +1,447 @@
+[
+  {
+    "slug": "2023-07-18-llama-2",
+    "model": "Llama 2 · 7B, 13B, 70B",
+    "family": "Llama",
+    "date": "2023-07-18",
+    "category": "Foundations",
+    "figures": [
+      "flow",
+      "kv"
+    ]
+  },
+  {
+    "slug": "2023-09-27-mistral-7b",
+    "model": "Mistral 7B",
+    "family": "Mistral",
+    "date": "2023-09-27",
+    "category": "Memory",
+    "figures": [
+      "kv",
+      "attention"
+    ]
+  },
+  {
+    "slug": "2023-12-03-mamba",
+    "model": "Mamba",
+    "family": "Mamba",
+    "date": "2023-12-03",
+    "category": "Memory",
+    "figures": [
+      "state",
+      "recurrence",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2023-12-08-mixtral-8x7b",
+    "model": "Mixtral 8×7B",
+    "family": "Mistral",
+    "date": "2023-12-08",
+    "category": "Sparse compute",
+    "figures": [
+      "moe",
+      "bars"
+    ]
+  },
+  {
+    "slug": "2024-04-23-phi-3",
+    "model": "Phi-3 · mini",
+    "family": "Phi",
+    "date": "2024-04-23",
+    "category": "Training",
+    "figures": [
+      "flow",
+      "precision"
+    ]
+  },
+  {
+    "slug": "2024-05-06-deepseek-v2",
+    "model": "DeepSeek-V2",
+    "family": "DeepSeek",
+    "date": "2024-05-06",
+    "category": "Memory",
+    "figures": [
+      "latent",
+      "moe"
+    ]
+  },
+  {
+    "slug": "2024-06-27-gemma-2",
+    "model": "Gemma 2 · 9B and 27B",
+    "family": "Gemma",
+    "date": "2024-06-27",
+    "category": "Training",
+    "figures": [
+      "distill",
+      "attention"
+    ]
+  },
+  {
+    "slug": "2024-07-23-llama-3-1",
+    "model": "Llama 3.1 · 8B, 70B, 405B",
+    "family": "Llama",
+    "date": "2024-07-23",
+    "category": "Training",
+    "figures": [
+      "scaling",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2024-09-19-qwen2-5",
+    "model": "Qwen2.5",
+    "family": "Qwen",
+    "date": "2024-09-19",
+    "category": "Training",
+    "figures": [
+      "flow",
+      "scaling",
+      "kv"
+    ]
+  },
+  {
+    "slug": "2024-11-21-tulu-3",
+    "model": "Tülu 3",
+    "family": "Ai2",
+    "date": "2024-11-21",
+    "category": "Training",
+    "figures": [
+      "flow",
+      "verifier"
+    ]
+  },
+  {
+    "slug": "2024-12-26-deepseek-v3",
+    "model": "DeepSeek-V3",
+    "family": "DeepSeek",
+    "date": "2024-12-26",
+    "category": "Training",
+    "figures": [
+      "flow",
+      "precision"
+    ]
+  },
+  {
+    "slug": "2025-01-20-deepseek-r1",
+    "model": "DeepSeek-R1",
+    "family": "DeepSeek",
+    "date": "2025-01-20",
+    "category": "Reasoning",
+    "figures": [
+      "grpo",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-02-20-llada",
+    "model": "LLaDA 8B",
+    "family": "LLaDA",
+    "date": "2025-02-20",
+    "category": "Foundations",
+    "figures": [
+      "flow",
+      "diffusion"
+    ]
+  },
+  {
+    "slug": "2025-03-12-gemma-3",
+    "model": "Gemma 3 · 1B, 4B, 12B, 27B",
+    "family": "Gemma",
+    "date": "2025-03-12",
+    "category": "Memory",
+    "figures": [
+      "attention",
+      "flow",
+      "precision"
+    ]
+  },
+  {
+    "slug": "2025-04-05-llama-4",
+    "model": "Llama 4 · Scout and Maverick",
+    "family": "Llama",
+    "date": "2025-04-05",
+    "category": "Sparse compute",
+    "figures": [
+      "moe",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-04-14-bitnet-b1-58",
+    "model": "BitNet b1.58 2B4T",
+    "family": "BitNet",
+    "date": "2025-04-14",
+    "category": "Training",
+    "figures": [
+      "ternary",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-04-29-qwen3",
+    "model": "Qwen3",
+    "family": "Qwen",
+    "date": "2025-04-29",
+    "category": "Reasoning",
+    "figures": [
+      "flow",
+      "distill"
+    ]
+  },
+  {
+    "slug": "2025-04-30-phi-4-reasoning",
+    "model": "Phi-4-reasoning · reasoning-plus",
+    "family": "Phi",
+    "date": "2025-04-30",
+    "category": "Reasoning",
+    "figures": [
+      "flow",
+      "grpo"
+    ]
+  },
+  {
+    "slug": "2025-05-21-falcon-h1",
+    "model": "Falcon-H1 · 0.5B to 34B",
+    "family": "Falcon",
+    "date": "2025-05-21",
+    "category": "Memory",
+    "figures": [
+      "flow",
+      "state"
+    ]
+  },
+  {
+    "slug": "2025-07-09-phi-4-mini-flash-reasoning",
+    "model": "Phi-4-mini-flash-reasoning",
+    "family": "Phi",
+    "date": "2025-07-09",
+    "category": "Memory",
+    "figures": [
+      "state",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-07-11-kimi-k2",
+    "model": "Kimi K2",
+    "family": "Kimi",
+    "date": "2025-07-11",
+    "category": "Training",
+    "figures": [
+      "moe",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-07-28-glm-4-5",
+    "model": "GLM-4.5",
+    "family": "GLM",
+    "date": "2025-07-28",
+    "category": "Training",
+    "figures": [
+      "flow",
+      "grpo"
+    ]
+  },
+  {
+    "slug": "2025-08-05-gpt-oss",
+    "model": "gpt-oss-20b and gpt-oss-120b",
+    "family": "OpenAI",
+    "date": "2025-08-05",
+    "category": "Sparse compute",
+    "figures": [
+      "moe",
+      "precision",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-09-11-qwen3-next",
+    "model": "Qwen3-Next",
+    "family": "Qwen",
+    "date": "2025-09-11",
+    "category": "Memory",
+    "figures": [
+      "state",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-09-29-deepseek-v3-2",
+    "model": "DeepSeek-V3.2 / Exp",
+    "family": "DeepSeek",
+    "date": "2025-09-29",
+    "category": "Sparse compute",
+    "figures": [
+      "sparse",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2025-10-20-deepseek-ocr",
+    "model": "DeepSeek-OCR",
+    "family": "DeepSeek",
+    "date": "2025-10-20",
+    "category": "Multimodal",
+    "figures": [
+      "bars",
+      "flow",
+      "patches"
+    ]
+  },
+  {
+    "slug": "2025-11-06-kimi-k2-thinking",
+    "model": "Kimi K2 Thinking",
+    "family": "Kimi",
+    "date": "2025-11-06",
+    "category": "Reasoning",
+    "figures": [
+      "flow",
+      "precision"
+    ]
+  },
+  {
+    "slug": "2025-11-20-olmo-3",
+    "model": "Olmo 3",
+    "family": "Ai2",
+    "date": "2025-11-20",
+    "category": "Open science",
+    "figures": [
+      "flow",
+      "mixture"
+    ]
+  },
+  {
+    "slug": "2026-01-27-kimi-k2-5",
+    "model": "Kimi K2.5",
+    "family": "Kimi",
+    "date": "2026-01-27",
+    "category": "Multimodal",
+    "figures": [
+      "flow",
+      "parallel"
+    ]
+  },
+  {
+    "slug": "2026-02-11-glm-5",
+    "model": "GLM-5",
+    "family": "GLM",
+    "date": "2026-02-11",
+    "category": "Training",
+    "figures": [
+      "flow",
+      "parallel"
+    ]
+  },
+  {
+    "slug": "2026-02-16-qwen3-5",
+    "model": "Qwen3.5",
+    "family": "Qwen",
+    "date": "2026-02-16",
+    "category": "Multimodal",
+    "figures": [
+      "flow",
+      "state"
+    ]
+  },
+  {
+    "slug": "2026-03-04-phi-4-reasoning-vision",
+    "model": "Phi-4-reasoning-vision-15B",
+    "family": "Phi",
+    "date": "2026-03-04",
+    "category": "Multimodal",
+    "figures": [
+      "patches",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2026-03-16-leanstral",
+    "model": "Leanstral / 1.5",
+    "family": "Mistral",
+    "date": "2026-03-16",
+    "category": "Reasoning",
+    "figures": [
+      "flow",
+      "parallel"
+    ]
+  },
+  {
+    "slug": "2026-04-02-gemma-4",
+    "model": "Gemma 4 · E2B, E4B, 26B-A4B, 31B, later 12B",
+    "family": "Gemma",
+    "date": "2026-04-02",
+    "category": "Multimodal",
+    "figures": [
+      "flow",
+      "precision"
+    ]
+  },
+  {
+    "slug": "2026-04-24-deepseek-v4",
+    "model": "DeepSeek-V4",
+    "family": "DeepSeek",
+    "date": "2026-04-24",
+    "category": "Memory",
+    "figures": [
+      "sparse",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2026-07-27-kimi-k3",
+    "model": "Kimi K3",
+    "family": "Kimi",
+    "date": "2026-07-27",
+    "category": "Memory",
+    "figures": [
+      "state",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2026-07-28-mamba-3",
+    "model": "Mamba-3 · MIMO 1.5B",
+    "family": "Mamba",
+    "date": "2026-07-28",
+    "category": "Memory",
+    "figures": [
+      "flow",
+      "state"
+    ]
+  },
+  {
+    "slug": "2026-08-26-glm-5-3-flash",
+    "model": "GLM-5.3-Flash",
+    "family": "GLM",
+    "date": "2026-08-26",
+    "category": "Memory",
+    "figures": [
+      "state",
+      "flow"
+    ]
+  },
+  {
+    "slug": "2026-08-26-qwen3-8-flash-next",
+    "model": "Qwen3.8-Flash-Next",
+    "family": "Qwen",
+    "date": "2026-08-26",
+    "category": "Memory",
+    "figures": [
+      "flow",
+      "state"
+    ]
+  },
+  {
+    "slug": "2026-09-10-deepseek-v4-1-flash",
+    "model": "DeepSeek-V4.1-Flash",
+    "family": "DeepSeek",
+    "date": "2026-09-10",
+    "category": "Memory",
+    "figures": [
+      "flow",
+      "cache"
+    ]
+  }
+]

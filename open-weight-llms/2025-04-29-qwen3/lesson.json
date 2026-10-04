@@ -1,0 +1,106 @@
+{
+  "slug": "2025-04-29-qwen3",
+  "model": "Qwen3",
+  "family": "Qwen",
+  "date": "2025-04-29",
+  "dateNote": "Official announcement date April 29, 2025; weight uploads are dated April 28 UTC. The folder follows the announcement calendar date. Technical report submitted May 14.",
+  "subtitle": "How one model learns when to deliberate",
+  "summary": "Qwen3 combines explicit thinking control with a teacher-to-student training route.",
+  "category": "Reasoning",
+  "readingMinutes": 8,
+  "parameters": "Dense 0.6B–32B; MoE 30B-A3B and 235B-A22B",
+  "license": "Apache 2.0",
+  "lead": "<p>Answering a greeting and solving a difficult proof should not consume the same amount of computation. Qwen3 treats the amount of reasoning text as a controllable inference choice, then transfers that behavior from large models to smaller ones.</p>",
+  "sections": [
+    {
+      "id": "two-modes",
+      "title": "Extra tokens are extra computation",
+      "html": "<p>A generated reasoning token becomes part of the context for later tokens. Writing intermediate steps therefore lets a model perform additional sequential computation before it commits to an answer. It may also make mistakes, repeat itself, or follow a bad premise. Length measures expenditure, not correctness.</p><p>The original Qwen3 release supports thinking and non-thinking modes within its post-trained checkpoints. The official announcement ties this to adjustable thinking budgets and releases both dense and mixture-of-experts models. In the 235B-A22B name, 235 billion describes total parameters and 22 billion describes the approximate active parameters per token.</p> <a href=\"#source-launch\">[1]</a><p>For a concrete distinction, imagine multiplying 17 by 23. A direct reply can guess the product. An explicit route can split 23 into 20 + 3, calculate 340 + 51, and return 391. The extra sequence exposes intermediate arithmetic to subsequent computation. It does not make the final answer infallible.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "A conditional path through the same model",
+        "caption": "Simplified inference sequence for the original hybrid-thinking Qwen3 release.",
+        "takeaway": "Thinking mode spends additional generated tokens before the answer.",
+        "config": {
+          "steps": [
+            {
+              "label": "Prompt",
+              "detail": "Question and mode"
+            },
+            {
+              "label": "Optional reasoning",
+              "detail": "Intermediate generated tokens"
+            },
+            {
+              "label": "Answer",
+              "detail": "User-facing response"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "training",
+      "title": "Teach the behavior before transferring it",
+      "html": "<p>The Qwen3 report describes four stages for its flagship post-training: long-reasoning examples, reinforcement learning on verifiable problems, fusion of thinking and direct-answer behavior, and general reinforcement learning. Smaller models use strong-to-weak distillation rather than independently repeating the entire expensive process.</p> <a href=\"#source-paper\">[2]</a><p>Separate the purposes. An example teaches what a successful trajectory looks like. A verifier judges whether a sampled attempt reaches a correct result. Mode fusion teaches that the same prompt may call for either a compact answer or extended deliberation. Preference training addresses behavior outside problems with an exact numerical answer.</p><p>Consider teaching a student to solve equations. Showing one worked solution establishes the format. Asking it to solve new equations and checking the answers provides feedback. Teaching when a one-line response is adequate is another lesson. These operations cooperate, but one cannot replace the others merely by increasing the number of examples.</p>"
+    },
+    {
+      "id": "distillation",
+      "title": "A teacher can provide more than a winning token",
+      "html": "<p>A hard target says only “choose A.” A probability distribution can say “A is plausible, B is somewhat plausible, C and D are unlikely.” Distillation trains a student to match information in a teacher’s outputs. Qwen3 specifically studies teacher logits, the scores before probabilities, on student-generated trajectories; this is richer than copying only complete successful answers.</p> <a href=\"#source-paper\">[2]</a><p>The toy below uses scores 4, 2, 1 and 0. Softmax turns score z into a probability proportional to exp(z/T), where T is temperature. Raising T spreads probability across alternatives. Lowering T concentrates it. The temperature slider changes this illustrative distribution; it does not reproduce the temperature or objective used by Qwen3.</p><p>Suppose the student assigns almost all probability to B. A hard A target only signals that B lost. A soft teacher can also convey the relative plausibility of C and D. Conversely, a teacher that is confidently wrong can transmit a systematic error. Distillation is a method of transferring behavior, not an independent source of truth.</p>",
+      "figure": {
+        "kind": "distill",
+        "title": "Inspect the information in a soft target",
+        "caption": "Illustrative token distribution. Temperature is a teaching control, not a reconstruction of Qwen3 training.",
+        "takeaway": "The teacher can communicate relative alternatives as well as the top choice.",
+        "config": {
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "logits": [
+            4,
+            2,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "interface",
+      "title": "Mode control must survive the chat template",
+      "html": "<p>Qwen3-8B’s model card shows a hard template switch, enable_thinking, and the conversational /think and /no_think controls when thinking is enabled. The template determines which tokens frame the response. These controls describe the original release, not every later checkpoint carrying Qwen3 in its name.</p> <a href=\"#source-card\">[3]</a><p>This matters in an application. If a benchmark silently disables thinking while another allows a long trace, the two scores measure different compute budgets. If a program truncates the entire response at a short token limit, the model may spend that limit on intermediate text and never deliver the answer.</p><p>A useful evaluation records final-answer correctness, tokens generated, elapsed time and whether the answer arrived at all. It should test both easy and difficult requests. The question is whether the additional computation improves the task enough to justify its cost, and whether the smaller distilled model preserves that tradeoff.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "launch",
+      "title": "Qwen3: Think Deeper, Act Faster",
+      "url": "https://qwenlm.github.io/blog/qwen3/",
+      "detail": "Public release, hybrid thinking, model sizes and Apache 2.0 weights."
+    },
+    {
+      "id": "paper",
+      "title": "Qwen3 Technical Report",
+      "url": "https://arxiv.org/html/2505.09388v1",
+      "detail": "Sections 4.1–4.5 and 4.7; four-stage post-training and on-policy teacher-logit distillation."
+    },
+    {
+      "id": "card",
+      "title": "Qwen3-8B model card",
+      "url": "https://huggingface.co/Qwen/Qwen3-8B",
+      "detail": "Original model chat-template controls and thinking-mode usage."
+    }
+  ],
+  "caveats": [
+    "Generated reasoning is not a faithful explanation of every internal computation.",
+    "The softmax widget teaches distillation information; it does not implement training or predict student quality."
+  ],
+  "related": [
+    "2024-09-19-qwen2-5",
+    "2025-09-11-qwen3-next"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "open-weight-llms",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Self-contained, source-grounded visual tutorials on open-weight language models.",
+  "scripts": {"test": "node --test test/*.test.mjs", "author": "node authoring/render.mjs"},
+  "devDependencies": {"playwright": "1.63.0"},
+  "packageManager": "pnpm@10.34.5"
+}

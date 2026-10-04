@@ -1,0 +1,110 @@
+{
+  "slug": "2025-02-20-llada",
+  "date": "2025-02-20",
+  "model": "LLaDA 8B",
+  "family": "LLaDA",
+  "subtitle": "How to generate text by repeatedly filling blanks",
+  "summary": "Compare masked denoising with left-to-right generation and see why parallel predictions do not guarantee faster decoding.",
+  "category": "Foundations",
+  "parameters": "8B Base and Instruct models",
+  "license": "MIT for LLaDA 8B; later iLLaDA has a different license.",
+  "lead": "<p>Most familiar language models write one token after another. LLaDA asks a different question: if some words are hidden, can a model predict the missing pieces, then repeat until the text is complete? The model still uses a transformer, but the training objective and generation procedure change.</p>",
+  "sections": [
+    {
+      "id": "objective",
+      "title": "Train on many amounts of missing text",
+      "html": "<p>An autoregressive model learns to predict a next token from its prefix. LLaDA instead corrupts a training sequence by replacing randomly chosen tokens with a mask symbol. A transformer predicts the missing tokens using the visible context on both sides. The masking probability varies over training examples, and the loss is applied to masked positions with the weighting specified in the diffusion objective. <a href=\"#source-paper\">[1]</a></p><p>Consider “The small robot reads a book.” Hide “robot” and “book.” The visible words constrain both blanks. Now hide almost everything: the task requires proposing a plausible complete sequence. Learning across masking levels prepares the model for successive stages of generation, from very little visible text to an almost finished response.</p><p>This is <strong>masked diffusion</strong>. The term refers to a corruption-and-reconstruction process over discrete tokens. It does not mean adding Gaussian noise to word meanings in this release, and it does not require abandoning transformer layers.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Corrupt a sequence; learn to recover it",
+        "config": {
+          "steps": [
+            {
+              "label": "Choose a masking probability",
+              "detail": "Different examples expose different amounts of text."
+            },
+            {
+              "label": "Mask sampled positions",
+              "detail": "Keep the original tokens as training targets."
+            },
+            {
+              "label": "Predict missing tokens",
+              "detail": "Visible context on either side can contribute."
+            },
+            {
+              "label": "Compute the masked-position loss",
+              "detail": "Update weights using the diffusion objective."
+            }
+          ]
+        },
+        "caption": "Simplified training schematic; the actual loss includes the paper’s masking-probability weighting.",
+        "takeaway": "Changing the objective changes what contexts the model learns to use."
+      }
+    },
+    {
+      "id": "sample",
+      "title": "Several positions can change in a round",
+      "html": "<p>For generation, keep the prompt visible and initialize a response region with masks. Predict candidate tokens at the masked positions. A schedule decides which predictions remain visible and which positions stay masked for another round. The project demonstrates different remasking strategies. <a href=\"#source-project\">[2]</a></p><p>In the figure, two positions become visible each round. The scattered order fills separated positions first; the comparison fills from the left. The words and order are scripted so you can isolate the scheduling idea. A real model supplies distributions, and confidence-based selection depends on those predictions.</p><p>Notice that a later word can appear before an earlier one. This changes the interface between generation and display. A streaming application may need to revise positions or wait for a block to stabilize. Seeing a final answer early in a denoising run also does not prove that a model internally derived that answer before its explanation.</p>",
+      "figure": {
+        "kind": "diffusion",
+        "title": "Fill multiple blanks, then use the new context",
+        "config": {},
+        "caption": "Scripted, simplified unmasking. It does not execute LLaDA or simulate calibrated confidence.",
+        "takeaway": "The generation order can differ from the reading order."
+      }
+    },
+    {
+      "id": "cost",
+      "title": "Parallel predictions still cost repeated passes",
+      "html": "<p>Predicting many positions in a single forward pass sounds faster than generating one token. But compare the full bills. An autoregressive decoder can reuse a KV cache for its fixed prefix. A bidirectional denoising step can change the context used at many positions, making ordinary incremental caching harder.</p><p>The original repository explicitly notes speed limitations, fixed generation lengths, and a quality tradeoff when the number of denoising steps is reduced. Original LLaDA already supported semi-autoregressive remasking within successive blocks. <a href=\"#source-paper\">[2]</a> The repository now links later dynamic-length block-diffusion and caching methods; those later systems are separate advances. <a href=\"#source-code\">[3]</a></p><p>For a toy 128-token response, eight rounds mean eight model passes, but those passes process many positions. Comparing eight with 128 alone does not determine latency. Hardware utilization, prompt length, response length, attention work, cache reuse, and sampling quality all matter. Measure outputs of comparable quality on the same serving stack.</p>"
+    },
+    {
+      "id": "scope",
+      "title": "A generative alternative with a specific release history",
+      "html": "<p>The public model card identifies the Base and Instruct checkpoints and the custom implementation needed to run them. <a href=\"#source-card\">[4]</a> A base denoiser is not automatically a helpful assistant; instruction tuning changes the training examples while retaining the masked modeling approach.</p><p>The paper supports the case that diffusion can acquire important language-model capabilities at this scale. It does not establish that every diffusion model will outperform every autoregressive model. A result on a reversal task, for example, addresses one consequence of generation factorization; it is not a general measure of intelligence.</p><p>The dates deserve care. The official repository retrospectively labels the work February 14, 2025, while the official Instruct checkpoint history records a weight-bearing commit on February 20. This folder uses that verifiable artifact date and does not claim to reconstruct when a staged repository became public. <a href=\"#source-history\">[5]</a> Later LLaDA 1.5, MoE, and iLLaDA releases are related developments rather than interchangeable versions of the original checkpoint.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "paper",
+      "title": "Large Language Diffusion Models",
+      "url": "https://arxiv.org/html/2502.09992v3",
+      "detail": "Sections 2.1–2.4: masking objective, bidirectional attention, SFT, and inference."
+    },
+    {
+      "id": "project",
+      "title": "LLaDA project page",
+      "url": "https://ml-gsai.github.io/LLaDA-demo/",
+      "detail": "Visual generation examples and remasking strategies."
+    },
+    {
+      "id": "code",
+      "title": "Official LLaDA repository and FAQ",
+      "url": "https://github.com/ML-GSAI/LLaDA",
+      "detail": "Original speed limitations, public release notes, later variants, and license distinctions."
+    },
+    {
+      "id": "card",
+      "title": "LLaDA-8B-Instruct model card",
+      "url": "https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct",
+      "detail": "Released model and inference setup."
+    },
+    {
+      "id": "history",
+      "title": "LLaDA Instruct checkpoint history",
+      "url": "https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct/commits/main",
+      "detail": "February 20, 2025 weight-bearing commit; staging/public-visibility uncertainty is stated."
+    }
+  ],
+  "caveats": [
+    "Folder date is the first recorded weight-bearing commit, not an independently verified public-unveiling timestamp.",
+    "The unmasking order and sentence are hand-scripted, not generated by a language model.",
+    "Original LLaDA did not release the complete training data and framework; downloadable weights are a narrower form of openness."
+  ],
+  "dateNote": "First recorded weight-bearing Instruct checkpoint commit. The retrospective repository announcement uses February 14; public visibility of the staged artifact is uncertain.",
+  "related": [
+    "2023-12-03-mamba",
+    "2025-04-14-bitnet-b1-58"
+  ],
+  "readingMinutes": 9
+}

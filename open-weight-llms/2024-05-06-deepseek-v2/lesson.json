@@ -1,0 +1,92 @@
+{
+  "slug": "2024-05-06-deepseek-v2",
+  "model": "DeepSeek-V2",
+  "family": "DeepSeek",
+  "date": "2024-05-06",
+  "dateNote": "The official repository records the public release on May 6, 2024. The paper was submitted May 7; folder dates track weights rather than paper submission.",
+  "subtitle": "Remember a compact description instead of every expanded view",
+  "summary": "Multi-head latent attention compresses each token’s cached representation while fine-grained experts keep feed-forward work sparse.",
+  "category": "Memory",
+  "readingMinutes": 9,
+  "parameters": "236B total · 21B active",
+  "license": "DeepSeek Model License for weights; MIT for code",
+  "lead": "<p>DeepSeek-V2 attacks two different costs: storing the past and processing the present. Its public checkpoint has 236B total parameters with 21B active per token. The central memory idea is <strong>multi-head latent attention</strong>, or MLA: retain a compact learned description of each token and use it to supply attention. <a href=\"#source-repo\">[1]</a></p>",
+  "sections": [
+    {
+      "id": "redundancy",
+      "title": "Several large views can share a small description",
+      "html": "<p>Suppose a toy system stores four readings: x, 2x, 3x and 4x. Saving all four is unnecessary when one number x and a known rule reproduce them. Real neural representations are not this tidy. But if their useful variation can be learned in a lower-dimensional space, storing the smaller coordinates can save memory.</p><p>That is the intuition behind a <strong>latent representation</strong>: coordinates in a learned internal space. A projection maps a token’s hidden state down to this smaller vector. Learned maps can then produce the key and value information used by the attention heads. MLA trains these maps as part of the model. <a href=\"#source-paper\">[2]</a></p><p>The important difference from reducing precision is the axis being changed. Quantization uses fewer bits per number. Latent compression uses fewer numbers. Either can lose useful information unless the representation and training support it.</p>"
+    },
+    {
+      "id": "bottleneck",
+      "title": "Make the storage bottleneck visible",
+      "html": "<p>The widget starts with an invented 512-number expanded representation and a 64-number latent. At two bytes per number, those are 1,024 and 128 bytes per token per layer before any positional side channel. For 1,000 tokens, multiply both quantities by 1,000. For 20 layers, multiply again by 20. The proportional difference survives those multipliers.</p><p>Increase the latent width. The smaller bar approaches the expanded bar because fewer dimensions have been removed. This is a storage accounting experiment, not a model-quality simulator: no curve here predicts how much accuracy a narrower latent would lose.</p><p>DeepSeek-V2’s actual MLA contains more structure than this picture. In particular, positional information has its own treatment. The diagram therefore teaches one compression axis instead of pretending to reproduce the checkpoint’s precise cache layout.</p>",
+      "figure": {
+        "kind": "latent",
+        "title": "How many numbers must one token leave behind?",
+        "caption": "Simplified dimensional bottleneck with invented dimensions. This is not a faithful MLA cache implementation and omits the separate rotary-position component.",
+        "takeaway": "A smaller learned coordinate system reduces cached numbers before numerical precision is considered.",
+        "config": {
+          "original": 512,
+          "latent": 64
+        }
+      }
+    },
+    {
+      "id": "position",
+      "title": "Position is information that compression must preserve",
+      "html": "<p>The model must distinguish “A precedes B” from “B precedes A.” Rotary position embeddings, commonly called RoPE, encode relative-position information by rotating parts of query and key vectors. Applying such position-dependent operations carelessly interferes with MLA’s efficient algebra. DeepSeek-V2 separates a rotary-position component from its compressed content component. <a href=\"#source-paper\">[2]</a></p><p>Here is the algebraic reason a compact representation can be useful without expanding every key. If k = Uc, then a query score qᵀk equals qᵀUc, which also equals (Uᵀq)ᵀc. One can transform the new query and compare it with cached c. The large reconstructed k need not be written out for every past token.</p><p>The equality follows from associating matrix multiplications, not from approximating the result. The approximation lives in the learned low-dimensional representation. Position-dependent rotations complicate which operations can be combined, which is why the positional side channel is part of the design rather than a cosmetic detail.</p>"
+    },
+    {
+      "id": "experts",
+      "title": "Share routine work and route the remainder",
+      "html": "<p>DeepSeekMoE contributes a complementary idea: divide routed expertise into finer pieces and keep shared experts active for all tokens. The earlier DeepSeekMoE paper motivates shared experts as a place for common knowledge, so routed experts need not duplicate all of it. This architecture predates the V2 release. <a href=\"#source-moe\">[3]</a></p><p>Imagine an invented workshop where every job needs one common preparation step, but then needs two of eight optional operations. The shared step always runs; the router chooses the optional pair. That does not prove the learned shared network contains only common knowledge. It states the computational organization.</p><p>Change the routed active count below. The always-active component remains. Consequently, “two of eight” is not the fraction of the entire model being computed: it ignores shared work and attention. V2’s real expert counts are larger than this teaching diagram.</p>",
+      "figure": {
+        "kind": "moe",
+        "title": "One shared path plus selected paths",
+        "caption": "Simplified, scaled-down DeepSeekMoE teaching model. Eight routed experts and one shared expert are illustrative counts, not V2’s configuration.",
+        "takeaway": "Shared work remains active even when routed work is sparse.",
+        "config": {
+          "experts": 8,
+          "active": 2,
+          "shared": 1
+        }
+      }
+    },
+    {
+      "id": "consequences",
+      "title": "Cache efficiency and weight size remain separate",
+      "html": "<p>V2’s repository reports a 128K context capability and an 8.1-trillion-token pretraining corpus. Those specifications describe the released model; they do not imply that every request will use the whole context effectively. Nor does a compressed cache remove the need to store the model’s large expert inventory. <a href=\"#source-repo\">[1]</a></p><p>For a concrete deployment thought experiment, hold weights fixed and double the number of simultaneous conversations. Weight storage may stay shared, while the total cache demand roughly doubles if their lengths and representations match. Conversely, holding conversations fixed while adding more inactive experts primarily expands the model inventory. Different workloads expose different bottlenecks.</p><p>MLA and MoE therefore make a useful pair: one addresses memory left by previous tokens, the other limits feed-forward computation for a current token. DeepSeek-V3 inherits both and concentrates on making their large-scale training and execution work together.</p>"
+    }
+  ],
+  "caveats": [
+    "The latent-width slider does not model quality, RoPE storage or exact MLA implementation.",
+    "The expert widget uses scaled-down counts and cannot predict throughput.",
+    "The weights use the release’s custom DeepSeek Model License; code and weights have different licenses."
+  ],
+  "sources": [
+    {
+      "id": "repo",
+      "title": "Official DeepSeek-V2 repository",
+      "url": "https://github.com/deepseek-ai/DeepSeek-V2",
+      "detail": "Release news, specifications, downloads and license distinction."
+    },
+    {
+      "id": "paper",
+      "title": "DeepSeek-V2 technical report",
+      "url": "https://arxiv.org/html/2405.04434v5",
+      "detail": "Sections 2.1.2–2.1.4: joint KV compression, projection absorption and decoupled RoPE."
+    },
+    {
+      "id": "moe",
+      "title": "DeepSeekMoE technical report",
+      "url": "https://arxiv.org/html/2401.06066v1",
+      "detail": "Fine-grained expert segmentation and shared expert isolation."
+    }
+  ],
+  "related": [
+    "2023-09-27-mistral-7b",
+    "2023-12-08-mixtral-8x7b",
+    "2024-12-26-deepseek-v3"
+  ]
+}

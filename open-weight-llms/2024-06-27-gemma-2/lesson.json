@@ -1,0 +1,107 @@
+{
+  "slug": "2024-06-27-gemma-2",
+  "model": "Gemma 2 · 9B and 27B",
+  "family": "Gemma",
+  "date": "2024-06-27",
+  "dateNote": "June 27, 2024 public release of 9B and 27B weights; not the earlier preview or later 2B release.",
+  "subtitle": "How a teacher can make each training example more informative",
+  "summary": "Gemma 2’s smaller models learn a teacher’s probability distribution, while alternating local and global attention limits memory.",
+  "category": "Training",
+  "readingMinutes": 8,
+  "parameters": "9B distilled · 27B conventionally pretrained",
+  "license": "Gemma Terms of Use; custom terms and use restrictions",
+  "lead": "<p>A training sentence tells a model which token happened to come next. It rarely tells the model which alternatives would also have made sense. Gemma 2 makes that missing information useful by training a smaller model against the predictions of a larger teacher.</p>",
+  "sections": [
+    {
+      "id": "target",
+      "title": "One observed word hides many possibilities",
+      "html": "<p>Google released Gemma 2’s 9B and 27B checkpoints on June 27, 2024. The later 2B addition is not dated as if it launched that day. The family’s research contribution combines established architectural ideas with a sustained use of knowledge distillation for its smaller models. <a href=\"#source-release\">[1]</a></p><p>Consider our invented fragment: “She poured the tea into the”. Suppose the observed next word is “cup”. Ordinary next-token training rewards the probability assigned to that one observed token. But “mug” might also have been reasonable. A target containing only “cup” does not directly tell the learner that “mug” is closer to a good answer than “volcano”.</p><p>A <strong>teacher distribution</strong> assigns probabilities to all possible next tokens. It can communicate several plausible continuations at once. The teacher is not an oracle: its mistakes and biases can enter the target too. The useful question is whether its extra structure helps a smaller student learn.</p>"
+    },
+    {
+      "id": "soft",
+      "title": "Train on a distribution rather than a single label",
+      "html": "<p>Knowledge distillation predates Gemma. Hinton and colleagues describe transferring a larger model’s output distribution to a smaller model. A temperature parameter can soften a distribution so that lower-ranked alternatives remain visible. This tutorial’s slider illustrates that general probability transformation; it is not evidence that Gemma 2 used the displayed temperature. <a href=\"#source-distill\">[2]</a></p><p>The displayed scores are invented. The highest-scoring answer stays highest as temperature rises, but the probabilities spread out. At low temperature, almost all the training emphasis goes to the winner. At higher temperature, the student receives more information about the ordering of the other candidates.</p><p>The target is still a training signal, not a collection of facts installed by copying weights. A student updates its own parameters so that its predictions better match the target distribution. Different architectures can learn from the same teacher, and the student need not run the teacher at inference time. <a href=\"#source-distill\">[2]</a></p>",
+      "figure": {
+        "kind": "distill",
+        "title": "Reveal the alternatives in a teacher’s prediction",
+        "caption": "Illustrative logits and temperature. This is token-distribution distillation, not sequence imitation and not Gemma 2’s disclosed temperature recipe.",
+        "takeaway": "Soft targets communicate relationships among alternatives.",
+        "config": {
+          "labels": [
+            "cup",
+            "mug",
+            "bowl",
+            "volcano"
+          ],
+          "logits": [
+            4,
+            2,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "loss",
+      "title": "A small numerical example explains the objective",
+      "html": "<p>Imagine a teacher assigns 0.6 to “cup”, 0.3 to “mug” and 0.1 to “bowl”. A student assigning 0.6, 0.3 and 0.1 matches that target. Another assigning 0.6, 0.01 and 0.39 gives the observed word the same probability, but misrepresents the alternatives. A distribution-matching objective can distinguish them.</p><p>Gemma 2’s report says the 9B model was pretrained with teacher probabilities, while the 27B model was trained without that distillation objective. The report writes the student loss as a teacher-weighted sum of negative log probabilities. It also investigates distillation in smaller controlled experiments. <a href=\"#source-paper\">[3]</a></p><p>This matters when a small model has already seen many tokens. More repetitions can still help, but another route is to make the feedback at each position richer. The tutorial does not turn that possibility into a guarantee: teacher quality, student capacity and training duration all constrain what is learned.</p>"
+    },
+    {
+      "id": "layers",
+      "title": "Not every layer needs to inspect the whole past",
+      "html": "<p>Gemma 2 alternates local and global attention layers. Local layers use a 4,096-token sliding window; global layers span the 8,192-token context. It also uses grouped-query attention. These are adopted techniques that address a separate issue from distillation: the cost of using the trained model. <a href=\"#source-paper\">[3]</a></p><p>The grid is a much smaller teaching example. Select a query near the end, then switch between local and full attention. The highlighted positions show which earlier token positions this layer may consult directly. Local attention retains a neighborhood; full attention can reach the entire preceding sequence.</p><p>Across multiple layers, information can travel through intermediate representations. A local layer does not imply the final model knows nothing about earlier material, particularly when global layers are interleaved. Conversely, a direct attention connection does not prove a model will retrieve the right fact. The figure depicts allowed connections, not learned importance.</p>",
+      "figure": {
+        "kind": "attention",
+        "title": "Compare one local layer with one global layer",
+        "caption": "Simplified 16-token causal mask. Local/full presets represent different layer types; the hybrid preset is a generic toy, not Gemma 2’s alternating-layer architecture.",
+        "takeaway": "Locality restricts direct access in a layer while global layers restore long-range access.",
+        "config": {
+          "tokens": 16,
+          "window": 4,
+          "mode": "local"
+        }
+      }
+    },
+    {
+      "id": "limits",
+      "title": "Distillation changes training cost, not the student’s identity",
+      "html": "<p>The released model card distinguishes pretrained and instruction-tuned checkpoints and identifies the Gemma license. Instruction tuning adds another behavior-shaping stage after the broad language training discussed here. A base model and its assistant version should therefore not be treated as interchangeable in an evaluation. <a href=\"#source-card\">[4]</a></p><p>When using a distilled model, ask what was transferred. Token probabilities reveal alternative next-token preferences; generated answer sequences provide examples to imitate. Both are often called distillation, but they expose different information. Gemma 2’s pretraining case is particularly useful because the target distribution is explicit.</p><p>The main experiment to remember is the two students with the same probability on “cup”. Once alternatives matter, training is no longer only about rewarding the one continuation that happened to appear in the document.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Gemma 2 is now available",
+      "url": "https://blog.google/innovation-and-ai/technology/developers-tools/google-gemma-2/",
+      "detail": "June 27 release of 9B/27B, download availability and licensing context."
+    },
+    {
+      "id": "distill",
+      "title": "Distilling the Knowledge in a Neural Network",
+      "url": "https://arxiv.org/html/1503.02531v1",
+      "detail": "Section 2: soft targets and temperature; the widget uses invented scores."
+    },
+    {
+      "id": "paper",
+      "title": "Gemma 2: Improving Open Language Models at a Practical Size",
+      "url": "https://arxiv.org/html/2408.00118v3",
+      "detail": "Sections 2, 3.2 and 5: local/global layers, teacher-probability loss and distillation ablations."
+    },
+    {
+      "id": "card",
+      "title": "Google’s Gemma 2 9B model card",
+      "url": "https://huggingface.co/google/gemma-2-9b",
+      "detail": "Checkpoint purpose, released weights and Gemma terms."
+    }
+  ],
+  "caveats": [
+    "The June date refers to 9B and 27B; 2B arrived later.",
+    "The teacher widget uses arbitrary probabilities and does not reproduce Gemma’s training hyperparameters.",
+    "Attention masks are scaled teaching examples, not a model execution trace."
+  ],
+  "related": [
+    "2025-03-12-gemma-3",
+    "2024-07-23-llama-3-1"
+  ]
+}

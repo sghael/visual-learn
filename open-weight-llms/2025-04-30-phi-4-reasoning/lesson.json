@@ -1,0 +1,117 @@
+{
+  "slug": "2025-04-30-phi-4-reasoning",
+  "model": "Phi-4-reasoning · reasoning-plus",
+  "family": "Phi",
+  "date": "2025-04-30",
+  "dateNote": "Public reasoning and reasoning-plus weights launched April 30, 2025. The underlying Phi-4 was a prior release.",
+  "subtitle": "How teachable examples and verifiable rewards shape a compact reasoner",
+  "summary": "Phi-4-reasoning adds carefully selected demonstrations to Phi-4, then reasoning-plus learns from group-relative rewards.",
+  "category": "Reasoning",
+  "readingMinutes": 8,
+  "parameters": "14B dense · SFT and SFT+RL variants",
+  "license": "MIT",
+  "lead": "<p>A model can have enough knowledge to approach a problem while still failing to organize a reliable solution. Phi-4-reasoning targets that gap with selected demonstrations. Its reasoning-plus variant adds a second kind of feedback: compare several attempted solutions by their outcomes.</p>",
+  "sections": [
+    {
+      "id": "foundation",
+      "title": "Begin with an already trained model",
+      "html": "<p>Microsoft released Phi-4-reasoning and reasoning-plus on April 30, 2025. These 14B models build on Phi-4; the plus variant adds reinforcement learning after supervised fine-tuning. The release also included a separate mini-reasoning model, which should not be conflated with the 14B pair studied here. <a href=\"#source-release\">[1]</a></p><p>The original Phi-4 report emphasizes synthetic data built from carefully selected source material, together with filtered web, code and acquired data. Its experiments also found weaknesses when removing ordinary web information entirely. A synthetic-heavy training recipe is not a claim that generated data replaces every form of external knowledge. <a href=\"#source-base\">[2]</a></p><p>For an invented geometry question, knowing the area formula is only a starting point. The model must identify the relevant lengths, select the formula, substitute the values and check units. A worked demonstration supplies a sequence in which these decisions are made explicit.</p>"
+    },
+    {
+      "id": "teachable",
+      "title": "Choose problems near the model’s boundary",
+      "html": "<p>The reasoning report describes selecting prompts near Phi-4’s current capability boundary, then obtaining long demonstrations from o3-mini. Supervised fine-tuning teaches the model to generate these solution sequences. This is sequence imitation, distinct from matching a teacher’s full probability distribution at every token. <a href=\"#source-paper\">[3]</a></p><p>Imagine three practice problems. The model always solves the first; it sometimes solves the second; it cannot make meaningful progress on the third. If time is limited, the middle problem may offer a useful combination of challenge and learnability. This is an intuition for selection, not a measured learning law.</p><p>The teacher’s explanation also needs checking. A correct final number can be reached through a mistaken step, and a fluent rationale may omit an essential assumption. Curating demonstrations means checking both what the student is asked and what behavior it is being asked to imitate.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "A curriculum before a reward loop",
+        "caption": "Simplified Phi-4-reasoning development sequence. The plus checkpoint adds the final reinforcement-learning stage.",
+        "takeaway": "Demonstrations establish useful behavior before outcome-based refinement.",
+        "config": {
+          "steps": [
+            {
+              "label": "Phi-4",
+              "detail": "A trained language model"
+            },
+            {
+              "label": "Select",
+              "detail": "Prompts near its capability boundary"
+            },
+            {
+              "label": "Demonstrate",
+              "detail": "Teacher-generated solution sequences"
+            },
+            {
+              "label": "Refine",
+              "detail": "Group-relative rewards for plus"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "group",
+      "title": "Several attempts create a local comparison",
+      "html": "<p>The plus model uses group relative policy optimization, or <strong>GRPO</strong>. Sample multiple answers to the same prompt, score them, and compare each reward with the group. The actual Phi reward includes correctness, length, format and repetition considerations. The toy below isolates the group-relative signal and omits the rest. <a href=\"#source-paper\">[3]</a></p><p>In the mixed example, rewards are 0, 0, 1 and 1. Their mean is 0.5 and population standard deviation is 0.5. Subtracting the mean and dividing by that deviation gives −1, −1, +1 and +1. These signs indicate which sampled answers did better or worse than the group average.</p><p>Now choose “all equal”. Every difference from the mean is zero, so this toy supplies no within-group ranking signal. It does not prove the answers are good. All four could be correct, all four could be wrong, or the scoring rule could have failed to distinguish them.</p>",
+      "figure": {
+        "kind": "grpo",
+        "title": "Compute a group-relative learning signal",
+        "caption": "Simplified pedagogical GRPO signal with illustrative binary rewards. Uses population standard deviation and returns zero for an equal-reward group. Omits clipping, KL, entropy, token loss and Phi’s actual length/format/repetition reward.",
+        "takeaway": "A relative signal needs differences among sampled outcomes.",
+        "config": {
+          "rewards": [
+            0,
+            0,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "objective",
+      "title": "Reward design determines what is being practiced",
+      "html": "<p>Consider a verifier that checks only whether the last line contains “12”. It may reward an answer with broken reasoning that happens to end in 12. Adding format checks changes behavior, but those checks still do not establish mathematical validity. The scoring rule defines what evidence training can use.</p><p>The original Phi-4 work also explores finding pivotal points in generated answers to construct preference pairs. That is another way to focus supervision on consequential decisions rather than treating all portions of an answer as equally informative. It belongs to the base model’s post-training recipe, not a newly invented property of GRPO. <a href=\"#source-base\">[2]</a></p><p>Outcome feedback and demonstrations can complement one another: demonstrations show a route worth imitating; rewards discriminate among attempted routes. Neither guarantees that the visible reasoning text faithfully explains the model’s internal computation.</p>"
+    },
+    {
+      "id": "cost",
+      "title": "More generated work has a cost",
+      "html": "<p>The public reasoning-plus card identifies a 32K-token context and an MIT-licensed 14B dense model. Its outputs contain a reasoning portion followed by a response. That format changes how generation time is spent, even though the stored parameter count remains the same. <a href=\"#source-card\">[4]</a></p><p>Take an illustrative fixed generation rate of twenty tokens per second. A 200-token answer needs about ten seconds of generation; a 2,000-token answer needs about one hundred. Real systems have varying rates and prompt-processing costs, but the arithmetic explains why longer reasoning is a resource decision.</p><p>Evaluate accuracy alongside latency and generated length. A longer answer may help with a hard problem, repeat an error, or merely restate the question. Phi-4-reasoning’s contribution is a documented, data-centered path to useful reasoning behavior, not a rule that more visible thinking always produces a better answer.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "One year of Phi: Small language models making big leaps",
+      "url": "https://azure.microsoft.com/en-us/blog/one-year-of-phi-small-language-models-making-big-leaps-in-ai/",
+      "detail": "April 30 release and distinction among reasoning, plus and mini variants."
+    },
+    {
+      "id": "base",
+      "title": "Phi-4 Technical Report",
+      "url": "https://arxiv.org/html/2412.08905v1",
+      "detail": "Sections 2–4: curated synthetic/organic mixture, ablations and pivotal-token preference construction."
+    },
+    {
+      "id": "paper",
+      "title": "Phi-4-reasoning Technical Report",
+      "url": "https://arxiv.org/html/2504.21318v1",
+      "detail": "Sections 2–4: teachable prompt selection, o3-mini demonstrations and GRPO reward design."
+    },
+    {
+      "id": "card",
+      "title": "Microsoft’s Phi-4-reasoning-plus model card",
+      "url": "https://huggingface.co/microsoft/Phi-4-reasoning-plus",
+      "detail": "14B architecture, 32K context, April 30 release, output format and MIT license."
+    }
+  ],
+  "caveats": [
+    "The widget is only a simplified advantage calculation, not Phi’s full training loss.",
+    "Sequence imitation is not the same as token-distribution distillation.",
+    "Longer reasoning is not guaranteed to improve an individual answer."
+  ],
+  "related": [
+    "2024-04-23-phi-3",
+    "2025-07-09-phi-4-mini-flash-reasoning",
+    "2026-03-04-phi-4-reasoning-vision"
+  ]
+}

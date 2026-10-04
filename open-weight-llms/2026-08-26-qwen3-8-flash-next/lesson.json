@@ -1,0 +1,103 @@
+{
+  "slug": "2026-08-26-qwen3-8-flash-next",
+  "model": "Qwen3.8-Flash-Next",
+  "family": "Qwen",
+  "date": "2026-08-26",
+  "dateNote": "Public weight release August 26, 2026; architecture report August 31.",
+  "subtitle": "How lookup memory, sparse retrieval and depth gates divide the work",
+  "summary": "Qwen3.8-Flash-Next adds micro-block sparse attention, gated residual streams and offloaded n-gram embeddings.",
+  "category": "Memory",
+  "readingMinutes": 8,
+  "parameters": "125B backbone · 6B active; +51B n-gram tables and 4B MTP",
+  "license": "Qwen Community License 1.0; custom terms",
+  "lead": "<p>Adding capacity need not mean running every new parameter through an expensive computation. Qwen3.8-Flash-Next separates several jobs: summarize token history, retrieve selected context, mix information across depth, and look up familiar short token patterns in a large embedding table.</p>",
+  "sections": [
+    {
+      "id": "costs",
+      "title": "Different forms of memory have different prices",
+      "html": "<p>The released card lists a 125-billion-parameter backbone with about 6 billion active, plus 51 billion parameters in n-gram embeddings and a 4-billion-parameter multi-token-prediction component. These categories must remain separate: quoting only 125B omits a substantial stored table, while adding every category and calling it active computation would be equally misleading.</p> <a href=\"#source-card\">[1]</a><p>The model inherits a hybrid of Gated DeltaNet and attention, but replaces the direct attention layers with Qwen Sparse Attention, or QSA. The report also introduces Gated Residual and offloaded n-gram embeddings. The August 26 weight release precedes the August 31 architecture report.</p> <a href=\"#source-paper\">[2]</a><p>A useful accounting sheet asks four questions: how many numbers are stored, how many are fetched for one token, how much arithmetic is performed, and which device holds them. No single parameter count answers all four.</p>"
+    },
+    {
+      "id": "lookup",
+      "title": "A table can store capacity without evaluating every entry",
+      "html": "<p>An n-gram is a short sequence of tokens. A bigram has two, a trigram three. The model uses large embedding tables indexed by such short patterns; the report places this capacity in host memory and prefetches the needed entries. Lookup parameters add stored information with a different compute pattern from an expert network.</p> <a href=\"#source-paper\">[2]</a><p>Imagine an illustrative table with a million rows, each containing 16 numbers. Looking up one row reads 16 values, not all 16 million. The table still occupies space. If the requested row lives across a slow connection and cannot be fetched in advance, the lookup may stall computation.</p><p>This explains both the opportunity and the constraint. A predictable token-pattern index can support prefetching. But the table cannot replace arbitrary reasoning: recognizing a familiar phrase and resolving a new contradiction are different operations. The backbone must still interpret and combine the retrieved representation.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Move only the needed table entry",
+        "caption": "Simplified n-gram lookup pipeline, not an exact Qwen hashing or transfer implementation.",
+        "takeaway": "Stored capacity can grow without reading every parameter for each token.",
+        "config": {
+          "steps": [
+            {
+              "label": "Recent tokens",
+              "detail": "Short n-gram index"
+            },
+            {
+              "label": "Host-memory table",
+              "detail": "Stored embedding capacity"
+            },
+            {
+              "label": "Prefetch entry",
+              "detail": "A small selected row"
+            },
+            {
+              "label": "Backbone",
+              "detail": "Use the retrieved representation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "attention",
+      "title": "Select small blocks before expensive attention",
+      "html": "<p>QSA’s lightweight indexer scores compressed micro-block representations and selects useful blocks of context. The expensive attention then uses the chosen token representations. The model card lists a budget of 512 blocks, corresponding to 2,048 tokens. Selection is content-dependent; it is not a fixed sliding window.</p> <a href=\"#source-card\">[1]</a><p>An analogy is searching a book’s short section summaries before closely reading selected passages. Good summaries save reading time. A summary that hides the one crucial exception can cause retrieval to miss it. Sparse attention therefore needs evaluation of both indexing cost and retained task quality.</p><p>The companion recurrent layers still keep bounded state. In the toy below, doubling the sequence doubles the explicit history but leaves the recurrent state unchanged. QSA changes how much history is consulted, while recurrence changes how history is represented. Those are separate operations, and the graph illustrates only the second distinction.</p>",
+      "figure": {
+        "kind": "state",
+        "title": "Distinguish stored history from a running state",
+        "caption": "Illustrative state and KV scalar counts. The widget does not implement QSA selection or estimate released-model memory.",
+        "takeaway": "Compression and selective retrieval address different parts of the context cost.",
+        "config": {
+          "stateScalars": 512,
+          "kvScalarsPerToken": 64,
+          "tokens": 128
+        }
+      }
+    },
+    {
+      "id": "residual",
+      "title": "Gates choose what each layer reads",
+      "html": "<p>Gated Residual widens the residual stream into four branches, uses elementwise gates when reading them, and writes each block’s result with per-branch weights. The report removes an additional branch-mixing operator to reduce memory traffic. This is related to, but distinct from, mHC and Attention Residuals.</p> <a href=\"#source-paper\">[2]</a><p>For a scalar analogy, suppose two streams hold 2 and 8. A gate can read mostly the first for one computation and mostly the second for another. In vectors, separate coordinates can receive different weights, permitting finer selection than one scalar weight for an entire branch. The real mechanism includes normalization and learned projections omitted here.</p><p>The report evaluates architecture, optimization and stability together rather than relying only on training loss. That is a useful lesson for reading model releases: a lower loss, fewer active weights and a faster kernel are different pieces of evidence. A deployment still needs whole-task quality, memory and timing measurements.</p> <a href=\"#source-paper\">[2]</a>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "card",
+      "title": "Qwen3.8-Flash-Next official model card",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next",
+      "detail": "Separate parameter categories, architecture schedule, QSA budget and custom license."
+    },
+    {
+      "id": "paper",
+      "title": "On the Design of Qwen3.8-Next Architecture",
+      "url": "https://arxiv.org/html/2608.30320v1",
+      "detail": "Sections 2.1–2.3 and 3; compressed micro-block indexing, Gated Residual, offloaded n-grams and joint design evaluation."
+    },
+    {
+      "id": "history",
+      "title": "Qwen3.8-Flash-Next weight history",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/commits/main",
+      "detail": "First uploaded weight folder August 26, 2026; paper dated August 31."
+    }
+  ],
+  "caveats": [
+    "The 51B embedding table is additional stored capacity, not included in the 125B backbone count.",
+    "The n-gram lookup and scalar-gate examples are teaching analogies, not implementation code."
+  ],
+  "related": [
+    "2025-09-11-qwen3-next",
+    "2026-02-16-qwen3-5",
+    "2026-07-27-kimi-k3",
+    "2026-08-26-glm-5-3-flash"
+  ]
+}

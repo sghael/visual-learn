@@ -1,0 +1,106 @@
+{
+  "slug": "2025-11-20-olmo-3",
+  "date": "2025-11-20",
+  "model": "Olmo 3",
+  "family": "Ai2",
+  "subtitle": "How releasing the training path turns a model into an experiment",
+  "summary": "Follow pretraining, midtraining, and post-training through a model family with public data and checkpoints.",
+  "category": "Open science",
+  "parameters": "7B and 32B dense models; Base, Think, Instruct, and RL-Zero paths",
+  "license": "Apache 2.0 for referenced model weights; datasets retain their documented terms.",
+  "lead": "<p>A finished weight file tells you what a model became. It does not tell you which training choice caused a behavior. Olmo 3 releases a sequence of artifacts connecting data, training stages, and model variants. That makes it possible to ask more controlled questions about how a language model learns.</p>",
+  "sections": [
+    {
+      "id": "flow",
+      "title": "A model is the endpoint of many choices",
+      "html": "<p><strong>Pretraining</strong> builds a base model from broad text. <strong>Midtraining</strong> continues training with a more targeted mixture or a different context-length distribution. <strong>Post-training</strong> shapes behaviors such as instruction following and reasoning. Each stage starts from weights produced by the preceding work.</p><p>Olmo 3 offers 7B and 32B base models, reasoning-oriented Think models, and instruction-following and RL-Zero pathways. Ai2’s launch makes these branches and their supporting artifacts public. <a href=\"#source-blog\">[1]</a> The novelty emphasized here is inspectability of the development path, not a claim that a dense transformer is a new architecture.</p><p>Imagine two students taking the same final exam. Knowing their scores alone does not tell you whether a new textbook helped. Knowing their starting point, exercises, and intermediate results makes the comparison more informative. Checkpoints serve a similar role for training experiments, although repeated training runs are still needed to separate random variation from a systematic effect.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Find a point where the experiment can branch",
+        "config": {
+          "steps": [
+            {
+              "label": "Broad pretraining",
+              "detail": "Learn from the released Dolma data mixture."
+            },
+            {
+              "label": "Midtraining and context extension",
+              "detail": "Adapt data composition and context distribution."
+            },
+            {
+              "label": "Choose a post-training path",
+              "detail": "Think, Instruct, or RL-Zero targets different behavior."
+            },
+            {
+              "label": "Inspect artifacts and evaluate",
+              "detail": "Connect the result to checkpoints, data, code, and tests."
+            }
+          ]
+        },
+        "caption": "Simplified map of Olmo 3’s published model flow; branches are compressed into one overview.",
+        "takeaway": "An intermediate checkpoint allows an intervention earlier than the final model."
+      }
+    },
+    {
+      "id": "mixture",
+      "title": "Changing the curriculum changes the experiment",
+      "html": "<p>The technical report documents a separate midtraining mixture, including mathematical, code, and other data. It also investigates how earlier training choices affect later reinforcement learning. <a href=\"#source-paper\">[2]</a> This is a causal question: did the base distribution make the behaviors that RL rewards easier to discover?</p><p>Use a toy budget of 100 billion tokens below. At a 30% targeted share, 30 billion come from targeted tasks and 70 billion from broad replay. Raising the share to 60% keeps total tokens fixed while changing the examples seen. That controls one confound, the amount of data processed. It does not control all confounds: quality, duplication, difficulty, and overlap with evaluation also matter.</p><p>Predict what happens to the replay budget before moving the slider. The arithmetic can tell you the allocation exactly. It cannot tell you whether the model will become better at mathematics, worse at conversation, or both. Those are empirical questions requiring held-out measurements.</p>",
+      "figure": {
+        "kind": "mixture",
+        "title": "Hold the token budget fixed; change the mix",
+        "config": {
+          "tokens": 100
+        },
+        "caption": "Illustrative 100B-token curriculum, not the measured Olmo mixture or a predicted quality curve.",
+        "takeaway": "A transparent mixture makes the training change precise enough to test."
+      }
+    },
+    {
+      "id": "branches",
+      "title": "Reasoning and conversation can share a base",
+      "html": "<p>A base model can be adapted along multiple paths. A reasoning path may emphasize longer solutions and verified tasks. A conversational path may emphasize direct answers, instruction following, and tool interaction. Comparing those branches from a common base reduces some of the differences that make comparisons between unrelated models hard to interpret.</p><p>The 32B Think card describes its base model, stages, data, and artifacts. Its training path includes supervised fine-tuning, preference tuning, and reinforcement learning. <a href=\"#source-card\">[3]</a> “Think” is therefore a description of a post-trained checkpoint, not evidence of an entirely separate kind of neuron.</p><p>Suppose a reasoning checkpoint improves a math score and also answers ordinary questions more slowly. Those changes should be measured separately: correct answers per problem, generated tokens per attempt, and end-to-end time. A single benchmark number cannot specify whether the tradeoff is useful for a particular application.</p>"
+    },
+    {
+      "id": "reproduce",
+      "title": "Availability is the beginning of reproducibility",
+      "html": "<p>Public weights let a researcher run a checkpoint. Public data and code can help explain or reproduce how it was obtained. Ai2 documents inference and makes its training infrastructure available through the linked projects. <a href=\"#source-docs\">[4]</a> Reproduction still requires compute, dependency versions, data processing, and attention to numerical differences.</p><p>A practical study can be smaller than repeating the entire training run. Start from a released intermediate checkpoint, change one data source, keep an evaluation set untouched, and report both successful and unsuccessful runs. A useful release reduces the amount of hidden state needed to carry out that study.</p><p>The December 2025 Olmo 3.1 updates continue the family’s training paths; they should not be silently substituted for the November Olmo 3 checkpoints in comparisons. <a href=\"#source-blog\">[1]</a> Versioned model names and checkpoint identifiers are part of the evidence, not administrative trivia.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "blog",
+      "title": "Olmo 3 release and model flow",
+      "url": "https://allenai.org/blog/olmo3",
+      "detail": "November 20, 2025 release; later December 3.1 updates are explicitly separated."
+    },
+    {
+      "id": "paper",
+      "title": "Olmo 3 technical report",
+      "url": "https://arxiv.org/html/2512.13961v1",
+      "detail": "Sections on pretraining, midtraining, model branches, and RL-Zero experiments."
+    },
+    {
+      "id": "card",
+      "title": "Olmo-3-32B-Think model card",
+      "url": "https://huggingface.co/allenai/Olmo-3-32B-Think",
+      "detail": "Base provenance and SFT/DPO/RL training artifacts."
+    },
+    {
+      "id": "docs",
+      "title": "Ai2 model documentation",
+      "url": "https://docs.allenai.org/quick_start/running_locally",
+      "detail": "Inference access and links to released model and training infrastructure."
+    }
+  ],
+  "caveats": [
+    "The mixture widget is an allocation exercise, not an empirical scaling law.",
+    "Openness does not imply that a full training reproduction is inexpensive or numerically identical.",
+    "This page distinguishes the November Olmo 3 release from December Olmo 3.1."
+  ],
+  "dateNote": "Official public launch date; the arXiv technical report followed in December.",
+  "related": [
+    "2024-11-21-tulu-3",
+    "2025-01-20-deepseek-r1"
+  ],
+  "readingMinutes": 9
+}

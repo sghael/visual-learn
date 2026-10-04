@@ -1,0 +1,104 @@
+{
+  "slug": "2024-11-21-tulu-3",
+  "date": "2024-11-21",
+  "model": "Tülu 3",
+  "family": "Ai2",
+  "subtitle": "How a checkable answer becomes a training signal",
+  "summary": "Explore verifiable rewards, checker failures, and the stages of an open post-training recipe.",
+  "category": "Training",
+  "parameters": "Initial 8B and 70B models adapted from Llama 3.1; later 405B extension",
+  "license": "Llama 3.1 community license applies to the model weights; recipe artifacts have their own licenses.",
+  "lead": "<p>A preference judge can reward a persuasive answer that is wrong. Some tasks offer a sharper signal: run a test, compare a numerical answer, or check a formatting constraint. Tülu 3 made verifiable rewards part of a documented post-training recipe, with released data and code that others could examine.</p>",
+  "sections": [
+    {
+      "id": "recipe",
+      "title": "Different stages teach different behavior",
+      "html": "<p>A pretrained model learns to predict text. <strong>Supervised fine-tuning</strong> shows it examples of the responses an assistant should produce. <strong>Preference optimization</strong> then changes its relative preference for chosen and rejected responses. Reinforcement learning can generate new answers and reward their outcomes.</p><p>Tülu 3 combines curated supervised data, preference tuning with DPO, and reinforcement learning with verifiable rewards, or <strong>RLVR</strong>. The initial release built on Llama 3.1 models. The contribution includes a transparent, tested recipe rather than a claim to have invented every ingredient. <a href=\"#source-blog\">[1]</a></p><p>Think of teaching arithmetic. Worked solutions demonstrate a method. Comparing two explanations teaches style and preference. Checking a newly attempted problem gives feedback on an outcome the student generated. The signals overlap, but they are not interchangeable.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "From imitation to preferences to checked outcomes",
+        "config": {
+          "steps": [
+            {
+              "label": "Curate prompts and demonstrations",
+              "detail": "Choose examples for skills the model should learn."
+            },
+            {
+              "label": "Supervised fine-tuning",
+              "detail": "Increase the likelihood of target responses."
+            },
+            {
+              "label": "DPO preference tuning",
+              "detail": "Favor chosen responses relative to rejected ones."
+            },
+            {
+              "label": "RL with verifiable rewards",
+              "detail": "Generate responses and score task outcomes with checks."
+            }
+          ]
+        },
+        "caption": "Simplified view of the published Tülu 3 post-training recipe.",
+        "takeaway": "The recipe changes both the data and the signal used to update the weights."
+      }
+    },
+    {
+      "id": "verify",
+      "title": "A reward is only as good as its checker",
+      "html": "<p>For the question “What is 3 × 2?”, a toy verifier might extract the final number and compare it with six. That is easy to audit. It also ignores most of the answer. An explanation containing incorrect intermediate arithmetic can still end in six and receive reward.</p><p>Try the “Flawed reasoning” example below. Then switch to exact-string checking and try the formatted answer. The first checker is too permissive about reasoning; the second is too strict about formatting. Both are deterministic. Deterministic does not mean that the check measures everything a reader cares about.</p><p>In the actual recipe, verified outcomes replace learned reward-model scores for selected tasks. Tülu 3 uses PPO in this stage, including controls such as a penalty for drifting from a reference policy. It does not use the group-normalization toy associated with GRPO in the DeepSeek-R1 lesson. <a href=\"#source-paper\">[2]</a></p>",
+      "figure": {
+        "kind": "verifier",
+        "title": "Inspect the reward, not just the answer",
+        "config": {},
+        "caption": "Simplified checker demonstration. These string rules are not the production Tülu verifier.",
+        "takeaway": "An exact reward can still be an incomplete description of success."
+      }
+    },
+    {
+      "id": "update",
+      "title": "Why reward can change future attempts",
+      "html": "<p>A language model assigns probabilities to tokens, and therefore to complete responses. In reinforcement learning, the model samples a response, receives a score, and adjusts its parameters so useful responses become more likely under the training objective. The update is mediated by the probability of the sampled tokens; the verifier need not be differentiable.</p><p>Suppose a policy produces a successful solution one time in ten. Successful samples provide evidence for shifting its distribution. If every attempt fails, a sparse binary reward gives little information about which wrong step to repair. If every attempt succeeds, the task may no longer teach the desired distinction. Task difficulty and prompt selection therefore matter alongside the optimization algorithm.</p><p>This example explains the mechanism without claiming a universal learning curve. A finite sample can be lucky, a verifier can be exploited, and increasing training reward can fail to improve a held-out test. A useful experiment separates the tasks used for learning from those used to measure generalization.</p>"
+    },
+    {
+      "id": "open",
+      "title": "An open recipe makes the comparison inspectable",
+      "html": "<p>The Tülu project publishes post-training data and a codebase covering supervised fine-tuning, DPO, and RLVR. <a href=\"#source-project\">[3]</a> The practical scientific benefit is the ability to vary a component while keeping others fixed. For example, keep the same base model and supervised checkpoint, then compare two reward definitions on an untouched evaluation set.</p><p>That experiment answers a narrower and more useful question than comparing two unrelated chatbots. A difference between unrelated systems might arise from architecture, pretraining data, prompt templates, sampling, or evaluation contamination. A controlled recipe lets researchers isolate part of the explanation.</p><p>The model-weight license remains tied to the underlying Llama release; open training code does not replace it. The initial model card identifies the base model and release artifacts. <a href=\"#source-card\">[4]</a> Treat openness as several separately inspectable properties: weights, data, code, checkpoints, and evaluation procedures.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "blog",
+      "title": "Tülu 3: The next era in open post-training",
+      "url": "https://allenai.org/blog/tulu-3-technical",
+      "detail": "November 21, 2024 launch, recipe stages, RLVR scope."
+    },
+    {
+      "id": "paper",
+      "title": "Tülu 3 technical report",
+      "url": "https://arxiv.org/html/2411.15124v3",
+      "detail": "Sections 5–6: DPO, PPO, verifiable reward objective, ablations and KL controls."
+    },
+    {
+      "id": "project",
+      "title": "Tülu project and released recipe",
+      "url": "https://allenai.org/tulu",
+      "detail": "Released data, algorithms, and code."
+    },
+    {
+      "id": "card",
+      "title": "Llama-3.1-Tülu-3-8B model card",
+      "url": "https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B",
+      "detail": "Base-model provenance and model license."
+    }
+  ],
+  "caveats": [
+    "The checker is a pedagogical example, not a copy of the released verifier.",
+    "RLVR is a source of rewards, not a synonym for one optimizer: Tülu 3 uses PPO.",
+    "This lesson covers the original 8B/70B recipe; the later 405B extension is not the November release."
+  ],
+  "dateNote": "Date of the initial official model and recipe release.",
+  "related": [
+    "2025-01-20-deepseek-r1",
+    "2025-11-20-olmo-3"
+  ],
+  "readingMinutes": 9
+}

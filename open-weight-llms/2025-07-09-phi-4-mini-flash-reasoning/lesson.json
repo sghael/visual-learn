@@ -1,0 +1,113 @@
+{
+  "slug": "2025-07-09-phi-4-mini-flash-reasoning",
+  "model": "Phi-4-mini-flash-reasoning",
+  "family": "Phi",
+  "date": "2025-07-09",
+  "dateNote": "Public weights and SambaY paper announced July 9, 2025.",
+  "subtitle": "How a hybrid decoder reuses memory instead of repeatedly reading the whole past",
+  "summary": "Phi’s SambaY architecture combines recurrent state, local attention, shared global memory and gated reuse of earlier representations.",
+  "category": "Memory",
+  "readingMinutes": 8,
+  "parameters": "3.8B hybrid · 64K context",
+  "license": "MIT",
+  "lead": "<p>Long reasoning is expensive because the model repeatedly generates new tokens while its history grows. Phi-4-mini-flash-reasoning changes the decoder architecture to reduce repeated work. Understanding it requires separating a fixed-size recurrent summary from an attention cache that retains individual positions.</p>",
+  "sections": [
+    {
+      "id": "bottleneck",
+      "title": "Long generation repeats the memory problem",
+      "html": "<p>Microsoft released the 3.8B Phi-4-mini-flash-reasoning model on July 9, 2025 with a 64K-token context. Its announcement describes SambaY, a hybrid architecture containing state-space components, sliding-window attention and shared memory mechanisms. “Flash” here names a particular model, not a claim that every operation has constant cost. <a href=\"#source-release\">[1]</a></p><p>Imagine an assistant producing a long proof. Near the beginning, the history is short. Thousands of steps later, retrieving information from the full preceding sequence can require much more memory traffic. If many layers independently perform that retrieval, they repeat an expensive kind of work.</p><p>There are two separate phases to consider. <strong>Prefill</strong> processes the supplied prompt. <strong>Decode</strong> generates successive output tokens. A method that makes prompt processing efficient is not automatically equally effective during a long answer. This release explicitly targets the latter workload too.</p>"
+    },
+    {
+      "id": "state",
+      "title": "A running summary has a fixed number of slots",
+      "html": "<p>A recurrent model updates a state vector as tokens arrive. Mamba’s selective state-space mechanism makes aspects of that update depend on the input, allowing information to be retained or discarded differently for different tokens. This is established prior work used in the hybrid design. <a href=\"#source-mamba\">[2]</a></p><p>As an invented arithmetic analogy, keep only a running total and a count while reading a stream of numbers. The memory remains two numbers regardless of stream length. You can recover the mean, but cannot reconstruct the seventh original number. Compression saves storage by restricting what information remains directly available.</p><p>The widget compares a hypothetical 256-scalar state with a KV cache adding 64 scalars per token. At 128 tokens, the latter holds 8,192 scalars. Move the slider: one quantity stays flat while the other grows. These are teaching counts, not the dimensions of a Mamba state or Phi’s cache.</p>",
+      "figure": {
+        "kind": "state",
+        "title": "A fixed summary versus an expanding record",
+        "caption": "Illustrative scalar counts for isolated memory components. Phi-mini-flash is hybrid and still has attention memory; this is not its total runtime memory or a quality comparison.",
+        "takeaway": "A fixed-state component bounds one memory term by compressing the past.",
+        "config": {
+          "stateScalars": 256,
+          "kvScalarsPerToken": 64,
+          "tokens": 128
+        }
+      }
+    },
+    {
+      "id": "hybrid",
+      "title": "Keep both a summary and an addressable record",
+      "html": "<p>The SambaY paper divides the architecture into a self-decoder and a cross-decoder. The first combines Mamba and local attention, then provides a shared full-attention memory. The second alternates cross-attention with gated memory units. Half of its cross-attention layers are replaced by these cheaper gates. <a href=\"#source-paper\">[3]</a></p><p>An addressable record and a compressed summary have complementary uses. If asked for a particular earlier identifier, direct access to stored positions may help. If asked for an evolving summary of the recent sequence, a recurrent representation may provide useful information without revisiting every token.</p><p>This is why the flat line in the previous figure must not be read as the whole model’s memory curve. The hybrid retains a full-attention cache. Its innovation is selective reuse and reduced repeated reading, not deleting all sequence-length-dependent storage.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "Reuse representations across the decoder",
+        "caption": "Simplified SambaY organization; the real layers interleave and include additional projections, feedforward computation and differential attention.",
+        "takeaway": "Some later layers read global memory; others gate a representation already computed.",
+        "config": {
+          "steps": [
+            {
+              "label": "Self-decoder",
+              "detail": "Mamba and local attention"
+            },
+            {
+              "label": "Shared memories",
+              "detail": "Global KV and SSM readout"
+            },
+            {
+              "label": "Cross-decoder",
+              "detail": "Attention interleaved with GMUs"
+            },
+            {
+              "label": "Next token",
+              "detail": "Combine into a prediction"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "gate",
+      "title": "A gate selects channels from an earlier representation",
+      "html": "<p>A <strong>gated memory unit</strong> takes the current layer’s representation and a memory representation from an earlier layer. Learned projections create a channel-wise modulation, and multiplication changes how much of each memory component passes onward. In SambaY, this reuses the final state-space layer’s readout. <a href=\"#source-paper\">[3]</a></p><p>For a tiny invented vector, let the earlier memory be [2, 4, 6] and an illustrative gate be [1, 0.5, 0]. Element-wise multiplication produces [2, 2, 0]. That example is deliberately simpler than the published SiLU-based gate and projections. It shows selective reuse without another search over every historical position.</p><p>A gate is not a human-readable list of remembered facts. Its channels are learned numerical features. Describing one as a “math memory” or “name memory” would require evidence about the trained model, not merely a convenient story about the diagram.</p>"
+    },
+    {
+      "id": "measure",
+      "title": "Efficiency claims need the workload beside them",
+      "html": "<p>The model card reports large throughput gains for a specific long-generation setting: 2K-token prompts with 32K-token generations under the measured inference setup. That result should not be promoted into an unconditional speed multiplier for every prompt, hardware platform or serving batch. The same card publishes the weights under MIT. <a href=\"#source-card\">[4]</a></p><p>The clean experiment is to hold the task, input/output lengths, hardware and implementation comparable, then measure quality and runtime together. A faster architecture that loses the needed information is not an improvement for that application; extra accuracy at intolerable latency may also miss the target.</p><p>The lesson from this hybrid is therefore structural: full retrieval need not be repeated in every layer, and previously computed representations can be reused through learned gates. The remaining attention path preserves capabilities that a fixed-size summary alone may struggle to supply.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Introducing Phi-4-mini-flash-reasoning",
+      "url": "https://azure.microsoft.com/en-us/blog/reasoning-reimagined-introducing-phi-4-mini-flash-reasoning/",
+      "detail": "July 9 release, 3.8B size, 64K context and hybrid model positioning."
+    },
+    {
+      "id": "mamba",
+      "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+      "url": "https://arxiv.org/html/2312.00752v2",
+      "detail": "Section 3: input-dependent recurrent state selection; not a Phi-specific invention."
+    },
+    {
+      "id": "paper",
+      "title": "Decoder-Hybrid-Decoder Architecture for Efficient Reasoning with Long Generation",
+      "url": "https://arxiv.org/html/2507.06607v1",
+      "detail": "Section 2 and Figure 1: SambaY, shared KV, GMU equations and reuse of SSM readouts."
+    },
+    {
+      "id": "card",
+      "title": "Microsoft’s Phi-4-mini-flash-reasoning model card",
+      "url": "https://huggingface.co/microsoft/Phi-4-mini-flash-reasoning",
+      "detail": "Released weights, MIT license and conditional 2K-input/32K-output throughput evaluation."
+    }
+  ],
+  "caveats": [
+    "The fixed-state curve describes only a toy component; the real hybrid still stores global attention memory.",
+    "The gate example is arithmetic intuition, not the full published GMU formula.",
+    "Reported throughput is conditional on workload and runtime, not a universal multiplier."
+  ],
+  "related": [
+    "2025-04-30-phi-4-reasoning",
+    "2025-03-12-gemma-3"
+  ]
+}

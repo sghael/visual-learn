@@ -1,0 +1,114 @@
+{
+  "slug": "2023-07-18-llama-2",
+  "model": "Llama 2 · 7B, 13B, 70B",
+  "family": "Llama",
+  "date": "2023-07-18",
+  "dateNote": "First public release of base and chat weights on July 18, 2023.",
+  "subtitle": "How an open chat model learned to answer, and to remember more cheaply",
+  "summary": "Llama 2 paired a documented chat-training pipeline with grouped-query attention in its 70B release.",
+  "category": "Foundations",
+  "readingMinutes": 8,
+  "parameters": "7B · 13B · 70B dense",
+  "license": "Llama 2 Community License; custom terms and use restrictions",
+  "lead": "<p>A language model can continue a sentence without being a useful assistant. A useful assistant also needs a way to follow requests, improve from judgments, and retain a growing conversation. Llama 2 makes these separate engineering problems visible.</p>",
+  "sections": [
+    {
+      "id": "base",
+      "title": "Prediction is a starting point",
+      "html": "<p>Llama 2 arrived on July 18, 2023, slightly before the three-year core of this collection. Meta released both base and chat checkpoints. That paired release matters: it lets us separate the ability to predict text from the behavior of responding to a person. The weights came with a custom community license rather than an unrestricted license. <a href=\"#source-release\">[1]</a></p><p>Imagine training on the fragment “The train leaves at”. The next word might be a time, a place, or an explanation. A <strong>token</strong> is a piece of text from the model’s vocabulary. During pretraining, the model assigns probabilities to possible next tokens and adjusts its numerical weights when the observed continuation was unlikely. This example describes a prediction exercise, not a dialogue contract.</p><p>A model trained this way could continue a question with another question from an exam sheet. It has learned a distribution over writing. Asking it to act as an assistant introduces a more specific target: produce a useful response to the preceding user request.</p>"
+    },
+    {
+      "id": "chat",
+      "title": "Demonstrations teach a response format",
+      "html": "<p>The Llama 2 report describes supervised fine-tuning followed by repeated rounds of human-feedback training. Demonstrations provide examples of desired responses. Human comparisons train separate helpfulness and safety reward models. Rejection sampling selects high-scoring candidate answers; proximal policy optimization also adjusts the model using reward. Llama 2 adopted these established methods and documented their combination. <a href=\"#source-paper\">[2]</a></p><p>For an illustrative arithmetic prompt, one candidate could answer correctly with a clear calculation, another could be correct but confusing, and a third could be fluent and wrong. A preference comparison supplies information that the raw next-token target does not contain. It says which answer is preferred under the annotation rules.</p><p>This also explains a limitation. A learned judge is an approximation to those judgments. Improving its score does not prove every answer true. Keep factual verification and helpful presentation conceptually separate when reading a chat-model result.</p>",
+      "figure": {
+        "kind": "flow",
+        "title": "From continuation to assistant",
+        "caption": "Simplified Llama 2-Chat training sequence; the real pipeline iterated data collection and model updates.",
+        "takeaway": "Each stage changes what feedback the model receives.",
+        "config": {
+          "steps": [
+            {
+              "label": "Pretrain",
+              "detail": "Predict the next token"
+            },
+            {
+              "label": "Demonstrate",
+              "detail": "Imitate useful answers"
+            },
+            {
+              "label": "Compare",
+              "detail": "Learn from human preferences"
+            },
+            {
+              "label": "Refine",
+              "detail": "Select and optimize responses"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "memory",
+      "title": "Every new token consults the past",
+      "html": "<p>The second problem appears after training. Attention lets a current token query representations of earlier tokens. A <strong>key</strong> is used to match that query; a <strong>value</strong> carries information to combine into the result. Keeping keys and values avoids recalculating the entire past at every generation step.</p><p>Ordinary multi-head attention gives each query head its own key and value heads. <strong>Grouped-query attention</strong>, introduced by Ainslie and colleagues, lets several query heads share a key/value pair. The queries remain different; the stored memory has fewer parallel representations. Multi-query attention is the extreme with one shared pair. <a href=\"#source-gqa\">[3]</a></p><p>The released Llama 2 70B uses grouped-query attention. The 7B and 13B versions do not. The report also discusses a 34B model that was not part of the original public release; it should not be counted as a downloadable release here. <a href=\"#source-paper\">[2]</a></p>",
+      "figure": {
+        "kind": "kv",
+        "title": "Share stored keys and values",
+        "caption": "Illustrative bf16 KV-only calculation: 32 layers, 32 query heads, 8 grouped KV heads, width 128. These are teaching dimensions, not Llama 2 70B dimensions. Excludes weights, activations, batch, allocator and sharding.",
+        "takeaway": "Grouping reduces the memory slope; longer context still grows the cache.",
+        "config": {
+          "heads": 32,
+          "kvHeads": 8,
+          "headDim": 128,
+          "layers": 32,
+          "tokens": 4096
+        }
+      }
+    },
+    {
+      "id": "count",
+      "title": "Count the memory yourself",
+      "html": "<p>In the figure, each stored scalar takes two bytes. At 4,096 tokens, eight KV heads require 2 × 32 × 4,096 × 8 × 128 × 2 bytes, or about 0.54 decimal GB. The first factor of two is for keys and values. Giving all 32 query heads separate memories multiplies this result by four.</p><p>Double the conversation length with the slider. Both variants double their cache. Change to the single-pair setting: the slope falls again, but this chart cannot tell us what quality was lost. A memory calculation has no knowledge of the training data or the tasks the model must solve.</p><p>The model card lists a 4,096-token training context and distinguishes pretrained from dialogue-tuned checkpoints. That context allowance is separate from parameter count. Parameters are stored knowledge; the KV cache is working memory for this particular input. <a href=\"#source-card\">[4]</a></p>"
+    },
+    {
+      "id": "consequence",
+      "title": "Two kinds of progress can reinforce each other",
+      "html": "<p>Consider serving many short conversations versus one long document. In the first case, weights and batching may dominate the engineering decision. In the second, the growing cache can become a major constraint. Grouping addresses only one term in that budget; it is not a promised fourfold speedup.</p><p>Llama 2 is useful as a foundation lesson because it separates three questions: what the model learns from text, how its behavior is shaped for conversation, and what the runtime must remember. Later releases change these pieces independently. A better chat answer is not evidence of a new attention mechanism, and a smaller cache is not evidence of stronger reasoning.</p>"
+    }
+  ],
+  "sources": [
+    {
+      "id": "release",
+      "title": "Meta and Microsoft introduce Llama 2",
+      "url": "https://about.fb.com/news/2023/07/llama-2/",
+      "detail": "Release date, downloadable base/chat models and licensing context."
+    },
+    {
+      "id": "paper",
+      "title": "Llama 2: Open Foundation and Fine-Tuned Chat Models",
+      "url": "https://arxiv.org/html/2307.09288v2",
+      "detail": "Sections 2, 3.1–3.2 and Appendix A.2.1: model variants, GQA and chat pipeline."
+    },
+    {
+      "id": "gqa",
+      "title": "GQA: Training Generalized Multi-Query Transformer Models",
+      "url": "https://arxiv.org/html/2305.13245v3",
+      "detail": "Section 2 and Figure 2: query grouping and the MHA/GQA/MQA distinction."
+    },
+    {
+      "id": "card",
+      "title": "Meta’s Llama 2 70B model card",
+      "url": "https://huggingface.co/meta-llama/Llama-2-70b-hf",
+      "detail": "Context, intended use, released sizes and custom license."
+    }
+  ],
+  "caveats": [
+    "Included as a July 2023 foundation slightly outside an exact three-year cutoff.",
+    "The KV widget uses illustrative dimensions and cannot predict throughput or model quality.",
+    "Llama 2 adopted GQA and RLHF; it did not invent them."
+  ],
+  "related": [
+    "2024-07-23-llama-3-1"
+  ]
+}
