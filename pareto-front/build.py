@@ -7,7 +7,7 @@ import math
 import re
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from frontier import frontier
 
 ROOT = Path(__file__).resolve().parent
 HISTORY = json.loads((ROOT / 'upstream-history.json').read_text())['models']
@@ -59,16 +59,6 @@ assert len(excluded) == 36 and all(HISTORY[slug].get('retired') for slug in excl
 def released(date):
     return [m for m in models if m['release'] <= date]
 
-def frontier(points):
-    """Ids of models for which every cheaper plotted model scores lower, cheapest first."""
-    ranked = sorted(points, key=lambda p: (p['cost'], -p['score']))
-    out, top = [], -float('inf')
-    for p in ranked:
-        if p['score'] > top + 1e-9:
-            out.append(p['id'])
-            top = p['score']
-    return out
-
 def weekly_dates():
     a, b = dt.date.fromisoformat(START), dt.date.fromisoformat(END)
     out = []
@@ -94,6 +84,8 @@ if '--no-gif' in sys.argv:  # quick page-only rebuild while editing template.htm
 
 # ---------------------------------------------------------------- GIF
 # Same data, axes, frontier and palette as the page. System fonts stand in for the web fonts.
+from PIL import Image, ImageDraw, ImageFont
+
 W, H = 1200, 760
 PLOT = (96, 150, 1150, 648)
 S = 3  # draw at 3x, then downsample for smooth lines and text

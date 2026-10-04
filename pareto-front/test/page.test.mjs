@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
+import { execFileSync } from 'node:child_process';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = pathToFileURL(path.join(here, '..', 'index.html')).href;
@@ -36,11 +37,35 @@ async function open({ width = 1440, reduced = true, fakeClock = false } = {}) {
 const dateText = page => page.locator('#date').textContent();
 
 function frontierOf(points) {
-  const ranked = points.slice().sort((a, b) => a.cost - b.cost || b.score - a.score);
-  const out = []; let top = -Infinity;
-  for (const p of ranked) if (p.score > top + 1e-9) { out.push(p.id); top = p.score; }
-  return out;
+  // Independent definition: at least one strict improvement is required.
+  return points.filter(p => !points.some(q =>
+    q.cost <= p.cost && q.score >= p.score && (q.cost < p.cost || q.score > p.score)))
+    .sort((a, b) => a.cost - b.cost || b.score - a.score).map(p => p.id);
 }
+
+test('builder handles equal costs, equal scores and exact ties by Pareto dominance', () => {
+  const points = [
+    { id: 'expensive-tie', cost: 3, score: 20 },
+    { id: 'low', cost: 1, score: 10 },
+    { id: 'same-cost-better', cost: 1, score: 15 },
+    { id: 'exact-tie', cost: 1, score: 15 },
+    { id: 'higher', cost: 2, score: 20 },
+    { id: 'costlier-same-score', cost: 2, score: 15 },
+    { id: 'best', cost: 4, score: 25 },
+  ];
+  const actual = JSON.parse(execFileSync('python3', ['-c',
+    'import json, sys; from frontier import frontier; print(json.dumps(frontier(json.load(sys.stdin))))'],
+    { cwd: path.join(here, '..'), input: JSON.stringify(points), encoding: 'utf8' }));
+  assert.deepEqual(actual, ['same-cost-better', 'exact-tie', 'higher', 'best']);
+  assert.deepEqual(actual, frontierOf(points));
+});
+
+test('HTML and embedded data reproduce from the checked-in template', () => {
+  const folder = path.join(here, '..');
+  const template = fs.readFileSync(path.join(folder, 'template.html'), 'utf8');
+  const data = fs.readFileSync(path.join(folder, 'data.json'), 'utf8');
+  assert.equal(template.replace('/*__DATA__*/', data), fs.readFileSync(path.join(folder, 'index.html'), 'utf8'));
+});
 
 for (const width of [1440, 390]) {
   test(`resting state at ${width}px: latest date, labeled frontier, no autoplay, no overflow`, async (t) => {
@@ -125,7 +150,7 @@ test('date slider changes the visible models and its spoken value', async (t) =>
   await page.locator('#scrub').focus();
   await page.locator('#scrub').press('Home');
   assert.equal(await dateText(page), 'Dec 26, 2024');
-  assert.match(await page.locator('#scrub').getAttribute('aria-valuetext'), /^Dec 26, 2024, 1 models$/);
+  assert.match(await page.locator('#scrub').getAttribute('aria-valuetext'), /^Dec 26, 2024, 1 model$/);
   assert.equal(await page.locator('#model-picker option').count(), first.count + 1);
   assert.equal(await page.locator('#chart circle.fdot').count(), first.frontier.length);
   assert.equal(await page.locator('#reset').isDisabled(), false);

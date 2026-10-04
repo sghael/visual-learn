@@ -13,7 +13,7 @@
 /* ===== Visual Learn house style (copied from the collection's base.css) ===== */
 :root {
   color-scheme: light;
-  --paper: #fcfbf7; --wash: #f3f1ea; --ink: #1c1b18; --ink-2: #57544c; --ink-3: #8a867b;
+  --paper: #fcfbf7; --wash: #f3f1ea; --ink: #1c1b18; --ink-2: #57544c; --ink-3: #716d63;
   --rule: #e2ded3; --rule-2: #c9c4b6; --link: #1f4e79;
   --c-blue: #2f6ea6; --c-orange: #c8682a; --c-green: #2a8a6a; --c-purple: #6a51a3;
   --c-red: #b8433a; --c-gold: #b8901f; --c-sky: #6ea8d6; --c-grey: #a8a396;
@@ -32,7 +32,7 @@
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 3.5rem; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: 1.1875rem; line-height: 1.58; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; counter-reset: sidenote figure; }
 ::selection { background: #e8dfc3; }
-:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
 .page { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem 6rem; }
 .page > :not(section), section > * { max-width: var(--text); }
 .page > .wide, section > .wide { max-width: none; }
@@ -56,7 +56,7 @@ a:hover { text-decoration-color: currentColor; }
 p, li, figure { position: relative; }
 figure { margin: 2.25rem 0 2.5rem; padding: 0; }
 .fig { counter-increment: figure; }
-.fig figcaption { font-size: 0.875rem; line-height: 1.45; color: var(--ink-2); margin-top: 0.7rem; max-width: var(--text); }
+.fig figcaption { font-size: 0.9375rem; line-height: 1.5; color: var(--ink-2); margin-top: 0.85rem; max-width: var(--text); }
 .fig figcaption .fig-n::before { content: "Figure " counter(figure) ". "; font-family: var(--sans); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--ink); }
 .fig .takeaway { font-style: italic; color: var(--ink); }
 .graphic { position: relative; }
@@ -73,7 +73,7 @@ input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: va
 input[type="range"]::-moz-range-track { height: 2px; background: var(--rule-2); }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
 input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
-input[type="range"]:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+input[type="range"]:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
 select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.4rem 0.5rem; }
 .axis line, .axis path { stroke: var(--rule-2); stroke-width: 1; shape-rendering: crispEdges; }
 .grid line { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
@@ -82,15 +82,16 @@ select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper)
 .label { font-family: var(--sans); font-size: 12.5px; fill: var(--ink); }
 .label.muted { fill: var(--ink-2); }
 .annot { font-family: var(--serif); font-style: italic; font-size: 13.5px; fill: var(--ink-2); }
-.topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
 .topbar-inner { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1.25rem; height: 2.75rem; }
 .topbar .home { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
 .topbar .home:hover { color: var(--ink); }
 .topbar .title { color: var(--ink); font-weight: 600; white-space: nowrap; }
-.topbar nav { display: flex; gap: 1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; mask-image: linear-gradient(to right, #000 92%, transparent); }
-.topbar nav::-webkit-scrollbar { display: none; }
-.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0; }
+.topbar nav { display: flex; gap: 1rem; min-width: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--rule-2) var(--paper); margin-left: auto; scroll-padding-inline: 0.25rem; }
+.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0.2rem; }
 .topbar nav a:hover, .topbar nav a[aria-current="true"] { color: var(--ink); }
+.topbar nav a[aria-current="true"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.35em; }
+.topbar nav a:focus-visible { outline-offset: -3px; }
 .progress { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--ink); width: 0; }
 .colophon { margin-top: 5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
 @media (min-width: 62rem) {
@@ -166,13 +167,13 @@ select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper)
 <main class="page">
   <h1>Intelligence versus cost</h1>
   <p class="subtitle">Which language models give the highest benchmark score for what they cost to run, and how that set grew from 2025 to 2026</p>
-  <p class="lede">Artificial Analysis runs language models through one suite of benchmark tasks and records both the score and the cost of each run. Plot the two against each other and a few models stand out: for each of them, every cheaper model scores lower. Those models form the Pareto frontier. This page draws that frontier for 162 models measured in September 2026 and shows how it filled in as new models were released.</p>
+  <p class="lede">Artificial Analysis measures language models on a suite of benchmark tasks and records their scores and costs. Some models offer a tradeoff that no other plotted model improves: a higher score requires a higher cost. These models form the Pareto frontier. This page draws that frontier for 162 models measured in September 2026, then filters them by release date.</p>
   <p class="meta">3 sections · about 7 minutes · data archived September 23, 2026</p>
 
   <section id="frontier">
     <h2>The models that no cheaper model matches</h2>
     <p>Each dot in Figure 1 is one language model. Its height is the model’s score on the Artificial Analysis Intelligence Index, a weighted average of ten evaluations that cover agentic work, coding, scientific reasoning and general knowledge.<span class="sn-ref"></span><span class="sidenote">The weights are agents 30%, coding 20%, scientific reasoning 20% and general 30%. The ten evaluations include Terminal-Bench, SciCode and Humanity’s Last Exam; the full list is on the <a href="https://artificialanalysis.ai/methodology/intelligence-benchmarking">methodology page</a>, which described version 4.3.2 in September 2026.</span> Its horizontal position is the <strong>cost per Index task</strong>: the average billed cost of running one task from that suite, counting input, reasoning and answer tokens.<span class="sn-ref"></span><span class="sidenote">Definition from the <a href="https://llm-frontier.catalystneuro.com/methodology/">CatalystNeuro archive methodology</a>. The cost axis is logarithmic: each vertical gridline marks ten times the cost of the one to its left.</span></p>
-    <p>A model is on the <strong>Pareto frontier</strong> when every cheaper model scores lower. Every other model is beaten by some model that costs no more and scores at least as high. The most expensive model plotted, Claude Fable 5 at maximum effort, scores 49.6 for $8.75 per task. Claude Opus 5.5 at medium effort scores 51.2 for $1.34, so Fable 5 is off the frontier.</p>
+    <p>A model is on the <strong>Pareto frontier</strong> when no other plotted model costs no more and scores at least as high, with a strict improvement on at least one axis. A higher score at the same cost is enough to remove a model from the frontier; so is the same score at a lower cost. Models tied on both measurements share the same position. The most expensive model plotted, Claude Fable 5 at maximum effort, scores 49.6 for $8.75 per task. Claude Opus 5.5 at medium effort scores 51.2 for $1.34, so Fable 5 is off the frontier.</p>
 
     <figure class="fig wide" id="fig-frontier">
       <div class="controls">
@@ -188,25 +189,27 @@ select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper)
           <select id="model-picker"><option value="">None selected</option></select>
         </span>
       </div>
+      <p class="meta">Scores and costs are fixed at September 2026 measurements. The date filters releases; it does not reconstruct historical prices.</p>
       <div class="graphic" id="chart"></div>
       <p class="detail" id="model-detail" aria-live="polite"></p>
       <figcaption><span class="fig-n"></span>Index score against cost per task for every model with both values, as measured in September 2026. Blue step line and dots: the Pareto frontier. Grey dots: all other models. Select a dot, or pick a model from the list, for its details. Play adds models in order of release, one week per step. <span class="takeaway">Up to $0.13 per task the frontier gains 25 points; the next 11 points cost 45 times as much.</span></figcaption>
     </figure>
 
     <p>Read the step line as a budget. At any cost on the horizontal axis, the height of the line is the highest score available at or below that cost. The line climbs quickly at the cheap end: GPT-6 Luna scores 20.9 for $0.0045 per task at low effort and 37.3 for $0.068 at maximum effort, and MiMo-V2.6-Pro reaches 46.3 for $0.13. Past that point it flattens. The top score, 57.6 from Claude Opus 5.5 at maximum effort, costs $5.98 per task.</p>
+    <p>The vertical segments do not represent extra models or interpolated scores: the best available score jumps when the budget reaches the next model’s cost. Being on this frontier also does not make a model best for every workload. The Index combines different tasks; latency, reliability on your task and deployment constraints can change the choice.<span class="sn-ref"></span><span class="sidenote">Both <a href="https://artificialanalysis.ai/methodology/intelligence-benchmarking">Artificial Analysis</a> and the <a href="https://llm-frontier.catalystneuro.com/methodology/">archive methodology</a> describe the limits of the aggregate score and benchmark task cost.</span></p>
     <p>Many frontier points are one model run at different reasoning-effort settings, labeled from (low) to (max). In this data, higher effort costs more per task and scores higher, so a single model can trace a run of the frontier. GPT-6 Luna supplies five of the 13 frontier points and Claude Opus 5.5 supplies four.</p>
   </section>
 
   <section id="history">
-    <h2>How the frontier moved, quarter by quarter</h2>
+    <h2>Compare release cohorts, quarter by quarter</h2>
     <p>Moving the date slider back removes models released after that date and recomputes the frontier from the ones that remain. Figure 2 does this for the last day of each quarter since December 2024, so the frontiers can be compared side by side.</p>
 
     <figure class="fig wide" id="fig-quarters">
       <div class="multiples" id="multiples"></div>
-      <figcaption><span class="fig-n"></span>The frontier among models released by each date, on the same axes as Figure 1 (cost per task on a log scale from $0.001 to $20, score from 0 to 65). Blue: the frontier at that date. Grey dots: other models released by then. Thin grey step: the September 23, 2026 frontier, repeated in every panel for reference. <span class="takeaway">The frontier rose and moved left: the top score went from 20.7 to 57.6 in the last year.</span></figcaption>
+      <figcaption><span class="fig-n"></span>The frontier among models released by each date, on the same axes as Figure 1 (cost per task on a log scale from $0.001 to $20, score from 0 to 65). Blue: the frontier of the release cohort. Grey dots: other models released by then. Thin grey step: the September 23, 2026 frontier, repeated in every panel for reference. <span class="takeaway">The best score rises from 20.7 to 57.6 when the cohort includes releases through September 2026; both cohorts use September 2026 measurements.</span></figcaption>
     </figure>
 
-    <p>The frontier moved in two directions. It rose: the highest score among plotted models went from 8.5 (DeepSeek V3, December 2024) to 20.7 by September 2025 and 57.6 by September 2026. It also moved left. Measured in September 2026, the cheapest model released by September 30, 2025 that scored above 20 was Claude 4.5 Sonnet, at $0.56 per task. A year later GPT-6 Luna at low effort scored 20.9 for $0.0045, about 1/120 of the cost.</p>
+    <p>On the September 2026 measurements, the best score among models released by December 2024 is 8.5 (DeepSeek V3). Including releases through September 2025 raises that score to 20.7; including releases through September 2026 raises it to 57.6. Cost also differs across these release cohorts. The cheapest model released by September 30, 2025 that scores above 20 is Claude 4.5 Sonnet, at $0.56 per task. GPT-6 Luna at low effort scores 20.9 for $0.0045, about 1/120 of that cost. This ratio compares the two models at September 2026 prices.</p>
     <p>The last panel was redrawn within one week. Eleven of the 13 frontier models on September 23, 2026 were released on September 21 or 22; the other two are GPT-5.6 Luna settings released in July.</p>
     <p>These panels show which models had been released by each date. They do not show what those models cost or scored at the time: every dot keeps its September 2026 position, and a model’s price can change after release.<span class="sn-ref"></span><span class="sidenote">The archive records frontier changes caused by either a release or a price change; see its <a href="https://llm-frontier.catalystneuro.com/methodology/">methodology</a>. This page shows only the effect of releases.</span> The early panels are also incomplete, for the reasons in the next section.</p>
   </section>
@@ -465,7 +468,7 @@ function updateControls() {
   const frame = DATA.frames[state.index];
   slider.value = state.index;
   dateOut.textContent = fmtDate(frame.date);
-  slider.setAttribute('aria-valuetext', `${fmtDate(frame.date)}, ${frame.count} models`);
+  slider.setAttribute('aria-valuetext', `${fmtDate(frame.date)}, ${frame.count} ${frame.count === 1 ? 'model' : 'models'}`);
   play.textContent = state.playing ? 'Pause' : 'Play';
   reset.disabled = !state.playing && state.index === LAST && !state.selected;
 
@@ -487,7 +490,7 @@ function updateControls() {
   const name = document.createElement('strong');
   name.textContent = p.name;
   let verdict;
-  if (frame.frontier.includes(p.id)) verdict = 'On the frontier: every cheaper model plotted at this date scores lower.';
+  if (frame.frontier.includes(p.id)) verdict = 'On the frontier: no plotted model improves score or cost without worsening the other.';
   else {
     const d = dominator(p.id, front);
     verdict = `Off the frontier: ${d.name} scores ${d.score} for ${price(d.cost)}.`;

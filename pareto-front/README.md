@@ -1,6 +1,6 @@
 # Intelligence versus cost
 
-This explainer plots the Artificial Analysis Intelligence Index against cost per Index task for 162 language models and draws their Pareto frontier. A model is on the frontier when every cheaper plotted model scores lower. The page teaches how to read the frontier as a budget (the best score available at or below a given cost), shows how the frontier filled in as models were released from December 2024 to September 2026, and explains which models the data leaves out and why.
+This explainer plots the Artificial Analysis Intelligence Index against cost per Index task for 162 language models and draws their Pareto frontier. A model is on the frontier when no other plotted model costs no more and scores at least as high, with a strict improvement on at least one axis. Exact ties share a frontier position. The page teaches how to read the frontier as a budget (the best score available at or below a given cost), compares release cohorts from December 2024 to September 2026 at fixed September 2026 measurements, and explains which models the data leaves out and why.
 
 Open `index.html` directly from disk, serve the folder with `python3 -m http.server`, or visit the [published page](https://sghael.github.io/visual-learn/pareto-front/). The page is one HTML file with its styles, code and data embedded; web fonts load from Google Fonts and fall back to system fonts.
 
@@ -20,6 +20,7 @@ Open `index.html` directly from disk, serve the folder with `python3 -m http.ser
 - **Missing models.** The archive contains 36 retired models with no observation on that basis, including GPT-5 and GPT-5.1 from 2025. They are omitted, which is the main reason the early frontier is sparse. DeepSeek V3 appears first because it has the earliest release date among the models that remain, not because it led the field in December 2024. `build.py` asserts the count of 36 so that the page text is reviewed if it changes.
 - **Score without cost.** On the live Artificial Analysis site some models, for example [Claude 4 Opus](https://artificialanalysis.ai/models/comparisons/claude-4-opus-vs-claude-4-opus-thinking) and [GPT-5.2](https://artificialanalysis.ai/models/comparisons/gpt-5-2-medium-vs-claude-opus-4-5), have a score but no reported cost per Index task. They are outside the archived data set.
 - **Plotted models only.** The frontier describes the plotted models. A model outside the data could lie above it.
+- **Two measured objectives.** Frontier membership considers only Index score and cost per Index task. It does not establish the best model for a particular task, latency target or deployment constraint. Vertical steps show discrete improvements at a model's price, not interpolated model scores.
 - **Names.** The build shortens Artificial Analysis effort suffixes, for example "(Adaptive Reasoning, Max Effort, Default Fallback)" becomes "(max)" and a non-default fallback is kept, as in "Claude Fable 5 (max, Opus 4.8 fallback)".
 
 ## Data and build
@@ -32,8 +33,8 @@ Data: [Artificial Analysis](https://artificialanalysis.ai/#intelligence-comparis
 - `index.html`: `template.html` with that data embedded;
 - `pareto-front.gif`: an animation of Figure 1 over the weekly dates, in the page's palette.
 
-Keep the generated files in the repository so the page works without a build step. To rebuild, install Pillow 12.3.0 and run `python3 build.py` in this folder; `python3 build.py --no-gif` skips the slower GIF while editing the template. The GIF uses locally available system fonts (Palatino and Helvetica Neue on macOS, DejaVu on Linux), so its lettering can differ between machines.
+Keep the generated files in the repository so the page works without a build step. To rebuild, install Pillow 12.3.0 and run `python3 build.py` in this folder; `python3 build.py --no-gif` needs only the Python standard library and skips the slower GIF while editing the template. `frontier.py` implements the dominance rule, retaining exact ties and requiring a dominating point to be no worse on either axis. The GIF uses locally available system fonts (Palatino and Helvetica Neue on macOS, DejaVu on Linux), so its lettering can differ between machines.
 
 ## Testing
 
-`pnpm install --frozen-lockfile && pnpm test` runs the browser tests with Playwright. They check the resting state at 1440 px and 390 px (latest date, no autoplay, labeled frontier, no horizontal overflow, chart text at least 11 px), recompute every stored frontier from the model list, check the numbers quoted in the prose against the data, and drive the slider, dot selection, the model list, Play, Pause and Reset, including fake-clock tests that a cancelled run never moves the date afterwards.
+`pnpm install --frozen-lockfile && pnpm test` runs the browser tests with Playwright and the frontier builder test with Python 3. They check the resting state at 1440 px and 390 px (latest date, no autoplay, labeled frontier, no horizontal overflow, chart text at least 11 px), recompute every stored frontier using pairwise dominance, check tie cases and template reproducibility, check the numbers quoted in the prose against the data, and drive the slider, dot selection, the model list, Play, Pause and Reset, including fake-clock tests that a cancelled run never moves the date afterwards.
