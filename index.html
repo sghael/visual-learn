@@ -12,7 +12,7 @@
   <style>
     :root {
       color-scheme: light;
-      --paper: #fcfbf7; --ink: #1c1b18; --ink-2: #57544c; --ink-3: #8a867b;
+      --paper: #fcfbf7; --ink: #1c1b18; --ink-2: #57544c; --ink-3: #716d63;
       --rule: #e2ded3; --rule-2: #c9c4b6; --link: #1f4e79;
       --serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
       --sans: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
@@ -40,6 +40,7 @@
     .entry h3 a::after { content: ""; position: absolute; inset: 0; }
     .entry { position: relative; }
     .entry:hover h3 a { text-decoration: underline; text-decoration-color: var(--ink-3); }
+    .entry:focus-within { outline: 3px solid var(--link); outline-offset: 4px; }
     .entry p { margin: 0; color: var(--ink-2); }
     .entry .meta { font-family: var(--sans); font-size: 0.8125rem; line-height: 1.5; color: var(--ink-3); padding-top: 0.55rem; }
     .entry .meta span { display: block; }
@@ -64,6 +65,7 @@
   <h1>Visual Learn</h1>
   <p class="subtitle">How machine-learning systems work, explained with figures you can operate</p>
   <p>Each explainer follows one idea from the problem it solves to the mechanism that solves it. The figures run in your browser: move a slider, step through a computation, compare two designs side by side. Where a figure uses a simplified or simulated model, its caption says so.</p>
+  <p>Start with <a href="jax-vs-pytorch/">JAX and PyTorch</a> to follow a computation, <a href="qat-explainer/">quantization-aware training</a> to examine rounding and memory, or <a href="rl-agentic-llms/">reinforcement learning</a> to understand learning from outcomes. Each tutorial defines its terms and links its claims to sources.</p>
 
   <h2>Systems</h2>
   <ul class="entries">
