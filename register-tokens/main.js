@@ -82,7 +82,7 @@ function simulate(model, layer, nreg) {
   return { patch, artifacts, regs, cls };
 }
 
-/** Share of the last-layer [CLS] attention that goes to each patch, simulated DINOv2 ViT-L. */
+/** Simulated attention conditioned on patch destinations; excludes [CLS] and registers. */
 function attention(nreg) {
   const s = simulate('L', 24, nreg);
   const raw = scene.map((l, i) => {
@@ -155,14 +155,14 @@ const attnColor = (x) => mix(COL.attnLo, COL.attnHi, Math.pow(x / ATTN_MAX, 0.45
   const steps = 8, sw = 16;
   const ramp = `<svg width="${steps * sw}" height="26" aria-hidden="true">${Array.from({ length: steps }, (_, k) => `<rect x="${k * sw}" y="0" width="${sw}" height="10" fill="${attnColor(ATTN_MAX * ((k + 0.5) / steps) ** (1 / 0.45))}"/>`).join('')}
     <text x="0" y="23" style="font:11.5px var(--sans);fill:var(--ink-3)">0%</text><text x="${steps * sw}" y="23" text-anchor="end" style="font:11.5px var(--sans);fill:var(--ink-3)">${(ATTN_MAX * 100).toFixed(1)}%</text></svg>`;
-  key.innerHTML = `<span class="item">${ramp}<span>share of <code>[CLS]</code>’s attention<br>to patches, per patch</span></span>
+  key.innerHTML = `<span class="item">${ramp}<span>share of patch-directed attention<br>per patch (normalized)</span></span>
     <span class="item"><svg width="14" height="14" aria-hidden="true"><rect x="1.5" y="1.5" width="11" height="11" fill="none" stroke="${COL.art}" stroke-width="2"/></svg><span>artifact token</span></span>`;
 
   const sum = (share, pred) => share.reduce((a, x, i) => a + (pred(i) ? x : 0), 0);
   const artShare = sum(A0.share, (i) => A0.artifacts.has(i));
   const bird0 = sum(A0.share, (i) => scene[i] === 2), bird4 = sum(A4.share, (i) => scene[i] === 2);
   const t = document.getElementById('attn-takeaway');
-  t.textContent = `Without registers, ${A0.artifacts.size} sky patches take ${pct(artShare)} of the attention; with four registers the bird’s share rises from ${pct(bird0)} to ${pct(bird4)}.`;
+  t.textContent = `Without registers, ${A0.artifacts.size} sky patches take ${pct(artShare)} of patch-directed attention; with four registers the bird’s share rises from ${pct(bird0)} to ${pct(bird4)}.`;
   t.dataset.artifacts = A0.artifacts.size; t.dataset.artShare = artShare; t.dataset.bird0 = bird0; t.dataset.bird4 = bird4;
 }
 
@@ -288,7 +288,7 @@ measured(document.querySelector('#fig-where .dots'), drawWhere);
       const cellDiv = document.createElement('div');
       cellDiv.className = 'map';
       cellDiv.dataset.model = key; cellDiv.dataset.layer = layer; cellDiv.dataset.artifacts = s.artifacts.size;
-      cellDiv.innerHTML = `<h4>layer ${layer}</h4><svg viewBox="0 0 14 14" role="img" aria-label="${m.name}, layer ${layer}: ${s.artifacts.size ? s.artifacts.size + ' artifact tokens' : 'no artifact tokens'}"></svg><div class="note${s.artifacts.size ? ' has' : ''}">${s.artifacts.size ? `${s.artifacts.size} above 150` : 'none above 150'}</div>`;
+      cellDiv.innerHTML = `<h3>layer ${layer}</h3><svg viewBox="0 0 14 14" role="img" aria-label="${m.name}, layer ${layer}: ${s.artifacts.size ? s.artifacts.size + ' artifact tokens' : 'no artifact tokens'}"></svg><div class="note${s.artifacts.size ? ' has' : ''}">${s.artifacts.size ? `${s.artifacts.size} above 150` : 'none above 150'}</div>`;
       grid.appendChild(cellDiv);
       drawMap(cellDiv.querySelector('svg'), (i) => normColor(s.patch[i]), { outline: true });
     }
@@ -365,7 +365,7 @@ function drawAbsorb(W) {
       el('circle', { cx: xs(x), cy: yP + 3 + rand(i * 7 + 3) * (band - 6), r: isArt ? 3 : 2.1, fill: isArt ? COL.art : COL.patch, 'fill-opacity': isArt ? 1 : 0.55, class: isArt ? 'dot art' : 'dot pat' }, g);
     });
     if (art.length) txt(g, xs(Math.min(...art)) - 8, yP + band / 2 + 4, `${art.length} artifacts`, 'annot', { 'text-anchor': 'end' });
-    if (n === 1) txt(g, xs(s.regs[0]) - 8, yR + 4, 'the high norm moves here', 'annot', { 'text-anchor': 'end' });
+    if (n === 1) txt(g, xs(s.regs[0]) - 8, yR + 4, 'high-norm register', 'annot', { 'text-anchor': 'end' });
   });
   drawAxis(svg, xs, bottom + 4, labelW, W - R, 'output token norm (simulated)');
   const H = bottom + 42;

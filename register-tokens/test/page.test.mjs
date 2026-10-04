@@ -43,6 +43,8 @@ for (const width of [1440, 390]) {
     for (const map of ['#map-input', '#map-attn-0', '#map-attn-4', '#map-norm']) {
       assert.equal(await count(page, `${map} rect[data-i]`), 196, `${map} has 14×14 cells`);
     }
+    const mapTops = await page.$$eval('#fig-compare .map svg', (els) => els.map((e) => e.getBoundingClientRect().top));
+    assert.ok(Math.max(...mapTops) - Math.min(...mapTops) < 1, 'comparison maps align when a heading wraps');
     assert.equal(await count(page, '#depth-grid .map svg'), 12, 'three model sizes × four depths');
     assert.equal(await count(page, '#tokens-svg rect.tok'), 1 + 4 * 14, '[CLS] plus four rows of the strip');
     assert.equal(await count(page, '#dots-norm circle'), 196, 'one dot per patch token');
@@ -82,13 +84,17 @@ test('figures redraw at the new width when the viewport shrinks', async () => {
   await context.close();
 });
 
-test('Figure 1: artifacts only without registers, and registers move attention onto the bird', async () => {
+test('Figure 1: conditional patch attention is normalized and its simulated comparison is labeled', async () => {
   const { page, context, errors } = await open();
   assert.ok(await count(page, '#map-attn-0 rect[data-artifact]') > 0, 'no-register map shows artifacts');
   assert.equal(await count(page, '#map-attn-4 rect[data-artifact]'), 0, 'four-register map has none');
   assert.equal(await count(page, '#map-attn-0 .artifact-mark'), await count(page, '#map-attn-0 rect[data-artifact]'), 'every artifact is marked');
   const d = await page.$eval('#attn-takeaway', (el) => ({ ...el.dataset, text: el.textContent }));
   assert.ok(+d.bird4 > +d.bird0, 'bird share rises with registers');
+  const sums = await page.evaluate(() => [0, 4].map((n) => window.__registerSim.attention(n).share.reduce((a, b) => a + b, 0)));
+  for (const sum of sums) assert.ok(Math.abs(sum - 1) < 1e-12, 'attention sums to one over patch destinations');
+  assert.match(await page.locator('#fig-compare figcaption').innerText(), /normalized over patches only[\s\S]*Attention to \[CLS\] and registers is omitted/);
+  assert.match(d.text, /patch-directed attention/);
   assert.match(d.text, new RegExp(`${d.artifacts} sky patches take ${Math.round(d.artShare * 100)}%`));
   assert.match(d.text, new RegExp(`from ${Math.round(d.bird0 * 100)}% to ${Math.round(d.bird4 * 100)}%`));
   // the artifact tokens hold the largest attention shares in the no-register map
@@ -141,7 +147,7 @@ test('Figure 3: artifacts are the tokens above the 150 cutoff, in the sky, and t
 
 test('Figure 4: no artifacts in DINOv2 ViT-S or ViT-B at any depth; ViT-L has them only from the middle layers (paper Fig. 4)', async () => {
   const { page, context, errors } = await open();
-  const maps = await page.$$eval('#depth-grid .map', (els) => els.map((e) => ({ ...e.dataset, head: e.querySelector('h4').textContent, note: e.querySelector('.note').textContent })));
+  const maps = await page.$$eval('#depth-grid .map', (els) => els.map((e) => ({ ...e.dataset, head: e.querySelector('h3').textContent, note: e.querySelector('.note').textContent })));
   assert.equal(maps.length, 12);
   for (const m of maps) {
     assert.equal(m.head, `layer ${m.layer}`, 'heading matches the layer simulated');
