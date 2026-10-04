@@ -242,6 +242,7 @@ tbody th[scope="row"] { color: var(--ink-2); font-weight: 400; white-space: nowr
 
 .tok.todo { color: transparent; }
 .uno-chart { margin-top: 1.1rem; }
+#unoExpectation { font-size: 0.875rem; }
 
 /* release table status words */
 .status { white-space: nowrap; }

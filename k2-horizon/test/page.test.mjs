@@ -181,15 +181,38 @@ test('Uno distinguishes the expected full-round rate from a finite simulated run
   assert.equal(await expected(16, 1), 8.5, 'perfect agreement: 17 tokens in two passes');
   assert.ok(Math.abs(await expected(4, 0.7) - 1.7665) < 1e-10,
     'full round adds 2 + 0.7 + 0.49 + 0.343 tokens');
-  assert.match(await page.locator('#unoExpectation').innerText(), /1.77 tokens per pass/);
+  assert.match(await page.locator('#unoExpectation').innerText(), /1\.77 tokens per pass/);
   await page.locator('#unoBlock button[data-block="8"]').click();
-  assert.match(await page.locator('#unoExpectation').innerText(), /2.07 tokens per pass/);
+  assert.match(await page.locator('#unoExpectation').innerText(), /2\.07 tokens per pass/);
   await page.locator('#unoAcc').fill('95');
-  assert.match(await page.locator('#unoExpectation').innerText(), /3.87 tokens per pass/);
+  assert.match(await page.locator('#unoExpectation').innerText(), /3\.87 tokens per pass/);
   await page.locator('#unoReset').click();
   assert.match(await page.locator('#unoCount').innerText(), /^0 tokens · 0 passes/);
-  assert.match(await page.locator('#unoExpectation').innerText(), /3.87 tokens per pass/,
+  assert.match(await page.locator('#unoExpectation').innerText(), /3\.87 tokens per pass/,
     'reset clears the sample without changing the theoretical rate');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('Uno expectation live region changes only when its settings change', async () => {
+  const { page, context, errors } = await open({ clock: true, reduced: false });
+  await page.locator('#unoReset').click();
+  const textNode = await page.locator('#unoExpectation').evaluateHandle((el) => el.firstChild);
+  await page.locator('#unoPlay').click();
+  await page.clock.runFor(600 * 5 + 50);
+  assert.equal(parseUno((await counts(page)).uno).passes, 5, 'the animation advanced');
+  const unchanged = (node) => page.evaluate((original) => document.querySelector('#unoExpectation').firstChild === original, node);
+  assert.equal(await unchanged(textNode), true, 'animation ticks must not replace the live-region text');
+  await page.locator('#unoBlock button[data-block="8"]').click();
+  assert.equal(await unchanged(textNode), false, 'changing block size updates the live region');
+  const changedNode = await page.locator('#unoExpectation').evaluateHandle((el) => el.firstChild);
+  await page.locator('#unoReset').click();
+  await page.locator('#unoStep').click();
+  assert.equal(await unchanged(changedNode), true, 'reset and step leave an unchanged expectation alone');
+  await page.locator('#unoAcc').fill('95');
+  assert.equal(await unchanged(changedNode), false, 'changing agreement updates the live region');
+  assert.match(await page.locator('#unoExpectation').innerText(), /3\.87 tokens per pass/);
+  await textNode.dispose(); await changedNode.dispose();
   assert.deepEqual(errors, []);
   await context.close();
 });

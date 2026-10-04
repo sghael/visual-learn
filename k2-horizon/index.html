@@ -149,7 +149,7 @@
           <p class="lane-text" id="unoText" aria-live="polite"></p>
         </div>
       </div>
-      <p class="readout" id="unoExpectation" style="font-size:0.875rem" aria-live="polite"></p>
+      <p class="readout" id="unoExpectation" aria-live="polite"></p>
       <div class="graphic uno-chart" id="unoChart" role="img" aria-label="Tokens written against forward passes for both decoders."></div>
       <figcaption><span class="fig-n"></span><strong>Simplified simulation.</strong> Each word stands for one token, and one tick is one forward pass for both decoders. Upright black: drafted and accepted. Purple italic: the verification step’s corrected replacement or bonus token. Red, struck through: drafted and rejected. Grey dashed: drafted, awaiting verification. “Draft agreement” is an invented independent probability <em>a</em> that each drafted token after the first passes verification; it is not a measured Uno parameter, and real acceptance depends on the prompt, the text so far, the sampler and the model. This figure illustrates pass accounting, not the rejection-sampling distribution above. The expected tokens per full round are 2 + a + a² + … + a<sup>B−1</sup>; divide by two for tokens per pass. A short run can differ because of random outcomes and its truncated final round. The pass count ignores adapter overhead, batching and hardware utilization, and treats a pass over a block as costing the same as a one-token pass. <span class="takeaway">Larger blocks help only when their prefixes survive verification. The expected rate rises with agreement and block size, with an upper bound of (B + 1)/2 tokens per pass.</span></figcaption>
     </figure>
