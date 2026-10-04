@@ -6,10 +6,22 @@ remove everything else. This folder holds the reference.
 
 - `base.css` — the stylesheet. Copy its rules into a new explainer's own CSS
   and add page rules after them. Explainers never link to this file.
-- `specimen.html` — one page that uses every pattern in `base.css`: top bar,
-  title, subtitle, lede, sidenotes, margin notes, a figure with controls and a
-  margin caption, a wide figure of small multiples, a table, a code block and
-  the colophon. Open it before building a page.
+- `specimen.html` — a static reference for the top bar, title, subtitle, lede,
+  sidenotes, margin notes, margin caption, small multiples, table, code block
+  and colophon. It links to a working tutorial for interactive controls.
+  Open it before building a page.
+
+## Reading and navigation
+
+- Tertiary text uses `--ink-3: #716d63`: approximately 4.98:1 contrast on
+  paper and 4.57:1 on the wash surface. Axis ticks, metadata and section links
+  are reading content, so they need readable contrast even when visually quiet.
+- The top bar has a solid paper background. Its current section is underlined
+  as well as darker; its horizontally scrolling navigation keeps a visible
+  scrollbar and an inset focus outline so keyboard focus is not clipped.
+- Captions are 15 px at the default root size, with 1.5 line spacing. Keep
+  evidence, units and limitations beside the figure instead of shrinking them
+  to make room for the chart.
 
 ## Figures and interactions
 

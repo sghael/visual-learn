@@ -10,7 +10,7 @@
   --wash: #f3f1ea;          /* the only fill for a region that must read as "a thing" */
   --ink: #1c1b18;
   --ink-2: #57544c;         /* secondary text, captions */
-  --ink-3: #8a867b;         /* tertiary: ticks, meta, disabled */
+  --ink-3: #716d63;         /* tertiary: ticks, meta, disabled */
   --rule: #e2ded3;          /* hairlines, gridlines */
   --rule-2: #c9c4b6;        /* control borders, axis lines */
   --link: #1f4e79;
@@ -46,7 +46,7 @@ body {
   counter-reset: sidenote figure;
 }
 ::selection { background: #e8dfc3; }
-:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
 
 /* ---------- page frame ---------- */
 .page { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem 6rem; }
@@ -98,7 +98,7 @@ p, li, figure { position: relative; }
    Inside: optional .controls, the graphic, then <figcaption>. No borders, no cards. */
 figure { margin: 2.25rem 0 2.5rem; padding: 0; }
 .fig { counter-increment: figure; }
-.fig figcaption { font-size: 0.875rem; line-height: 1.45; color: var(--ink-2); margin-top: 0.7rem; max-width: var(--text); }
+.fig figcaption { font-size: 0.9375rem; line-height: 1.5; color: var(--ink-2); margin-top: 0.85rem; max-width: var(--text); }
 .fig figcaption .fig-n::before { content: "Figure " counter(figure) ". "; font-family: var(--sans); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--ink); }
 .fig .takeaway { font-style: italic; color: var(--ink); }
 .graphic { position: relative; }
@@ -131,7 +131,7 @@ input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: va
 input[type="range"]::-moz-range-track { height: 2px; background: var(--rule-2); }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
 input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
-input[type="range"]:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+input[type="range"]:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
 select { font: 0.875rem var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.4rem 0.5rem; }
 
 /* ---------- tables: booktabs ---------- */
@@ -153,15 +153,16 @@ td.n, th.n { text-align: right; }
 .halo { paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
 
 /* ---------- top bar: back to the collection, sections, reading progress ---------- */
-.topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; }
 .topbar-inner { max-width: calc(var(--page) + 3rem); margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1.25rem; height: 2.75rem; }
 .topbar .home { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
 .topbar .home:hover { color: var(--ink); }
 .topbar .title { color: var(--ink); font-weight: 600; white-space: nowrap; }
-.topbar nav { display: flex; gap: 1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; mask-image: linear-gradient(to right, #000 92%, transparent); }
-.topbar nav::-webkit-scrollbar { display: none; }
-.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0; }
+.topbar nav { display: flex; gap: 1rem; min-width: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--rule-2) var(--paper); margin-left: auto; scroll-padding-inline: 0.25rem; }
+.topbar nav a { color: var(--ink-3); text-decoration: none; white-space: nowrap; padding: 0.75rem 0.2rem; }
 .topbar nav a:hover, .topbar nav a[aria-current="true"] { color: var(--ink); }
+.topbar nav a[aria-current="true"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.35em; }
+.topbar nav a:focus-visible { outline-offset: -3px; }
 .progress { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--ink); width: 0; }
 
 /* ---------- colophon ---------- */
