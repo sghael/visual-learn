@@ -288,7 +288,7 @@ measured(document.querySelector('#fig-where .dots'), drawWhere);
       const cellDiv = document.createElement('div');
       cellDiv.className = 'map';
       cellDiv.dataset.model = key; cellDiv.dataset.layer = layer; cellDiv.dataset.artifacts = s.artifacts.size;
-      cellDiv.innerHTML = `<h3>layer ${layer}</h3><svg viewBox="0 0 14 14" role="img" aria-label="${m.name}, layer ${layer}: ${s.artifacts.size ? s.artifacts.size + ' artifact tokens' : 'no artifact tokens'}"></svg><div class="note${s.artifacts.size ? ' has' : ''}">${s.artifacts.size ? `${s.artifacts.size} above 150` : 'none above 150'}</div>`;
+      cellDiv.innerHTML = `<p class="panel-title">layer ${layer}</p><svg viewBox="0 0 14 14" role="img" aria-label="${m.name}, layer ${layer}: ${s.artifacts.size ? s.artifacts.size + ' artifact tokens' : 'no artifact tokens'}"></svg><div class="note${s.artifacts.size ? ' has' : ''}">${s.artifacts.size ? `${s.artifacts.size} above 150` : 'none above 150'}</div>`;
       grid.appendChild(cellDiv);
       drawMap(cellDiv.querySelector('svg'), (i) => normColor(s.patch[i]), { outline: true });
     }
