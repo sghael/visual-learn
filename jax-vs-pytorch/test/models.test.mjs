@@ -32,7 +32,7 @@ test('fusion: eager launches one kernel per op and materializes every intermedia
   const eager = plan(all, 'eager');
   assert.equal(eager.launches, 5);
   assert.equal(eager.intermediates, 4);
-  assert.equal(eager.mb, 704); // matmul 192 + four ops at 128 each
+  assert.equal(eager.mib, 704); // matmul 192 + four ops at 128 each
 });
 
 test('fusion: compiled mode fuses pointwise ops into the matmul epilogue and keeps softmax separate', () => {
@@ -41,7 +41,7 @@ test('fusion: compiled mode fuses pointwise ops into the matmul epilogue and kee
   const compiled = plan(all, 'compiled');
   assert.equal(compiled.launches, 2);
   assert.equal(compiled.intermediates, 1);
-  assert.equal(compiled.mb, 320);
+  assert.equal(compiled.mib, 320);
   assert.deepEqual(compiled.kernels.map((k) => k.ops.map((o) => o.id).join('+')), ['matmul+bias+relu+scale', 'softmax']);
   assert.equal(plan(all.slice(1), 'compiled').launches, 1, 'no matmul: everything folds into the softmax kernel');
   assert.equal(plan(all.slice(0, 4), 'compiled').launches, 1, 'no softmax: everything folds into the matmul kernel');
@@ -75,4 +75,15 @@ test('silicon: the weight-stationary systolic simulation reproduces A·B (self-c
   // silicon.js runs a self-check when the script loads and throws if the
   // cycle-by-cycle dataflow does not produce the true product in 10 cycles.
   assert.doesNotThrow(() => loadWidget('silicon.js'));
+});
+
+test('fusion: binary traffic labels and decimal bandwidth use the same byte count', () => {
+  const { plan, TENSOR_MIB, TENSOR_BYTES, HBM_BW } = loadWidget('fusion.js').model;
+  assert.equal(TENSOR_BYTES, 4096 * 4096 * Float32Array.BYTES_PER_ELEMENT);
+  assert.equal(TENSOR_MIB * 2 ** 20, TENSOR_BYTES);
+  for (const mode of ['eager', 'compiled']) {
+    const p = plan(['matmul', 'bias', 'relu', 'scale', 'softmax'], mode);
+    assert.equal(p.mib * 2 ** 20, p.bytes);
+    assert.equal(p.ms, p.bytes / HBM_BW * 1000);
+  }
 });
