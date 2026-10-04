@@ -1,0 +1,13 @@
+{
+  "name": "speculative-decoding-explainer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A self-contained visual tutorial on speculative decoding; Playwright is used only for tests.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "serve": "python3 -m http.server 8000 --bind 0.0.0.0"
+  },
+  "devDependencies": { "playwright": "1.63.0" },
+  "packageManager": "pnpm@10.34.5"
+}

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Speculative decoding · Visual Learn</title>
+  <meta name="description" content="An interactive tutorial on how a small draft model helps a large language model generate faster while preserving its output distribution.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%231c1b18'/%3E%3Cpath d='M18 20l14 26 14-26' fill='none' stroke='%23fcfbf7' stroke-width='6'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="models.js" defer></script>
+  <script src="main.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../">Visual Learn</a><span class="title">Speculative decoding</span>
+    <nav aria-label="Sections">
+      <a href="#serial" aria-current="true">The bottleneck</a><a href="#round">One round</a><a href="#parallel">Verification</a><a href="#sampling">Sampling</a><a href="#speed">Speed</a><a href="#limits">Limits</a>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+<main class="page">
+  <h1>Speculative decoding</h1>
+  <p class="subtitle">Draft several tokens. Let the large model check them together.</p>
+  <p class="lede">A language model usually generates one token at a time. A small model can propose several tokens cheaply, then a larger model can verify that proposal in one pass. When enough of the draft survives, the same large model produces its answer in less time.</p>
+  <p class="meta">6 sections · 5 figures · about 15 minutes · no model downloads</p>
+  <noscript><p>This tutorial’s text is readable without JavaScript. Enable JavaScript to run the three interactive figures.</p></noscript>
+
+  <section id="serial">
+    <h2>Why the next token makes you wait</h2>
+    <p>An <strong>autoregressive language model</strong> predicts a distribution over the next token from the text so far. A token is a piece of text: it might be a word, part of a word, or punctuation. After selecting a token, ordinary decoding feeds it back into the model before choosing the next one.</p>
+    <p>Call the model whose output we want the <strong class="target-text">target</strong>. For a single stream of text, its accelerator can spend much of a decoding step moving model weights from memory. Scoring a short block of known tokens can then take less time than generating those tokens in separate passes.<span class="sn-ref"></span><span class="sidenote">This opportunity depends on hardware, model size, batch size and block length. The original <a href="https://proceedings.mlr.press/v202/leviathan23a.html">Leviathan et al. paper (2023)</a> analyzes the regime with enough parallel compute to verify a short block cheaply.</span></p>
+
+    <figure class="fig" id="serial-figure">
+      <div class="time-compare" role="img" aria-label="Illustrative time comparison. Ordinary decoding needs four sequential target passes for four tokens. Speculative decoding drafts four tokens cheaply, then uses one target verification pass; the number of committed tokens depends on acceptance.">
+        <div class="lane-title">Ordinary decoding <span>one target pass per token</span></div>
+        <div class="ordinary-lane"><span>target → 1</span><span>target → 2</span><span>target → 3</span><span>target → 4</span></div>
+        <div class="lane-title">Speculative decoding <span>draft first, then verify</span></div>
+        <div class="speculative-lane"><span class="draft-call">1</span><span class="draft-call">2</span><span class="draft-call">3</span><span class="draft-call">4</span><span class="verify-call">target checks the block</span></div>
+        <div class="time-direction">Illustrative elapsed time →</div>
+      </div>
+      <figcaption><span class="fig-n"></span>A simplified schedule, not a benchmark. The <span class="draft-text">draft model (orange)</span> still runs sequentially. The <span class="target-text">target (blue)</span> checks known tokens together. <span class="takeaway">The saving comes from committing several tokens per expensive target pass.</span></figcaption>
+    </figure>
+    <p><strong>Speculative decoding</strong> uses this asymmetry. A cheaper <strong class="draft-text">draft model</strong> guesses a continuation; the target decides how much to keep. The draft changes the work schedule, while the verification rule preserves the target’s decoding behavior.</p>
+  </section>
+
+  <section id="round">
+    <h2>Keep the prefix up to the first mismatch</h2>
+    <p>Start with <strong>greedy decoding</strong>: each model chooses its most likely next token. The draft proposes four tokens. The target checks each choice, and we keep the consecutive matches from the beginning. At the first mismatch, we insert the target’s choice and discard the rest of the draft.</p>
+    <p>The discarded tokens were predicted after text we did not keep. Even a later match cannot rescue that suffix. Try the three cases below, then replay one round.<span class="sn-ref"></span><span class="sidenote">These are hand-authored toy model outputs, with words treated as tokens. “Accepted” means it passes the decoding rule; it does not mean a statement is factually true.</span></p>
+
+    <figure class="fig wide" data-widget="round">
+      <div class="controls">
+        <label class="control" for="round-case">Draft outcome
+          <select id="round-case"><option value="third">Third token mismatches</option><option value="all">All four match</option><option value="first">First token mismatches</option></select>
+        </label>
+        <button type="button" class="btn primary" id="round-play">Replay</button>
+        <button type="button" class="btn" id="round-next">Step</button>
+        <button type="button" class="btn" id="round-reset">Reset</button>
+        <span class="readout" id="round-step">Step 6 of 6</span>
+      </div>
+      <div class="round-prefix"><span class="row-label">Committed prefix</span><span>We walked</span></div>
+      <p class="scroll-hint">Scroll sideways to see all five positions.</p>
+      <div class="scroll-x" tabindex="0" role="region" aria-label="Draft and target token positions" style="--min: 43rem"><div id="round-grid" class="round-grid"></div></div>
+      <p class="round-note" id="round-note" aria-live="polite"></p>
+      <div class="committed-line"><span class="row-label">Output after this round</span><div id="round-output"></div><span><strong id="round-committed">3</strong> new tokens committed</span></div>
+      <figcaption><span class="fig-n"></span>Simplified greedy example. A round adds between one and five tokens when the draft length is four. <span class="takeaway">If every draft token matches, the same target pass also supplies one bonus token.</span> With reduced motion enabled, Play shows the finished round; Step remains available.</figcaption>
+    </figure>
+    <p>After a rejection, drafting starts again from the repaired prefix. After full acceptance, drafting starts after the bonus token. With the same tie-breaking and equivalent numerical results, this greedy procedure produces the same token sequence as ordinary target-only greedy decoding.</p>
+  </section>
+
+  <section id="parallel">
+    <h2>Why verification fits in one pass</h2>
+    <p>Generating an unknown continuation requires sequential choices. Evaluating a known continuation is different: all the input tokens are already available. A causal transformer can score those positions together, with an attention mask that prevents any position from reading future tokens.</p>
+    <p>Each target prediction has its own prefix. For a four-token draft, verification gives four distributions to check the proposals and one more distribution for the possible bonus token.<span class="sn-ref"></span><span class="sidenote">This is the linear draft–target algorithm in <a href="https://arxiv.org/abs/2302.01318">Chen et al. (2023), Algorithm 2</a>. Cached-prefix handling and whether a boundary distribution was already computed are implementation details.</span></p>
+
+    <figure class="fig wide">
+      <p class="scroll-hint">Scroll sideways to compare prefixes and decisions.</p>
+      <div class="scroll-x" tabindex="0" role="region" aria-label="Target prefixes and verification decisions" style="--min: 39rem">
+        <table class="prefix-table">
+          <thead><tr><th>Target distribution</th><th>Text it can use</th><th>Checks / supplies</th><th>After rejection at token 3</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><i>p</i><sub>1</sub></th><td>We walked</td><td class="draft-text">along</td><td>Keep “along”</td></tr>
+            <tr><th scope="row"><i>p</i><sub>2</sub></th><td>We walked <b>along</b></td><td class="draft-text">the</td><td>Keep “the”</td></tr>
+            <tr><th scope="row"><i>p</i><sub>3</sub></th><td>We walked along <b>the</b></td><td class="draft-text">lake</td><td>Replace with “river”</td></tr>
+            <tr class="unused-row"><th scope="row"><i>p</i><sub>4</sub></th><td>We walked along the <s>lake</s></td><td class="draft-text">.</td><td>Discard: wrong prefix</td></tr>
+            <tr class="unused-row"><th scope="row"><i>p</i><sub>5</sub></th><td>We walked along the <s>lake .</s></td><td>possible bonus</td><td>Discard: wrong prefix</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><span class="fig-n"></span>All five target distributions can be computed in one causal forward pass over the candidate block. <span class="takeaway">Parallel scoring does not remove the dependence on the preceding text.</span> This table uses the third-token mismatch from Figure 2.</figcaption>
+    </figure>
+    <p>Verification still performs work for tokens that may be thrown away. It pays off when processing the block is cheap enough and the accepted prefix is long enough. One pass does not mean one token’s worth of arithmetic.</p>
+  </section>
+
+  <section id="sampling">
+    <h2>Sampling needs a probability correction</h2>
+    <p>Greedy agreement is only one case. When generating varied text, the target samples a token from a probability distribution. Let <strong><i>p</i></strong> be that target distribution and <strong><i>q</i></strong> the draft distribution at the same prefix. Draw a candidate <i>x</i> from <i>q</i>, then accept it with probability:</p>
+    <div class="equation" aria-label="Accept x with probability minimum of one and p of x divided by q of x">accept(<i>x</i>) = min(1, <i>p</i>(<i>x</i>) / <i>q</i>(<i>x</i>))</div>
+    <p>If the draft proposes a token too often, the ratio trims the excess. A candidate drawn from <i>q</i> has positive <i>q</i>(<i>x</i>), so its acceptance ratio is defined. On rejection, sample a replacement from the target’s <em>missing</em> probability mass:</p>
+    <div class="equation">correction(<i>x</i>) ∝ max(0, <i>p</i>(<i>x</i>) − <i>q</i>(<i>x</i>))</div>
+    <p>The ∝ symbol means “proportional to”: divide these values by their sum to make a distribution. Sampling from the unmodified target distribution after rejection would generally give the wrong result.<span class="sn-ref"></span><span class="sidenote">The proof appears in <a href="https://proceedings.mlr.press/v202/leviathan23a/leviathan23a.pdf">Leviathan et al., Appendix A.1</a>. Use the actual sampling distributions after temperature, top-k or top-p transformations. This page uses <i>p</i> for target and <i>q</i> for draft; Chen et al. use the opposite notation.</span></p>
+
+    <figure class="fig wide" data-widget="probability">
+      <div class="controls">
+        <label class="control" for="q-lake">Draft probability of “lake” <input id="q-lake" type="range" min="0" max="100" value="50"><output id="q-value" for="q-lake">50%</output></label>
+        <button class="btn" type="button" id="prob-default" aria-pressed="true">Overconfident draft</button>
+        <button class="btn" type="button" id="prob-exact" aria-pressed="false">Draft equals target</button>
+      </div>
+      <div class="distribution-panels" id="prob-bars"></div>
+      <p class="prob-summary" aria-live="polite">Probability of accepting a draft: <strong id="prob-overlap">70%</strong>. <span id="prob-message"></span></p>
+      <p class="scroll-hint">Scroll sideways to compare all probability columns.</p>
+      <div class="scroll-x" tabindex="0" role="region" aria-label="Probability calculation table" style="--min: 38rem">
+        <table id="prob-table"><thead><tr><th>Token</th><th class="n">Target <i>p</i></th><th class="n">Draft <i>q</i></th><th class="n">Accepted mass</th><th class="n">Correction¹</th><th class="n">Final output</th></tr></thead><tbody></tbody></table>
+      </div>
+      <p class="table-note">¹ Correction is a distribution conditional on rejection. Final output = accepted mass + probability of rejection × correction.</p>
+      <figcaption><span class="fig-n"></span>An exact probability calculation for a simplified three-token vocabulary, not a random simulation. The slider divides the remaining draft mass between river and sea in a 3:2 ratio; “Draft equals target” sets all three probabilities exactly. <span class="takeaway">Changing the draft changes acceptance, but the final output distribution stays equal to the target.</span></figcaption>
+    </figure>
+    <p>At the default settings, “lake” is proposed 50% of the time but should appear only 20% of the time. It is accepted with probability 20 / 50 = 40%. The resulting accepted mass is 20%. Rejection happens 30% of the time overall; its correction goes to “river” and “sea.”</p>
+    <p>Apply this rule from left to right through the draft. At the first rejection, sample the correction and stop that round. If all drafts pass, sample a bonus token from the target’s next distribution. The resulting sequence has the target’s sampling distribution, subject to numerical precision. It need not be the same sequence produced by a target-only run with the same random seed.</p>
+  </section>
+
+  <section id="speed">
+    <h2>When more guessing stops helping</h2>
+    <p>A longer draft offers more possible tokens per target pass, but also takes longer to generate. Its later tokens only survive when all the earlier ones survive. Let <strong>α</strong> be the probability of acceptance at each position, assumed constant and independent in this simplified model.</p>
+    <p>With <i>k</i> draft tokens, a round always commits at least one token: either a replacement or the first accepted token. It commits a second token with probability α, a third with probability α², and so on, including the bonus after full acceptance.</p>
+    <div class="equation">expected tokens = 1 + α + α² + … + α<sup><i>k</i></sup></div>
+    <p>Measure time in units of one ordinary target decoding step. Each draft step costs <i>c</i>, and verification costs <i>v</i>. Then the round costs <i>v</i> + <i>kc</i>, and:</p>
+    <div class="equation">speedup = expected tokens / (<i>v</i> + <i>kc</i>)</div>
+
+    <figure class="fig wide" data-widget="speed">
+      <div class="controls speed-controls">
+        <label class="control" for="acceptance"><span>Acceptance α</span><input id="acceptance" type="range" min="0" max="100" value="80"><output id="acceptance-value" for="acceptance">80%</output></label>
+        <label class="control" for="draft-length"><span>Draft length <i>k</i></span><input id="draft-length" type="range" min="1" max="12" value="4"><output id="length-value" for="draft-length">4</output></label>
+        <label class="control" for="draft-cost"><span>Draft step cost <i>c</i></span><input id="draft-cost" type="range" min="0" max="100" value="10"><output id="draft-cost-value" for="draft-cost">0.10</output></label>
+        <label class="control" for="verify-cost"><span>Verification cost <i>v</i></span><input id="verify-cost" type="range" min="100" max="300" value="100"><output id="verify-cost-value" for="verify-cost">1.00</output></label>
+        <div class="preset-controls" role="group" aria-label="Speed model presets"><button class="btn" type="button" data-speed-preset="balanced" aria-pressed="true">Cheap, well-matched draft</button><button class="btn" type="button" data-speed-preset="poor" aria-pressed="false">Low acceptance</button><button class="btn" type="button" data-speed-preset="expensive" aria-pressed="false">Expensive draft</button></div>
+      </div>
+      <p class="speed-calculation" aria-live="polite"><span><strong id="tokens-value">3.36</strong> expected tokens</span><span>÷</span><span><strong id="cost-value">1.40</strong> target-step units</span><span>=</span><span><strong id="speed-value">2.40×</strong> speedup</span></p>
+      <p class="scroll-hint">Scroll sideways to see draft lengths 1–12.</p>
+      <div class="scroll-x graphic" tabindex="0" role="region" aria-label="Speedup chart" style="--min: 38rem"><svg id="speed-chart" viewBox="0 0 860 310" role="img" aria-label="Simplified speedup versus draft length"></svg></div>
+      <p class="speed-note" id="speed-note"></p>
+      <figcaption><span class="fig-n"></span>Simplified latency model, not measured performance. The curve holds α, <i>c</i> and <i>v</i> constant as draft length changes. <span class="takeaway">High acceptance helps only when it repays the time spent drafting and verifying.</span></figcaption>
+    </figure>
+    <p>With α = 0.8 and four proposals, this model yields 3.36 expected tokens per round. If a draft step costs 0.10 target steps and verification costs 1.00, the modeled speedup is 3.36 / 1.40 ≈ 2.40×.<span class="sn-ref"></span><span class="sidenote">The <a href="https://proceedings.mlr.press/v202/leviathan23a/leviathan23a.pdf">original analysis, §3</a>, uses <i>v</i> = 1. This widget exposes <i>v</i> to show how a more expensive verification pass changes the result. Acceptance here is distribution overlap, not benchmark accuracy.</span></p>
+    <p>The model ignores setup, communication, cache management, and the end of a finite response. In a real workload, acceptance varies with context and verification cost can grow with draft length. Increasing the serving batch size can also reduce the spare compute that made verification cheap.</p>
+  </section>
+
+  <section id="limits">
+    <h2>What stays fixed, and what can change</h2>
+    <p>The target remains the authority over output. The draft can be less capable, provided the acceptance and correction rules are implemented correctly. A weak draft usually wastes time; it does not deliberately lower the target’s sampling quality.</p>
+    <table>
+      <thead><tr><th>Property</th><th>In the basic draft–target algorithm</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Greedy output</th><td>Same token choices with consistent tie-breaking and equivalent numerics.</td></tr>
+        <tr><th scope="row">Sampled output</th><td>Same distribution; not necessarily the same random realization.</td></tr>
+        <tr><th scope="row">Memory</th><td>The draft model and its state add memory; rejected cache entries must be rolled back or excluded.</td></tr>
+        <tr><th scope="row">Vocabulary</th><td>Both distributions are defined over the same token vocabulary.</td></tr>
+        <tr><th scope="row">Stopping</th><td>Honor end-of-sequence and length limits on committed output; do not emit tokens beyond them.</td></tr>
+        <tr><th scope="row">Latency</th><td>Depends on acceptance, drafting cost, verification cost and the serving workload.</td></tr>
+      </tbody>
+    </table>
+    <p>This tutorial covers the original linear draft–target method. Other systems propose token trees, use extra prediction heads, or obtain drafts without a separate small model. Their schedules and verification rules need their own analysis. The useful question remains concrete: how much valid output does each expensive target pass buy?</p>
+  </section>
+
+  <footer class="colophon">
+    <p>Sources: Yaniv Leviathan, Matan Kalman and Yossi Matias, <a href="https://proceedings.mlr.press/v202/leviathan23a.html"><cite>Fast Inference from Transformers via Speculative Decoding</cite></a> (ICML 2023); Charlie Chen et al., <a href="https://arxiv.org/abs/2302.01318"><cite>Accelerating Large Language Model Decoding with Speculative Sampling</cite></a> (2023).</p>
+    <p>The text and equations describe those algorithms. All token examples and timing settings are illustrative; no model runs in this page. Part of <a href="../">Visual Learn</a>. <a href="https://github.com/sghael/visual-learn/tree/main/speculative-decoding">Source and tests</a>.</p>
+  </footer>
+</main>
+</body>
+</html>
