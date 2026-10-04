@@ -30,11 +30,11 @@ Seven sections, about 15 minutes of reading.
 |---|---|---|
 | How GPUs and TPUs multiply matrices | Fig. 1, static schematics | An H100's 132 SMs with one enlarged (warps issuing or waiting, registers, arithmetic units, Tensor Cores, shared memory), beside one TPU v4 TensorCore (four MXUs, vector and scalar units, HBM) |
 | | Fig. 2, three small multiples | A 6 × 6 systolic array at cycles 1, 4 and 11: how it fills along a diagonal and then keeps every cell busy |
-| Every accelerator Google Cloud rents | Fig. 3, table | One row per chip, grouped by architecture: memory (with an inline bar), bandwidth, dense low-precision and BF16 peaks, fast-domain size, price, machine series. Selecting a chip's name opens its machine type, host shape, chips per VM, price basis and notes |
+| The September 2026 accelerator lineup | Fig. 3, table | One row per chip, grouped by architecture: memory (with an inline bar), bandwidth, dense low-precision and BF16 peaks, fast-domain size, price, machine series. Selecting a chip's name opens its machine type, host shape, chips per VM, price basis and notes |
 | Two speed limits | Fig. 4, interactive roofline | Pick a chip and a workload (three presets or a slider for arithmetic intensity); the chart and the sentence under it show the ridge point, whether the workload is memory- or compute-bound, and the share of peak it can reach |
-| | Fig. 5, static scatter | Dense peak against bandwidth for every chip, with diagonal lines of equal ridge point (100, 300, 1,000 FLOP/byte) |
+| | Fig. 5, static scatter | Dense peak against bandwidth for every chip, with diagonal lines of equal ridge point (100, 300, 1,000 operations/byte) |
 | Fast domains | Fig. 6, four small multiples | 8-GPU NVSwitch, 72-GPU NVL72 rack, 2D torus, 3D torus |
-| How many chips a model needs | Fig. 7, calculator + table | Parameters, weight precision, a KV-cache/activation allowance and mode give the memory needed, the cheapest on-demand option that fits, the fewest chips, and a per-chip table sorted by hourly cost |
+| How many chips a model needs | Fig. 7, calculator + table | Parameters, weight precision, a KV-cache/activation allowance and mode give a memory lower bound, an L4 example rounded to a supported G2 VM size, the fewest chips by memory, and prorated chip costs |
 | Buying capacity and finding it | two tables | Purchasing models (on demand, Spot, Dynamic Workload Scheduler, reservations) and approximate zone footprints |
 | Glossary | | Arithmetic intensity, dense vs. sparse FLOPS, HBM, ICI, MXU, Multislice, NVLink, RoCE/GPUDirect, slice, SparseCore, vWS |
 
@@ -60,18 +60,31 @@ listed in the page's colophon.
   Google lists), from the Google Cloud pricing pages and a Thunder Compute
   survey dated 11 September 2026; VM-level prices are divided by GPU count.
   A3 Ultra, A3 Mega, A4 and A4X are not sold on demand, so their prices are
-  marked `*` as indicative and never win "cheapest on demand". GB300 and GB200
+  marked `*` as indicative and remain marked as indicative in the prorated cost table. GB300 and GB200
   have no public price.
 - **The roofline** uses dense low-precision vendor peak and peak memory
   bandwidth. Real kernels reach a fraction of either. The workload presets
-  count weight traffic only, with one-byte weights: 2 FLOP per byte per
-  sequence in the batch (decode at batch 1 ≈ 2, batch 64 ≈ 128) and ≈ 2,048
-  for a 1,024-token prefill. KV-cache reads, cache reuse and kernel fusion
+  count weight traffic only: one-byte FP8/INT8 weights give 2 operations
+  per byte per sequence (batch 1 ≈ 2, batch 64 ≈ 128, 1,024-token prefill
+  ≈ 2,048). For displayed FP16/BF16 peaks, two-byte weights halve these
+  intensities. Integer rates are TOPS and floating-point rates TFLOPS; the
+  combined scatter uses operations/s, not FLOPS for integer arithmetic. KV-cache reads, cache reuse and kernel fusion
   change real intensities; the page says so.
 - **The fit calculator** is a capacity estimate: parameters × bytes plus a
   user-selected allowance (not a computed KV cache), or 16 bytes per parameter
   for a mixed-precision Adam full fine-tune, against 90% of each chip's
-  memory. A "fits" result is not a performance recommendation.
+  memory. Counts assume ideal partitioning and are memory lower bounds, not
+  purchasable allocations. The L4 example rounds to 1/2/4/8 GPUs in one G2
+  VM. Prorated chip subtotals are not deployment quotes and exclude any
+  additional allocation or host/storage charges. Storage bits do not assert
+  native arithmetic support. The full fine-tune mode disables this storage
+  choice because its 16-byte accounting is fixed.
+- **Units corrected 3 October 2026.** v4, v5p and TPU7x capacity figures
+  explicitly stated in GiB are converted to decimal GB for memory bars and
+  capacity arithmetic. Details preserve source units. v5e’s 800 GiB/s becomes
+  about 859 GB/s. Other capacity figures retain their generation page’s GB
+  label. The largest A2 shapes have 100 Gbps host NICs, distinct from GPU
+  interconnect bandwidth. These corrections do not refresh the dated prices.
 - **Host shapes** (vCPU, RAM, network) are the largest documented VM per
   chip; for TPUs the network figure is the per-VM NIC. Google publishes no VM
   shape for v2, v3 and v4, and the page says so.
@@ -88,7 +101,7 @@ renders with no errors, no horizontal page overflow and no chart text under
 11 px; that charts redraw at their container's width; the lineup's
 expandable rows and price markers; the roofline verdict, the preset values
 against what they compute, and that batch-1 decode is memory-bound on every
-chip; the fit arithmetic, including indicative prices and the fine-tune mode;
+chip; the fit arithmetic, including storage units, allocation lower bounds, indicative prices and the fine-tune mode;
 and data invariants for every chip record against Google's and NVIDIA's
 published tables.
 
