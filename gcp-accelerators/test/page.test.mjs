@@ -43,6 +43,14 @@ for (const width of [1440, 390]) {
     assert.equal(await page.$$eval('main > section', (els) => els.length), 7);
     assert.equal(await page.$$eval('.topbar nav a', (els) => els.length), 7);
     assert.equal(await page.$$eval('canvas', (els) => els.length), 0, 'no canvas animations remain');
+    const headingStyles = await page.evaluate(() => {
+      const prose = getComputedStyle(document.querySelector('#buy > h3'));
+      const panel = getComputedStyle(document.querySelector('figure h3'));
+      return { proseStyle: prose.fontStyle, proseSize: parseFloat(prose.fontSize), panelSize: parseFloat(panel.fontSize), proseMargin: parseFloat(prose.marginTop) };
+    });
+    assert.equal(headingStyles.proseStyle, 'italic', 'prose headings retain the house typography');
+    assert.ok(headingStyles.proseSize > headingStyles.panelSize, 'prose headings are larger than chart labels');
+    assert.ok(headingStyles.proseMargin > headingStyles.proseSize, 'prose headings have space above them');
     // Figure 1: 132 SMs drawn, and a TensorCore with its MXUs
     assert.ok(await page.$$eval('#anat-gpu rect', (els) => els.length) >= 132 + 8);
     assert.ok(await page.$$eval('#anat-tpu rect', (els) => els.length) >= 5);
@@ -64,6 +72,8 @@ for (const width of [1440, 390]) {
       return [t.textContent, +(parseFloat(getComputedStyle(t).fontSize) * scale).toFixed(1)];
     }).filter(([s, px]) => s.trim() && px < 11));
     assert.deepEqual(small, [], 'chart text below 11px');
+    const outsideCells = await page.$$eval('#lineup-table .basis', (els) => els.filter((e) => { const text = document.createRange(); text.selectNodeContents(e); return text.getBoundingClientRect().right > e.closest('td').getBoundingClientRect().right + 1; }).map((e) => e.textContent));
+    assert.deepEqual(outsideCells, [], 'precision labels stay inside their table cells');
     // scroll through the page so the top bar's section tracking runs
     await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 20)); } });
     await page.waitForTimeout(200);
@@ -94,7 +104,7 @@ test('selecting a chip name in the lineup opens its details and selecting it aga
   await btn.click();
   assert.equal(await btn.getAttribute('aria-expanded'), 'true');
   assert.ok(await page.locator('#d-tpu7x').isVisible());
-  assert.match(await page.locator('#d-tpu7x').innerText(), /first TPU with native FP8[\s\S]*9,216 chips · 9,216-chip pod, 3D torus/);
+  assert.match(await page.locator('#d-tpu7x').innerText(), /FP8 peak throughput is twice its BF16 peak[\s\S]*9,216 chips · 9,216-chip pod, 3D torus/);
   await btn.press('Enter');
   assert.equal(await btn.getAttribute('aria-expanded'), 'false');
   assert.ok(await page.$eval('#d-tpu7x', (el) => el.hidden));
@@ -132,7 +142,7 @@ test('roofline: the verdict follows the chip and the intensity slider', async ()
   assert.match(await page.locator('#roof-verdict').innerText(), /compute-bound/);
   assert.equal(await page.$$eval('#roof-presets [aria-pressed="true"]', (els) => els.length), 0, 'no preset claims a custom intensity');
   await page.selectOption('#roof-chip', 'v5e');
-  assert.match(await page.locator('#roof-verdict').innerText(), /TPU v5e.*ridge at about 480 FLOP\/byte/s);
+  assert.match(await page.locator('#roof-verdict').innerText(), /TPU v5e.*ridge at about 458 OP\/byte/s);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -161,28 +171,28 @@ test('roofline presets compute what their labels say: 2 FLOP/byte per sequence w
   await context.close();
 });
 
-test('fit calculator: 70B at FP8 with 40% headroom needs 98 GB, two H100s, one H200; a full fine-tune uses 16 bytes per parameter', async () => {
+test('fit calculator: memory lower bounds differ from supported allocations; a full fine-tune uses 16 bytes per parameter', async () => {
   const { page, context, errors } = await open();
   assert.equal(await page.locator('#fit-need').innerText(), '98 GB');
   assert.equal((await fitRow(page, 'H100 (High)'))[1], '2');
   assert.equal((await fitRow(page, 'H200'))[1], '1');
   assert.equal((await fitRow(page, 'T4'))[5].startsWith('no'), true, 'seven T4s exceed the four-GPU N1 limit');
   assert.match((await fitRow(page, 'B200'))[2], /\*$/, 'B200 price is marked indicative');
-  assert.match(await page.locator('#fit-cheap').innerText(), /^L4 × 5, \$3\.50 per hour$/);
-  assert.doesNotMatch(await page.locator('#fit-cheap').innerText(), /B200|H200|GB200|GB300|Mega/, 'chips not sold on demand never win cheapest-on-demand');
-  await page.getByRole('button', { name: 'BF16' }).click();
+  assert.equal(await page.locator('#fit-allocation').innerText(), '5 by memory; 8 GPUs in one G2 VM');
+  assert.equal(await page.locator('#fit-cheap').count(), 0, 'memory-only model makes no cheapest deployment claim');
+  await page.getByRole('button', { name: '16-bit' }).click();
   assert.equal(await page.locator('#fit-need').innerText(), '196 GB');
   await page.getByRole('button', { name: 'Full fine-tune' }).click();
   assert.equal(await page.locator('#fit-need').innerText(), '1.57 TB');
   assert.equal((await fitRow(page, 'B200'))[1], '10');
-  assert.ok(await page.getByRole('button', { name: 'BF16' }).isDisabled(), 'weight precision does not apply to a full fine-tune');
+  assert.ok(await page.getByRole('button', { name: '16-bit' }).isDisabled(), 'weight precision does not apply to a full fine-tune');
   await page.getByRole('button', { name: 'Inference' }).click();
   assert.equal(await page.locator('#fit-need').innerText(), '196 GB', 'returning to inference restores the chosen precision');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('fit calculator: a 1B model at FP8 fits one T4 and the low cost renders with cents', async () => {
+test('fit calculator: a 1B model at 8-bit storage has a one-chip memory bound and a prorated chip cost', async () => {
   const { page, context, errors } = await open();
   await page.locator('#fit-params').fill('0');
   assert.equal(await page.locator('#fit-params-out').innerText(), '1.0');
@@ -190,7 +200,7 @@ test('fit calculator: a 1B model at FP8 fits one T4 and the low cost renders wit
   const t4 = await fitRow(page, 'T4');
   assert.equal(t4[1], '1');
   assert.equal(t4[2], '$0.35');
-  assert.match(await page.locator('#fit-cheap').innerText(), /^T4 × 1, /);
+  assert.equal(await page.locator('#fit-allocation').innerText(), '1 by memory; 1 GPU in one G2 VM');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -211,6 +221,10 @@ test('data invariants: every chip record is complete and the host specs match th
   }
   // spot checks against docs.cloud.google.com/compute/docs/gpus (read 12 Sep 2026)
   const by = Object.fromEntries(chips.map((c) => [c.id, c]));
+  assert.equal(by.a100_80.net, 100, 'A2 Ultra maximum host network is 100 Gbps');
+  assert.equal(by.a100_40.net, 100, 'A2 Standard maximum host network is 100 Gbps');
+  assert.equal(by.v5e.bw, 800 * 2 ** 30 / 1e9, 'GiB/s converted to decimal GB/s');
+  for (const id of ['v4', 'v5p', 'tpu7x']) assert.equal(by[id].memUnit, 'GiB');
   assert.deepEqual([by.h100m.vcpu, by.h100m.ram, by.h100m.net], [208, 1872, 1800]);
   assert.deepEqual([by.h100.vcpu, by.h100.ram, by.h100.net], [208, 1872, 1000]);
   assert.deepEqual([by.h100e.vcpu, by.h100e.ram, by.h100e.net], [208, 1872, 400]);
@@ -238,6 +252,44 @@ test('scatter names every chip, including those whose points coincide', async ()
   for (const name of ['GB300', 'GB200', 'B200', 'Ironwood', 'H200', 'H100 High · Mega · Edge', 'RTX PRO 6000', 'TPU v6e', 'A100 80 GB', 'A100 40 GB', 'TPU v5p', 'TPU v5e', 'TPU v4', 'V100', 'TPU v3', 'L4', 'T4', 'TPU v2', 'P100', 'P4']) {
     assert.ok(text.includes(name), `scatter label for ${name}`);
   }
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+
+test('roofline preserves the chosen workload across precision changes and labels integer arithmetic', async () => {
+  const { page, context, errors } = await open();
+  await page.getByRole('button', { name: 'Decode, batch 64' }).click();
+  await page.selectOption('#roof-chip', 'v100');
+  assert.equal(await page.locator('#roof-ai-out').innerText(), '64');
+  assert.match(await page.locator('#roof-verdict').innerText(), /2-byte FP16 weights/);
+  assert.equal(await page.locator('#roof-presets [data-ai="128"]').getAttribute('aria-pressed'), 'true');
+  await page.selectOption('#roof-chip', 'a100_80');
+  assert.equal(await page.locator('#roof-ai-out').innerText(), '128');
+  assert.equal(await page.locator('#roof-ai-unit').innerText(), 'OP/byte');
+  assert.match(await page.locator('#roof-verdict').innerText(), /624 TOPS[\s\S]*1-byte INT8 weights/);
+  assert.doesNotMatch(await page.locator('#roofsvg').textContent(), /FLOP/);
+  await page.locator('#roof-ai').fill('2');
+  await page.selectOption('#roof-chip', 'v100');
+  assert.equal(await page.locator('#roof-ai-out').innerText(), '100', 'a custom intensity is preserved across chip changes');
+  assert.equal(await page.locator('#roof-presets [aria-pressed="true"]').count(), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('fit uses source capacity units and shows where G2 allocation rounding stops', async () => {
+  const { page, context, errors } = await open();
+  // About 90 GB fits within 90% of 95 GiB, but not 90% of 95 decimal GB.
+  await page.locator('#fit-kv').fill('0');
+  await page.locator('#fit-params').fill('1.955');
+  const v5p = await fitRow(page, 'TPU v5p');
+  assert.equal(v5p[1], '1');
+  assert.equal(v5p[4], '95 GiB');
+  await page.locator('#fit-params').fill('2.3');
+  assert.equal(await page.locator('#fit-allocation').innerText(), '10 by memory; exceeds one G2 VM');
+  await page.locator('#fit-params').fill('1.7');
+  assert.equal(await page.locator('#fit-allocation').innerText(), '3 by memory; 4 GPUs in one G2 VM');
+  assert.match(await page.locator('#fig-fit figcaption').innerText(), /not deployable quotes/);
   assert.deepEqual(errors, []);
   await context.close();
 });

@@ -15,7 +15,8 @@ const FAM = {
   tpu:       { name: "Google TPU", kind: "tpu", blurb: "Google's own systolic-array chips, rented as VMs or pod slices. Programmed through JAX and PyTorch/XLA; no CUDA." },
 };
 
-// mem = GB per chip · bw = GB/s · fp8 = dense low-precision peak TFLOPS at the precision named in peakBasis (FP8, INT8, FP16 or BF16)
+// mem = source capacity per chip (memUnit defaults to GB) · bw = decimal GB/s
+// fp8 = dense low-precision peak, trillion operations/s at peakBasis (FP8, INT8, FP16 or BF16)
 // bf16 = dense BF16/FP16 TFLOPS (bf16Basis names another precision where the chip has no fast 16-bit mode)
 // vcpu / ram / net = largest documented VM shape: vCPUs, host RAM GB, host NIC Gbps (TPU: per-VM NIC, not per-chip DCN); null = not published
 // price = $/chip-hr list in us-central1 (null = not public) · onDemand = sold on demand at that price; otherwise the price is indicative and priceBasis says how it is sold
@@ -36,9 +37,9 @@ const CHIPS = [
     notes:"The only 8 × H100 shape with a plain on-demand price. Smaller 1-, 2- and 4-GPU shapes exist for Spot and Flex-start." },
   { id:"h100e", name:"H100 (Edge)", short:"H100 Edge", fam:"hopper", series:"A3 Edge · a3-edgegpu-8g", mem:80, memType:"HBM3", bw:3350, fp8:1979, bf16:989, price:10.98, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"8-GPU NVSwitch", perVM:"8", vcpu:208, ram:1872, net:400, tag:"", year:2024,
     notes:"H100s with a smaller network (400 Gbps, 600 in two regions), placed in more regions for latency-sensitive inference." },
-  { id:"a100_80", name:"A100 80 GB", short:"A100 80", fam:"ampere", series:"A2 Ultra · a2-ultragpu-1g…8g", mem:80, memType:"HBM2e", bw:2039, fp8:624, bf16:312, price:5.03, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4, 8", vcpu:96, ram:1360, net:960, tag:"", year:2021,
+  { id:"a100_80", name:"A100 80 GB", short:"A100 80", fam:"ampere", series:"A2 Ultra · a2-ultragpu-1g…8g", mem:80, memType:"HBM2e", bw:2039, fp8:624, bf16:312, price:5.03, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:8, domainName:"8-GPU NVSwitch", perVM:"1, 2, 4, 8", vcpu:96, ram:1360, net:100, tag:"", year:2021,
     notes:"Supports INT8 Tensor Core throughput but not FP8. An 80 GB card holds roughly 80 billion one-byte weights before runtime and cache overhead." },
-  { id:"a100_40", name:"A100 40 GB", short:"A100 40", fam:"ampere", series:"A2 Standard · a2-highgpu-1g…16g", mem:40, memType:"HBM2", bw:1555, fp8:624, bf16:312, price:3.67, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:16, domainName:"16-GPU NVSwitch (a2-megagpu)", perVM:"1, 2, 4, 8, 16", vcpu:96, ram:1360, net:384, tag:"", year:2020,
+  { id:"a100_40", name:"A100 40 GB", short:"A100 40", fam:"ampere", series:"A2 Standard · a2-highgpu-1g…16g", mem:40, memType:"HBM2", bw:1555, fp8:624, bf16:312, price:3.67, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:16, domainName:"16-GPU NVSwitch (a2-megagpu)", perVM:"1, 2, 4, 8, 16", vcpu:96, ram:1360, net:100, tag:"", year:2020,
     notes:"The a2-megagpu-16g is the only 16-GPU NVLink shape on Google Cloud. Broadly available, on demand." },
   { id:"rtx6000", name:"RTX PRO 6000", short:"RTX PRO 6000", fam:"pro", series:"G4 · g4-standard-48…384", mem:96, memType:"GDDR7", bw:1600, fp8:1000, bf16:500, price:4.50, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8, domainName:"PCIe (no NVLink)", perVM:"1, 2, 4, 8", vcpu:384, ram:1440, net:400, tag:"new", year:2025,
     notes:"Workstation-class Blackwell GPU with 96 GB of GDDR7, FP4 support and ray-tracing hardware. Multiple cards communicate over PCIe, without NVLink." },
@@ -58,16 +59,16 @@ const CHIPS = [
     notes:"The 2017 generation has two TensorCores and 16 GB of HBM per chip. A v2-8 device contains eight TensorCores across four chips. The Cloud TPU API is no longer under active development." },
   { id:"v3", name:"TPU v3", short:"v3", fam:"tpu", series:"v3-8 … v3-2048", mem:32, memType:"HBM2", bw:900, fp8:123, bf16:123, price:2.00, onDemand:true, priceBasis:"on demand (pod rate)", peakBasis:"BF16", domain:1024, domainName:"1,024-chip pod, 2D torus", perVM:"4 (v3-8) or slices", vcpu:null, ram:null, net:null, tag:"legacy", year:2018,
     notes:"Liquid-cooled successor to v2 with twice the HBM. Still rentable in us-central1 and europe-west4 for legacy JAX and TensorFlow jobs." },
-  { id:"v4", name:"TPU v4", short:"v4", fam:"tpu", series:"v4-8 … v4-4096", mem:32, memType:"HBM2", bw:1200, fp8:275, bf16:275, price:3.22, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4096, domainName:"4,096-chip pod, 3D mesh (torus per qualifying slice)", perVM:"4", vcpu:null, ram:null, net:null, tag:"", year:2022,
+  { id:"v4", name:"TPU v4", short:"v4", fam:"tpu", series:"v4-8 … v4-4096", mem:32, memUnit:"GiB", memType:"HBM2", bw:1200, fp8:275, bf16:275, price:3.22, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:4096, domainName:"4,096-chip pod, 3D mesh (torus per qualifying slice)", perVM:"4", vcpu:null, ram:null, net:null, tag:"", year:2022,
     notes:"The first TPU with optical circuit switches: the pod is a 3D mesh, and slices of qualifying shapes can be wired as a 3D torus or twisted torus. Two TensorCores with four MXUs each. Only in us-central2." },
-  { id:"v5e", name:"TPU v5e", short:"v5e", fam:"tpu", series:"ct5lp-hightpu-1t…8t", mem:16, memType:"HBM2", bw:819, fp8:393, bf16:197, price:1.20, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:224, ram:384, net:200, tag:"", year:2023,
+  { id:"v5e", name:"TPU v5e", short:"v5e", fam:"tpu", series:"ct5lp-hightpu-1t…8t", mem:16, memType:"HBM2", bw:800 * 2 ** 30 / 1e9, fp8:393, bf16:197, price:1.20, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:224, ram:384, net:200, tag:"", year:2023,
     notes:"One TensorCore per chip, 400 GB/s of bidirectional ICI, and configurations from one to 256 chips." },
-  { id:"v5p", name:"TPU v5p", short:"v5p", fam:"tpu", series:"ct5p-hightpu-4t", mem:95, memType:"HBM2e", bw:2765, fp8:459, bf16:459, price:4.20, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8960, domainName:"8,960-chip pod, 3D torus", perVM:"4", vcpu:208, ram:448, net:200, tag:"", year:2023,
+  { id:"v5p", name:"TPU v5p", short:"v5p", fam:"tpu", series:"ct5p-hightpu-4t", mem:95, memUnit:"GiB", memType:"HBM2e", bw:2765, fp8:459, bf16:459, price:4.20, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:8960, domainName:"8,960-chip pod, 3D torus", perVM:"4", vcpu:208, ram:448, net:200, tag:"", year:2023,
     notes:"Two TensorCores, four SparseCores, and 1.2 TB/s of bidirectional ICI per chip. The largest schedulable job is 6,144 chips." },
   { id:"v6e", name:"TPU v6e Trillium", short:"Trillium", fam:"tpu", series:"ct6e-standard-1t…8t", mem:32, memType:"HBM3", bw:1638, fp8:1836, bf16:918, price:2.70, onDemand:true, priceBasis:"on demand", peakBasis:"INT8", domain:256, domainName:"256-chip pod, 2D torus", perVM:"1, 4, 8", vcpu:360, ram:1440, net:200, tag:"", year:2024,
     notes:"One TensorCore with 256 × 256 MXUs, and two SparseCores. The 256-chip pod uses a 2D torus." },
-  { id:"tpu7x", name:"TPU7x Ironwood", short:"Ironwood", fam:"tpu", series:"tpu7x-standard-4t", mem:192, memType:"HBM3e", bw:7380, fp8:4614, bf16:2307, price:12.00, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:9216, domainName:"9,216-chip pod, 3D torus", perVM:"4", vcpu:224, ram:960, net:400, tag:"new", year:2026,
-    notes:"Generally available since 31 March 2026. Two TensorCores plus four SparseCores; the first TPU with native FP8. A full pod holds 1.77 PB of HBM in one fabric." },
+  { id:"tpu7x", name:"TPU7x Ironwood", short:"Ironwood", fam:"tpu", series:"tpu7x-standard-4t", mem:192, memUnit:"GiB", memType:"HBM3e", bw:7380, fp8:4614, bf16:2307, price:12.00, onDemand:true, priceBasis:"on demand", peakBasis:"FP8", domain:9216, domainName:"9,216-chip pod, 3D torus", perVM:"4", vcpu:224, ram:960, net:400, tag:"new", year:2026,
+    notes:"Generally available since 31 March 2026. Two TensorCores plus four SparseCores; FP8 peak throughput is twice its BF16 peak. A full pod connects 9,216 chips in one fabric." },
 ];
 
 /* =========================================================================
@@ -91,6 +92,10 @@ function logScale(d0, d1, r0, r1) {
 const kindOf = (c) => FAM[c.fam].kind;
 const nf = (n) => n.toLocaleString("en-US");
 const fmtBW = (gbs) => (gbs / 1000).toFixed(2);                      // GB/s -> "4.80" TB/s
+const memoryGB = (c) => c.mem * (c.memUnit === "GiB" ? 2 ** 30 / 1e9 : 1);
+const fmtChipMem = (c) => `${c.mem} ${c.memUnit || "GB"}`;
+const peakUnits = (c) => c.peakBasis === "INT8" ? { rate: "TOPS", intensity: "OP/byte" } : { rate: "TFLOPS", intensity: "FLOP/byte" };
+const weightBytes = (c) => ["FP16", "BF16"].includes(c.peakBasis) ? 2 : 1;
 const fmtMem = (v) => v >= 1000 ? (v / 1000).toFixed(1) + " TB" : v + " GB";
 const fmt$ = (v) => v == null ? "n/a" : "$" + v.toFixed(2);
 /** Call draw(width) now and whenever the element's width changes. */
@@ -165,7 +170,7 @@ function seg(group, onPick) {
   S(t, "line", { x1: 269, x2: 310, y1: 120.5, y2: 120.5, stroke: "var(--rule-2)" });
   S(t, "rect", { x: 310.5, y: 100.5, width: 89, height: 40, fill: "none", stroke: "var(--ink-3)" });
   S(t, "text", { class: "label", x: 355, y: 125, "text-anchor": "middle" }, "HBM");
-  S(t, "text", { class: "label muted", x: 355, y: 162, "text-anchor": "middle" }, "32 GB per chip");
+  S(t, "text", { class: "label muted", x: 355, y: 162, "text-anchor": "middle" }, "32 GiB per chip");
   S(t, "text", { class: "label muted", x: 355, y: 180, "text-anchor": "middle" }, "1.2 TB/s");
 })();
 
@@ -183,7 +188,7 @@ function seg(group, onPick) {
   frames.forEach(([t, head, sub]) => {
     const d = document.createElement("div");
     d.dataset.cycle = t;
-    const h = document.createElement("h4"); h.textContent = head; d.appendChild(h);
+    const h = document.createElement("h3"); h.textContent = head; d.appendChild(h);
     const svg = S(d, "svg", { viewBox: "0 0 200 112", role: "img", "aria-label": `${head}: ${sub}` });
     let busy = 0;
     for (let i = 0; i < N; i++) {
@@ -212,7 +217,7 @@ function seg(group, onPick) {
    ========================================================================= */
 (function lineup() {
   const tb = $("#lineup-table tbody");
-  const maxMem = Math.max(...CHIPS.map((c) => c.mem));
+  const maxMem = Math.max(...CHIPS.map(memoryGB));
   const order = ["blackwell", "hopper", "ampere", "pro", "legacy", "tpu"];
   const host = (c) => c.vcpu == null ? "not published for this generation"
     : `${c.vcpu} vCPU · ${fmtMem(c.ram)} RAM · ${c.net >= 1000 ? c.net / 1000 + " Tbps" : c.net + " Gbps"} host network`;
@@ -221,8 +226,8 @@ function seg(group, onPick) {
     const price = c.price == null ? `<span class="aside">not public</span><span class="ast"></span>` : fmt$(c.price) + `<span class="ast">${c.onDemand ? "" : "*"}</span>`;
     return `<tr class="chip-row" data-id="${c.id}">
       <th scope="row"><button type="button" class="namebtn" aria-expanded="false" aria-controls="d-${c.id}"><span class="nm">${c.name}</span></button>${tag}</th>
-      <td class="n">${c.mem}</td>
-      <td class="bar"><span style="--c:var(--${kindOf(c)});width:${(c.mem / maxMem * 100).toFixed(1)}%"></span></td>
+      <td class="n">${memoryGB(c).toFixed(c.memUnit ? 1 : 0)}</td>
+      <td class="bar"><span style="--c:var(--${kindOf(c)});width:${(memoryGB(c) / maxMem * 100).toFixed(1)}%"></span></td>
       <td class="n">${fmtBW(c.bw)}</td>
       <td class="n">${nf(c.fp8)}<span class="basis">${c.peakBasis}</span></td>
       <td class="n">${nf(c.bf16)}<span class="basis">${c.bf16Basis || ""}</span></td>
@@ -234,7 +239,7 @@ function seg(group, onPick) {
       <p>${c.notes}</p>
       <dl class="kv">
         <dt>Machine type</dt><dd>${c.series}</dd>
-        <dt>Memory</dt><dd>${c.mem} GB ${c.memType} at ${fmtBW(c.bw)} TB/s</dd>
+        <dt>Memory</dt><dd>${fmtChipMem(c)} ${c.memType} at ${fmtBW(c.bw)} TB/s</dd>
         <dt>Chips per VM</dt><dd>${c.perVM}</dd>
         <dt>Fast domain</dt><dd>${nf(c.domain)} chips · ${c.domainName}</dd>
         <dt>Host, largest shape</dt><dd>${host(c)}</dd>
@@ -274,6 +279,7 @@ function seg(group, onPick) {
 
   function draw() {
     const c = CHIPS.find((d) => d.id === sel.value), k = kindOf(c);
+    const units = peakUnits(c);
     const peak = c.fp8, bwTB = c.bw / 1000, rp = peak / bwTB;
     const H = W < 480 ? 320 : 360, m = { l: 50, r: 12, t: 30, b: 44 };
     const x = logScale(1, 10000, m.l, W - m.r), y = logScale(0.1, 10000, H - m.b, m.t);
@@ -291,12 +297,12 @@ function seg(group, onPick) {
     });
     S(svg, "line", { class: "ridge-line", x1: x(rp), x2: x(rp), y1: y(peak), y2: H - m.b + 4 });
     S(svg, "text", { class: "annot", x: x(rp), y: H - m.b + 17, "text-anchor": "middle", "font-size": 13, fill: "var(--ink)", id: "roof-ridge" }, `ridge ${nf(Math.round(rp))}`);
-    S(svg, "text", { class: "axis-title", x: W - m.r, y: H - 6, "text-anchor": "end" }, "Arithmetic intensity, FLOP per byte (log scale)");
-    S(svg, "text", { class: "axis-title", x: 0, y: 13 }, "Attainable TFLOPS (log scale)");
+    S(svg, "text", { class: "axis-title", x: W - m.r, y: H - 6, "text-anchor": "end" }, `Intensity, ${units.intensity} (log scale)`);
+    S(svg, "text", { class: "axis-title", x: 0, y: 13 }, `Attainable ${units.rate} (log scale)`);
 
     // the roof: the bandwidth slope, then the flat compute peak, each labeled with its regime
     S(svg, "path", { class: "roof-line", stroke: `var(--${k})`, d: `M${x(1)},${y(bwTB)}L${x(rp)},${y(peak)}L${x(10000)},${y(peak)}` });
-    S(svg, "text", { class: "label", x: W - m.r, y: y(peak) - 7, "text-anchor": "end" }, `compute-bound · ${c.peakBasis} peak ≈ ${nf(peak)} TFLOPS`);
+    S(svg, "text", { class: "label", x: W - m.r, y: y(peak) - 7, "text-anchor": "end" }, `compute-bound · ${c.peakBasis} peak ≈ ${nf(peak)} ${units.rate}`);
     const att = Math.min(peak, I * bwTB), bound = I < rp ? "memory" : "compute";
     const share = att / peak * 100, pct = share < 1 ? "under 1%" : Math.round(share) + "%";
     const slopeTxt = `memory-bound · ${fmtBW(c.bw)} TB/s × intensity`;
@@ -318,7 +324,7 @@ function seg(group, onPick) {
     S(svg, "circle", { cx: px, cy: py, r: 5, fill: "var(--ink)", stroke: "var(--paper)", "stroke-width": 1.5, id: "roof-dot" });
     if (bound === "memory") {
       // right of the dot sits under the slope; if there is no room, go above-left of the dot, over the slope
-      const lbl = `${fmtT(att)} TFLOPS, ${pct} of peak`, room = W - m.r - px > lbl.length * 6.9 + 12;
+      const lbl = `${fmtT(att)} ${units.rate}, ${pct} of peak`, room = W - m.r - px > lbl.length * 6.9 + 12;
       S(svg, "text", { class: "label halo", "font-weight": 600, x: room ? px + 10 : px - 8, y: room ? py + 16 : py - 10, "text-anchor": room ? "start" : "end" }, lbl);
     } else {
       // on the flat roof: centered under the dot, kept right of the ridge
@@ -328,14 +334,22 @@ function seg(group, onPick) {
     }
 
     out.textContent = fmtI(I);
+    $("#roof-ai-unit").textContent = units.intensity;
+    ai.setAttribute("aria-valuetext", `${fmtI(I)} ${units.intensity}`);
     $$("button", presets).forEach((b) => b.setAttribute("aria-pressed", String(preset !== null && +b.dataset.ai === preset)));
-    verdict.innerHTML = `<b>${c.name}</b>: dense ${c.peakBasis} peak ≈ ${nf(peak)} TFLOPS ÷ ${fmtBW(c.bw)} TB/s puts the ridge at about ${nf(Math.round(rp))} FLOP/byte. At ${fmtI(I)} FLOP/byte the workload is <b>${bound}-bound</b> and can use at most ${pct} of peak.`
-      + (bound === "memory" ? " Bigger batches, quantized weights or a chip with more bandwidth per FLOP would help." : " Higher compute throughput can raise this bound.");
-    svg.setAttribute("aria-label", `Roofline for ${c.name}: ridge at ${Math.round(rp)} FLOP per byte; workload at ${fmtI(I)} FLOP per byte is ${bound}-bound at ${pct} of peak.`);
+    verdict.innerHTML = `<b>${c.name}</b>: dense ${c.peakBasis} peak ≈ ${nf(peak)} ${units.rate} ÷ ${fmtBW(c.bw)} TB/s puts the ridge at about ${nf(Math.round(rp))} ${units.intensity}. At ${fmtI(I)} ${units.intensity} the workload is <b>${bound}-bound</b> and can use at most ${pct} of peak.`
+      + (bound === "memory" ? " Bigger batches, quantized weights or a chip with more bandwidth per operation would help." : " Higher compute throughput can raise this bound.");
+    if (preset !== null) verdict.innerHTML += ` This preset assumes ${weightBytes(c)}-byte ${c.peakBasis} weights and counts weight traffic only.`;
+    svg.setAttribute("aria-label", `Roofline for ${c.name}: ridge at ${Math.round(rp)} ${units.intensity}; workload at ${fmtI(I)} ${units.intensity} is ${bound}-bound at ${pct} of peak.`);
   }
-  sel.addEventListener("change", draw);
+  function applyPreset() {
+    const c = CHIPS.find((d) => d.id === sel.value);
+    I = preset / weightBytes(c);
+    ai.value = Math.log10(I);
+  }
+  sel.addEventListener("change", () => { if (preset !== null) applyPreset(); draw(); });
   ai.addEventListener("input", () => { I = 10 ** +ai.value; preset = null; draw(); });
-  $$("button", presets).forEach((b) => b.addEventListener("click", () => { I = preset = +b.dataset.ai; ai.value = Math.log10(I); draw(); }));
+  $$("button", presets).forEach((b) => b.addEventListener("click", () => { preset = +b.dataset.ai; applyPreset(); draw(); }));
   ai.value = Math.log10(I);
   onWidth(host, (w) => { W = w; draw(); });
 })();
@@ -366,15 +380,15 @@ function seg(group, onPick) {
     [200, 500, 1000, 2000, 5000, 10000].forEach((v) => S(ax, "text", { x: x(v), y: H - m.b + 16, "text-anchor": "middle" }, nf(v)));
     [10, 100, 1000, 10000].forEach((v) => S(ax, "text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end" }, nf(v)));
     S(svg, "text", { class: "axis-title", x: W - m.r, y: H - 6, "text-anchor": "end" }, "Memory bandwidth, GB/s (log scale)");
-    S(svg, "text", { class: "axis-title", x: 0, y: 13 }, "Dense peak TFLOPS (log scale)");
-    // lines of equal ridge point: TFLOPS = r × TB/s
+    S(svg, "text", { class: "axis-title", x: 0, y: 13 }, "Dense peak, trillion operations/s (log scale)");
+    // lines of equal ridge point: trillion operations/s = operations/byte × TB/s
     const iso = S(svg, "g", { class: "iso" });
     [[100, 1900, 14], [300, 3200, 14], [1000, 400, -5]].forEach(([r, at, off]) => {
       const xa = Math.max(X0, Y0 * 1000 / r), xb = Math.min(X1, Y1 * 1000 / r);
       S(iso, "line", { x1: x(xa), y1: y(r * xa / 1000), x2: x(xb), y2: y(r * xb / 1000) });
       const ang = Math.atan2(y(r * xb / 1000) - y(r * xa / 1000), x(xb) - x(xa)) * 180 / Math.PI;
       const gl = S(svg, "g", { transform: `translate(${x(at)},${y(r * at / 1000)}) rotate(${ang})` });
-      S(gl, "text", { class: "annot", x: 0, y: off }, `${nf(r)} FLOP/byte`);
+      S(gl, "text", { class: "annot", x: 0, y: off }, `${nf(r)} OP/byte`);
     });
     CHIPS.forEach((c) => S(svg, "circle", { cx: x(c.bw), cy: y(c.fp8), r: 5, class: `dot-${kindOf(c)}`, stroke: "var(--paper)", "stroke-width": 1, "data-id": c.id }));
     CHIPS.forEach((c) => {
@@ -450,22 +464,24 @@ function seg(group, onPick) {
   function render() {
     const params = 10 ** +P.value;                               // billions
     Po.textContent = params >= 10 ? Math.round(params) : params.toFixed(1);
+    P.setAttribute("aria-valuetext", `${Po.textContent} billion parameters`);
     kvo.textContent = "+" + kv.value + "%";
     const perParam = mode === "train" ? 16 : bytes;
     const need = params * perParam * (1 + kv.value / 100);         // GB
     $("#fit-need").textContent = need >= 1000 ? (need / 1000).toFixed(2) + " TB" : Math.round(need) + " GB";
-    const rows = CHIPS.map((c) => { const n = Math.ceil(need / (c.mem * 0.9)); return { c, n, fits: n <= c.domain, cost: c.price == null ? null : n * c.price }; });
+    const rows = CHIPS.map((c) => { const n = Math.ceil(need / (memoryGB(c) * 0.9)); return { c, n, fits: n <= c.domain, cost: c.price == null ? null : n * c.price }; });
     const priced = rows.filter((r) => r.cost != null && r.fits).sort((a, b) => a.cost - b.cost);
-    const cheap = priced.find((r) => r.c.onDemand);
     const fewest = rows.filter((r) => r.fits).sort((a, b) => a.n - b.n)[0];
-    $("#fit-cheap").textContent = cheap ? `${cheap.c.name} × ${nf(cheap.n)}, ${fmt$(cheap.cost)} per hour` : "nothing in one fast domain";
+    const l4 = rows.find((r) => r.c.id === "l4");
+    const l4VM = [1, 2, 4, 8].find((n) => n >= l4.n);
+    $("#fit-allocation").textContent = `${l4.n} by memory; ${l4VM ? `${l4VM} GPU${l4VM === 1 ? "" : "s"} in one G2 VM` : "exceeds one G2 VM"}`;
     $("#fit-fewest").textContent = fewest ? `${fewest.c.name} × ${nf(fewest.n)}` : "none in one fast domain";
     const maxCost = Math.max(1, ...priced.map((r) => r.cost));
     tb.innerHTML = rows.sort((a, b) => (a.cost ?? 1e9) - (b.cost ?? 1e9)).map((r) => {
-      const fitsTxt = r.fits ? (r.n === 1 ? "yes, one chip" : "yes, " + r.c.domainName) : `no: needs ${nf(r.n)} > ${nf(r.c.domain)} in ${r.c.domainName}`;
+      const fitsTxt = r.fits ? (r.n === 1 ? "within limit; allocation may be larger" : "within limit: " + r.c.domainName) : `no: needs ${nf(r.n)} > ${nf(r.c.domain)} in ${r.c.domainName}`;
       const bar = r.cost == null || !r.fits ? "" : `<span style="--c:var(--${kindOf(r.c)});width:${Math.max(2, r.cost / maxCost * 100).toFixed(1)}%"></span>`;
       const cost = r.cost == null ? `n/a<span class="ast"></span>` : fmt$(r.cost) + `<span class="ast">${r.c.onDemand ? "" : "*"}</span>`;
-      return `<tr class="${r.fits ? "" : "no"}"><th scope="row">${r.c.name}</th><td class="n">${nf(r.n)}</td><td class="n">${cost}</td><td class="cost-bar">${bar}</td><td class="n">${fmtMem(r.c.mem)}</td><td>${fitsTxt}</td></tr>`;
+      return `<tr class="${r.fits ? "" : "no"}"><th scope="row">${r.c.name}</th><td class="n">${nf(r.n)}</td><td class="n">${cost}</td><td class="cost-bar">${bar}</td><td class="n">${fmtChipMem(r.c)}</td><td>${fitsTxt}</td></tr>`;
     }).join("");
   }
   [P, kv].forEach((el) => el.addEventListener("input", render));

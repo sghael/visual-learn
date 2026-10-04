@@ -32,28 +32,28 @@
 <main class="page">
   <h1>GPUs and TPUs on Google Cloud</h1>
   <p class="subtitle">What each accelerator offers, which of its numbers limits your workload, and how many chips a model needs</p>
-  <p class="lede">Google Cloud rents 13 NVIDIA GPU models and seven generations of its own TPUs. Across that lineup, peak compute per chip differs by more than 200 times, memory per chip by 35 times, and list prices run from $0.35 to about $16 per chip-hour. This page explains how the two kinds of chip do their arithmetic, which specification matters for which workload, and how to estimate the number of chips a model needs.</p>
+  <p class="lede">The September 2026 snapshot below covers 13 NVIDIA GPU models and seven generations of Google TPUs. Across that lineup, peak compute per chip differs by more than 200 times, memory per chip by 35 times, and list prices run from $0.35 to about $16 per chip-hour. This page explains how the two kinds of chip do their arithmetic, which specification matters for which workload, and how to estimate the number of chips a model needs.</p>
   <p class="meta">7 sections · about 15 minutes · specifications and prices checked 11 September 2026</p>
 
   <!-- ===================================================== 1 -->
   <section id="compute">
     <h2>How GPUs and TPUs multiply matrices</h2>
     <p>Matrix multiplication dominates the cost of many transformer layers. GPUs and TPUs both accelerate it, but they organize the hardware differently and run different software stacks.</p>
-    <p>A GPU is divided into <strong>streaming multiprocessors</strong> (SMs); an H100 has 132 of them. Each SM contains arithmetic units, registers, shared memory, and <em>Tensor Cores</em>, which are small fixed-function matrix units. The SM runs <em>warps</em>, groups of 32 threads that execute in lockstep. A CUDA kernel launches many blocks of threads. When one warp stalls waiting for data from memory, the SM's scheduler issues instructions from another warp that is ready, which keeps the arithmetic units working while memory requests are outstanding.</p>
+    <p>A GPU is divided into <strong>streaming multiprocessors</strong> (SMs); an H100 SXM has 132 of them. Each SM contains arithmetic units, registers, shared memory, and <em>Tensor Cores</em>, which are small fixed-function matrix units. The SM runs <em>warps</em>, groups of 32 threads that issue instructions together; divergent control flow can leave some threads inactive. A CUDA kernel launches many blocks of threads. When one warp stalls waiting for data from memory, the SM's scheduler issues instructions from another warp that is ready, which keeps the arithmetic units working while memory requests are outstanding.</p>
     <p>A TPU chip has one or two <strong>TensorCores</strong>. Each TensorCore contains one or more matrix-multiply units (MXUs), a vector unit for operations such as activations and softmax, and a scalar unit for control flow and memory addresses.<span class="sn-ref"></span><span class="sidenote">Google, <a href="https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm">TPU system architecture</a>. v5p and TPU7x also have four SparseCores per chip for embedding lookups and other gather-scatter work; v6e has two.</span> XLA, the compiler behind JAX and PyTorch/XLA, compiles and partitions the program for the TPU before it runs. Performance depends on tensor shapes, sharding, memory movement, and compiler support for the operations used.</p>
 
     <figure class="fig wide" id="fig-anatomy">
       <div class="pair">
         <div>
-          <h4><span class="gpu-ink">GPU</span> · NVIDIA H100</h4>
+          <h3><span class="gpu-ink">GPU</span> · NVIDIA H100</h3>
           <svg id="anat-gpu" viewBox="0 0 400 262" role="img" aria-label="Schematic of an H100: a grid of 132 streaming multiprocessors above HBM; one SM enlarged, showing eight warps, two of them issuing instructions and six waiting for memory, then registers, arithmetic units, Tensor Cores and shared memory."></svg>
         </div>
         <div>
-          <h4><span class="tpu-ink">TPU</span> · one TPU v4 TensorCore</h4>
+          <h3><span class="tpu-ink">TPU</span> · one TPU v4 TensorCore</h3>
           <svg id="anat-tpu" viewBox="0 0 400 262" role="img" aria-label="Schematic of one TPU v4 TensorCore: four matrix-multiply units, each a 128 by 128 grid of multiply-accumulate cells, above a vector unit and a scalar unit, connected to HBM."></svg>
         </div>
       </div>
-      <figcaption><span class="fig-n"></span>Simplified schematics, not to scale. Left: the H100's 132 SMs, one enlarged. Blue warps are issuing instructions this cycle; grey warps wait for memory. Right: a TPU v4 chip has two TensorCores like this one, each with four MXUs. <span class="takeaway">A GPU keeps many small units busy by switching between threads at run time; a TPU feeds a few large matrix units from a program compiled in advance for fixed tensor shapes.</span></figcaption>
+      <figcaption><span class="fig-n"></span>Simplified schematics, not to scale. Left: the H100's 132 SMs, one enlarged. Blue warps are issuing instructions this cycle; grey warps wait for memory. Right: a TPU v4 chip has two TensorCores like this one, each with four MXUs. <span class="takeaway">Both execute compiled programs. A GPU schedules ready warps around memory delays; a TPU MXU reuses operands as they pass between neighboring arithmetic cells.</span></figcaption>
     </figure>
 
     <p>An MXU is a <strong>systolic array</strong>: a square grid of multiply-accumulate cells, 128 × 128 before v6e and 256 × 256 in v6e and TPU7x. Operands enter at the edges in a regular pattern. On every clock cycle each cell multiplies the values it receives, adds the product to a running sum, and passes values on to its neighbors, so partial sums accumulate as data moves through the array without returning to memory in between.</p>
@@ -69,9 +69,9 @@
 
   <!-- ===================================================== 2 -->
   <section id="lineup">
-    <h2>Every accelerator Google Cloud rents</h2>
+    <h2>The accelerator lineup in September 2026</h2>
     <p>Google Cloud sells GPUs as part of machine series, such as A4 for the B200 or G2 for the L4, and sells TPUs by generation. Figure 3 lists every model offered on 11 September 2026, grouped by architecture.</p>
-    <p>Each column answers a different question. <strong>Memory</strong> per chip decides whether the weights, activations and KV cache fit. Datacenter parts use HBM, stacked DRAM placed beside the die; the L4, RTX PRO 6000, T4 and P4 use GDDR. <strong>Bandwidth</strong> is how fast the chip can read that memory, and bounds any step that moves more bytes than it computes on. <strong>Dense peak</strong> is the vendor's maximum matrix throughput, which bounds compute-heavy kernels.<span class="sn-ref"></span><span class="sidenote">“Dense” means without 2:1 structured sparsity. NVIDIA quotes sparse peaks that are twice the dense figure; this page divides them by two. All throughput and bandwidth figures are vendor peaks and approximate; real kernels reach a fraction of them.</span> The <strong>fast domain</strong> is the largest group of chips joined by the accelerator's own interconnect, such as NVLink or ICI; traffic beyond it crosses the slower datacenter network.</p>
+    <p>Each column answers a different question. <strong>Memory</strong> per chip decides whether the weights, activations and KV cache fit. Datacenter parts use HBM, stacked DRAM placed beside the die; the L4, RTX PRO 6000, T4 and P4 use GDDR. <strong>Bandwidth</strong> is how fast the chip can read that memory, and bounds any step that moves more bytes than it computes on. <strong>Dense peak</strong> is the vendor's maximum matrix throughput, which bounds compute-heavy kernels.<span class="sn-ref"></span><span class="sidenote">“Dense” means without 2:1 structured sparsity. NVIDIA quotes sparse peaks that are twice the dense figure; this page divides them by two. All throughput and bandwidth figures are vendor peaks and approximate; real kernels reach a fraction of them.</span> The <strong>fast domain</strong> is the largest group of chips joined by the accelerator's own interconnect, such as NVLink or ICI; traffic beyond it crosses the slower datacenter network. For PCIe-only GPUs, the table instead gives the maximum GPU count in one VM; sharing a VM does not provide NVLink bandwidth.</p>
     <p>The peak column uses FP8 where the chip has it, otherwise INT8 (A100, T4, P4, v4, v5e, v6e), FP16 (V100, P100) or BF16 (v2, v3, which have no faster mode). The small label beside each number names its precision.</p>
 
     <figure class="fig wide" id="fig-lineup">
@@ -82,7 +82,7 @@
             <th scope="col" class="n">Memory, GB</th>
             <th scope="col"><span class="sr-only">Memory bar</span></th>
             <th scope="col" class="n">Bandwidth, TB/s</th>
-            <th scope="col" class="n">Dense peak, TFLOPS</th>
+            <th scope="col" class="n">Dense peak, T operations/s</th>
             <th scope="col" class="n">BF16 or FP16, TFLOPS</th>
             <th scope="col" class="n">Fast domain, chips</th>
             <th scope="col" class="n">$ per chip-hour</th>
@@ -91,7 +91,7 @@
           <tbody></tbody>
         </table>
       </div>
-      <figcaption><span class="fig-n"></span>The lineup, checked 11 September 2026. Select a chip's name for its machine type, host shape and notes. Bars show memory per chip on one scale; blue for NVIDIA GPUs, orange for Google TPUs. Throughput and bandwidth are approximate vendor peaks. Prices are list per chip-hour in us-central1 or the first region Google lists; VM prices are divided by the number of GPUs. <span class="takeaway">* marks an indicative rate: A3 Ultra, A3 Mega, A4, A4X and A4X Max are not sold on demand, and GB300 and GB200 have no public price.</span></figcaption>
+      <figcaption><span class="fig-n"></span>The lineup, checked 11 September 2026. Select a chip's name for its machine type, host shape and notes. Bars show memory per chip on one scale; blue for NVIDIA GPUs, orange for Google TPUs. Throughput and bandwidth are approximate vendor peaks. Prices are list per chip-hour in us-central1 or the first region Google lists; VM prices are divided by the number of GPUs. INT8 rates are TOPS (integer operations/s); floating-point rates are TFLOPS. Memory bars and the GB column use decimal GB; details preserve source units, with 1 GiB = 1.074 GB. <span class="takeaway">* marks an indicative rate: A3 Ultra, A3 Mega, A4, A4X and A4X Max are not sold on demand, and GB300 and GB200 have no public price.</span></figcaption>
     </figure>
 
     <p>Two more TPUs are announced but not yet rentable.<span class="sn-ref"></span><span class="sidenote">Google, <a href="https://cloud.google.com/blog/products/compute/tpu-8t-and-tpu-8i-technical-deep-dive">TPU 8t and TPU 8i technical deep dive</a>, Cloud Next, April 2026.</span> <em>TPU 8t</em> is a training system: 9,600 chips, about 2 PB of aggregate HBM, and 19.2 Tb/s of ICI bandwidth per chip. <em>TPU 8i</em> is an inference system with 384 MB of on-chip SRAM, a Collectives Acceleration Engine, and a Boardfly interconnect. Google says Cloud availability for both is forthcoming.</p>
@@ -100,9 +100,9 @@
   <!-- ===================================================== 3 -->
   <section id="roofline">
     <h2>Two speed limits: compute and memory bandwidth</h2>
-    <p>A chip has two speed limits: how fast it can compute, and how fast it can read bytes from memory. Which one a workload hits depends on its <strong>arithmetic intensity</strong>, the number of floating-point operations it performs per byte it reads. The roofline model draws both limits on one chart.</p>
+    <p>A chip has two speed limits: how fast it can compute, and how fast it can read bytes from memory. Which one a workload hits depends on its <strong>arithmetic intensity</strong>, the number of arithmetic operations it performs per byte moved to or from device memory. The roofline model draws both limits on one chart.</p>
     <p>Attainable throughput is the smaller of two numbers: peak compute, and bandwidth multiplied by intensity. The two meet at the <em>ridge point</em>, peak compute divided by bandwidth. For an H200, about 1,979 TFLOPS ÷ 4.8 TB/s puts the ridge at about 412 FLOP per byte. Work to the left of the ridge is memory-bound; work to the right is compute-bound.</p>
-    <p>Generating a token multiplies every weight by an activation: one multiply and one add, 2 FLOP per weight. With one-byte FP8 weights, decoding one sequence at a time performs about 2 FLOP per byte read. A batch of 64 sequences reuses each weight 64 times, about 128 FLOP per byte, and a 1,024-token prefill about 2,048.<span class="sn-ref"></span><span class="sidenote">Simplified: these figures count weight traffic only. Reading the KV cache lowers the intensity of long-context decoding, while cache reuse and kernel fusion raise the intensity of real kernels.</span> The presets in Figure 4 use these three values.</p>
+    <p>For a dense linear layer, applying a weight uses one multiply and one add: two operations per weight. This count excludes attention, nonlinearities and other model work. With one-byte FP8 weights, decoding one sequence at a time performs about 2 FLOP per byte read. A batch of 64 sequences reuses each weight 64 times, about 128 FLOP per byte, and a 1,024-token prefill about 2,048.<span class="sn-ref"></span><span class="sidenote">Simplified: these figures count weight traffic only. Reading the KV cache lowers the intensity of long-context decoding, while cache reuse and kernel fusion raise the intensity of real kernels.</span> The presets use these values for one-byte FP8 or INT8 weights. They halve the intensity for a chip whose displayed peak uses two-byte FP16 or BF16 weights. Stored precision and the peak arithmetic mode must agree for this comparison.</p>
 
     <figure class="fig" id="fig-roof">
       <div class="controls">
@@ -116,17 +116,17 @@
       </div>
       <div class="graphic" id="roof-host"><svg id="roofsvg" role="img" aria-label="Roofline chart for the selected chip"></svg></div>
       <p class="readout-line" id="roof-verdict" aria-live="polite"></p>
-      <figcaption><span class="fig-n"></span>Simplified roofline: the roof is the dense low-precision vendor peak and the slope is peak memory bandwidth. Real kernels reach a fraction of both. Both axes use log scales. <span class="takeaway">At batch 1, every chip on this page is memory-bound: decode speed follows bandwidth, not peak FLOPS.</span></figcaption>
+      <figcaption><span class="fig-n"></span>Simplified roofline: the roof is the dense low-precision vendor peak and the slope is peak memory bandwidth. Real kernels reach a fraction of both. Both axes use log scales; the labels switch between integer and floating-point units with the chip. <span class="takeaway">In this weight-only model, batch-1 decoding is memory-bound on every chip shown. Real decoding also reads the KV cache and may communicate across chips.</span></figcaption>
     </figure>
 
-    <p>Every chip has its own ridge point. Figure 5 plots peak compute against bandwidth for the whole lineup, so the diagonal lines are lines of equal ridge point. A chip above the 1,000 line, such as the TPU v6e, needs more than 1,000 FLOP per byte of reuse to reach its peak. Chips near the 100 line, such as the V100 and TPU v3, reach theirs with far less reuse, but their peak is lower.</p>
+    <p>Every chip has its own ridge point. Figure 5 plots peak compute against bandwidth for the whole lineup, so the diagonal lines are lines of equal ridge point. A chip above the 1,000 line, such as the TPU v6e, needs more than 1,000 operations per byte of reuse to reach its peak. Chips near the 100 line, such as the V100 and TPU v3, reach theirs with far less reuse, but their peak is lower.</p>
 
     <figure class="fig wide" id="fig-scatter">
-      <div class="scroll-x" id="scatter-host" style="--min: 36rem"><svg id="scatter" role="img" aria-label="Scatter plot of dense peak throughput against memory bandwidth for every chip, with diagonal lines of equal ridge point at 100, 300 and 1,000 FLOP per byte"></svg></div>
-      <figcaption><span class="fig-n"></span>Dense low-precision peak against peak memory bandwidth, both log scale; blue for NVIDIA GPUs, orange for Google TPUs. Vendor peaks, approximate. Some points coincide: GB300 and GB200; the three H100 machine types; V100 and TPU v3 almost. <span class="takeaway">Newer chips tend to add compute faster than bandwidth, so their ridge points sit higher and they need more reuse per byte to run at peak.</span></figcaption>
+      <div class="scroll-x" id="scatter-host" style="--min: 36rem"><svg id="scatter" role="img" aria-label="Scatter plot of dense peak throughput against memory bandwidth for every chip, with diagonal lines of equal ridge point at 100, 300 and 1,000 operations per byte"></svg></div>
+      <figcaption><span class="fig-n"></span>Dense low-precision peak against peak memory bandwidth, both log scale. Operations include integer and floating-point arithmetic at each chip’s listed precision; equal operation counts do not imply equal numerical accuracy. Colors: blue for NVIDIA GPUs, orange for Google TPUs. Vendor peaks, approximate. Some points coincide: GB300 and GB200; the three H100 machine types; V100 and TPU v3 almost. <span class="takeaway">Newer chips tend to add compute faster than bandwidth, so their ridge points sit higher and they need more reuse per byte to run at peak.</span></figcaption>
     </figure>
 
-    <p>Capacity, bandwidth and compute answer different questions. Capacity limits the model weights, activations and KV cache a chip can hold. Throughput bounds compute-heavy kernels. Bandwidth, and the interconnect between chips, still determine much of real training and inference performance. The usual remedies for a memory-bound workload are bigger batches, quantized weights, or a chip with more bandwidth per FLOP.</p>
+    <p>Capacity, bandwidth and compute answer different questions. Capacity limits the model weights, activations and KV cache a chip can hold. Throughput bounds compute-heavy kernels. Bandwidth, and the interconnect between chips, still determine much of real training and inference performance. The usual remedies for a memory-bound workload are bigger batches, quantized weights, or a chip with more bandwidth per operation.</p>
   </section>
 
   <!-- ===================================================== 4 -->
@@ -138,10 +138,10 @@
 
     <figure class="fig wide" id="fig-topo">
       <div class="multiples" id="topos">
-        <div><h4>8 GPUs · NVSwitch</h4><svg viewBox="0 0 220 132" role="img" aria-label="Eight GPUs, each linked to one NVSwitch"></svg><p class="sub">A3 and A4: eight GPUs per VM, all joined through NVSwitch.</p></div>
-        <div><h4>72 GPUs · NVL72 rack</h4><svg viewBox="0 0 220 132" role="img" aria-label="Eighteen columns of four GPUs, each column one VM, all linked to the rack's NVLink switches"></svg><p class="sub">A4X and A4X Max: 18 VMs of four GPUs share one NVLink domain.</p></div>
-        <div><h4>2D torus · v5e, v6e</h4><svg viewBox="0 0 220 132" role="img" aria-label="A four by four grid of TPU chips, each linked to four neighbors, with wraparound links joining the ends of every row and column"></svg><p class="sub">Four neighbors per chip; rows and columns wrap around. A pod is 16 × 16 = 256 chips; 4 × 4 shown.</p></div>
-        <div><h4>3D torus · v5p, TPU7x</h4><svg viewBox="0 0 220 132" role="img" aria-label="A four by four by four cube of TPU chips with links along three axes and one wraparound link highlighted"></svg><p class="sub">Six neighbors per chip. One 4 × 4 × 4 cube (64 chips) shown, with one wraparound link. A TPU7x pod holds up to 9,216 chips.</p></div>
+        <div><h3>8 GPUs · NVSwitch</h3><svg viewBox="0 0 220 132" role="img" aria-label="Eight GPUs, each linked to one NVSwitch"></svg><p class="sub">A3 and A4: eight GPUs per VM, all joined through NVSwitch.</p></div>
+        <div><h3>72 GPUs · NVL72 rack</h3><svg viewBox="0 0 220 132" role="img" aria-label="Eighteen columns of four GPUs, each column one VM, all linked to the rack's NVLink switches"></svg><p class="sub">A4X and A4X Max: 18 VMs of four GPUs share one NVLink domain.</p></div>
+        <div><h3>2D torus · v5e, v6e</h3><svg viewBox="0 0 220 132" role="img" aria-label="A four by four grid of TPU chips, each linked to four neighbors, with wraparound links joining the ends of every row and column"></svg><p class="sub">Four neighbors per chip; rows and columns wrap around. A pod is 16 × 16 = 256 chips; 4 × 4 shown.</p></div>
+        <div><h3>3D torus · v5p, TPU7x</h3><svg viewBox="0 0 220 132" role="img" aria-label="A four by four by four cube of TPU chips with links along three axes and one wraparound link highlighted"></svg><p class="sub">Six neighbors per chip. One 4 × 4 × 4 cube (64 chips) shown, with one wraparound link. A TPU7x pod holds up to 9,216 chips.</p></div>
       </div>
       <figcaption><span class="fig-n"></span>The four fast-domain shapes on Google Cloud, simplified; lines are links, not their bandwidth. <span class="takeaway">An NVIDIA fast domain stops at 8, 16 or 72 GPUs; a TPU pod keeps hundreds or thousands of chips on one interconnect.</span></figcaption>
     </figure>
@@ -151,17 +151,17 @@
   <section id="fit">
     <h2>How many chips a model needs</h2>
     <p>The first question for any deployment is whether the model fits. Weights need <em>parameters × bytes per parameter</em>: a 70-billion-parameter model in FP8 takes about 70 GB. Serving also needs room for the KV cache and activations, which the calculator adds as a percentage allowance rather than computing it. A mixed-precision full fine-tune with the Adam optimizer often needs about 16 bytes per parameter before activation memory.<span class="sn-ref"></span><span class="sidenote">2 bytes of BF16 weights, 2 of BF16 gradients, and 12 of FP32 optimizer state (a master copy of the weights plus Adam's two moment estimates): the accounting in <a href="https://arxiv.org/abs/1910.02054">Rajbhandari et al., “ZeRO” (2019)</a>.</span></p>
-    <p>The calculator treats 90% of each chip's memory as usable, rounds the chip count up, and checks whether that many chips fit inside one fast domain. A “fits” result is a capacity estimate, not a performance recommendation.</p>
+    <p>The calculator treats 90% of each chip’s memory as usable and assumes the memory load can be divided evenly across chips. Its chip count is a <strong>memory lower bound</strong>. A deployable configuration must also match VM or TPU slice sizes, supported numerical formats and the model’s sharding constraints. Being below a domain’s chip limit does not establish that a matching allocation exists.</p>
 
     <figure class="fig wide" id="fig-fit">
       <div class="controls">
         <label class="control"><span class="label">Parameters</span> <input type="range" id="fit-params" min="0" max="3" step="0.005" value="1.845"> <output id="fit-params-out" for="fit-params">70</output> B</label>
-        <span class="control"><span class="label">Weights</span>
+        <span class="control"><span class="label">Weight storage</span>
           <span class="seg" role="group" aria-label="Weight precision" id="fit-prec">
-            <button type="button" data-bytes="2" aria-pressed="false">BF16</button><button type="button" data-bytes="1" aria-pressed="true">FP8 / INT8</button><button type="button" data-bytes="0.5" aria-pressed="false">FP4 / INT4</button>
+            <button type="button" data-bytes="2" aria-pressed="false">16-bit</button><button type="button" data-bytes="1" aria-pressed="true">8-bit</button><button type="button" data-bytes="0.5" aria-pressed="false">4-bit</button>
           </span>
         </span>
-        <label class="control"><span class="label">KV cache and activations</span> <input type="range" id="fit-kv" min="0" max="200" step="5" value="40"> <output id="fit-kv-out" for="fit-kv">+40%</output></label>
+        <label class="control"><span class="label">Extra memory allowance</span> <input type="range" id="fit-kv" min="0" max="200" step="5" value="40"> <output id="fit-kv-out" for="fit-kv">+40%</output></label>
         <span class="control"><span class="label">Mode</span>
           <span class="seg" role="group" aria-label="Mode" id="fit-mode">
             <button type="button" data-mode="infer" aria-pressed="true">Inference</button><button type="button" data-mode="train" aria-pressed="false">Full fine-tune</button>
@@ -170,23 +170,23 @@
       </div>
       <dl class="result" aria-live="polite">
         <dt>Memory needed</dt><dd class="num" id="fit-need">–</dd>
-        <dt>Cheapest on demand that fits</dt><dd id="fit-cheap">–</dd>
-        <dt>Fewest chips</dt><dd id="fit-fewest">–</dd>
+        <dt>L4 allocation example</dt><dd id="fit-allocation">–</dd>
+        <dt>Fewest chips by memory</dt><dd id="fit-fewest">–</dd>
       </dl>
       <div class="scroll-x" style="--min: 40rem">
         <table class="fit" id="fit-table">
-          <thead><tr><th scope="col">Chip</th><th scope="col" class="n">Chips</th><th scope="col" class="n">≈ $ per hour</th><th scope="col"><span class="sr-only">Cost bar</span></th><th scope="col" class="n">Memory per chip</th><th scope="col">In one fast domain?</th></tr></thead>
+          <thead><tr><th scope="col">Chip</th><th scope="col" class="n">Minimum chips</th><th scope="col" class="n">Prorated $/hour</th><th scope="col"><span class="sr-only">Cost bar</span></th><th scope="col" class="n">Memory per chip</th><th scope="col">Below the domain chip limit?</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <figcaption><span class="fig-n"></span>Capacity estimate, simplified: parameters × bytes (or 16 bytes per parameter for a full fine-tune) plus the allowance, divided by 90% of each chip's memory. Rows are sorted by hourly cost; grey rows need more chips than one fast domain holds. * marks an indicative rate from a purchasing model other than on demand; “cheapest on demand” considers only published on-demand rates. Prices as in Figure 3. <span class="takeaway">For a 70B model in FP8, several GPUs with less memory can cost less per hour than one large chip; whether they are fast enough is a separate question.</span></figcaption>
+      <figcaption><span class="fig-n"></span>Simplified memory lower bound: parameters × storage bytes (or 16 bytes for a full fine-tune), plus the allowance, divided by 90% of chip memory. The allowance is a fraction of weight memory in inference and of all 16 bytes in training. Costs multiply the minimum chip count by Figure 3’s dated rate; they are prorated comparisons, not deployable quotes. Extra allocated chips, host charges and storage can increase the bill. * marks an indicative purchasing model. <span class="takeaway">At 70B and 8-bit storage, the memory bound is five L4s. G2 offers 1, 2, 4 or 8 GPUs per VM, so one VM would need eight.</span></figcaption>
     </figure>
   </section>
 
   <!-- ===================================================== 6 -->
   <section id="buy">
     <h2>Buying capacity and finding it</h2>
-    <p>Price and capacity depend on the provisioning model, region, duration and machine series. The newest GPU series are not sold on demand at all. Check the current pricing and availability pages before budgeting a workload.</p>
+    <p>Price and capacity depend on the provisioning model, region, duration and machine series. In this snapshot, several newer GPU series have no on-demand offering. Check the current pricing and availability pages before budgeting a workload.</p>
 
     <table class="ref">
       <thead><tr><th scope="col">Purchasing model</th><th scope="col">What you get</th><th scope="col">Applies to</th></tr></thead>
@@ -229,7 +229,7 @@
   <section id="glossary">
     <h2>Glossary</h2>
     <dl class="gloss">
-      <dt>Arithmetic intensity</dt><dd>Floating-point operations per byte moved from memory. Often low for small-batch decoding and higher for training, prefill and large batches.</dd>
+      <dt>Arithmetic intensity</dt><dd>Arithmetic operations per byte moved to or from device memory; integer operations and floating-point operations are labeled separately. Often low for small-batch decoding and higher for training, prefill and large batches.</dd>
       <dt>Dense and sparse FLOPS</dt><dd>NVIDIA quotes peaks with 2:1 structured sparsity that are double the dense figure. This page uses dense figures throughout.</dd>
       <dt>HBM</dt><dd>High Bandwidth Memory: stacked DRAM placed beside the accelerator die. Capacity limits what fits; bandwidth sets the speed of memory-bound kernels.</dd>
       <dt>ICI</dt><dd>Inter-Chip Interconnect, Google's TPU-to-TPU links. Topology and optical reconfiguration depend on the TPU generation.</dd>
@@ -244,10 +244,10 @@
   </section>
 
   <footer class="colophon">
-    <p><strong>Sources</strong>, all read 11 September 2026 unless noted.</p>
+    <p><strong>Sources</strong>. The lineup, prices and availability retain their 11 September 2026 snapshot unless noted. Units, A2 network limits and the G2 allocation example were checked on 3 October 2026; this is not a current price or availability feed.</p>
     <ul>
       <li>Compute Engine: <a href="https://docs.cloud.google.com/compute/docs/gpus">GPU machine types</a>, <a href="https://docs.cloud.google.com/compute/docs/accelerator-optimized-machines">accelerator-optimized machine family</a>, <a href="https://docs.cloud.google.com/compute/docs/gpus/gpu-regions-zones">GPU regions and zones</a>, <a href="https://docs.cloud.google.com/ai-hypercomputer/docs/gpu">AI Hypercomputer GPU guide</a>.</li>
-      <li>Cloud TPU: <a href="https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm">system architecture</a>, <a href="https://docs.cloud.google.com/tpu/docs/intro-to-tpu">introduction to Cloud TPU</a> (read 25 September 2026), <a href="https://docs.cloud.google.com/tpu/docs/v5e">v5e</a>, <a href="https://docs.cloud.google.com/tpu/docs/v5p">v5p</a>, <a href="https://docs.cloud.google.com/tpu/docs/v6e">v6e</a>, <a href="https://docs.cloud.google.com/tpu/docs/tpu7x">TPU7x</a>, <a href="https://docs.cloud.google.com/tpu/docs/release-notes">release notes</a>, <a href="https://cloud.google.com/blog/products/compute/tpu-8t-and-tpu-8i-technical-deep-dive">TPU 8t and 8i deep dive</a>.</li>
+      <li>Cloud TPU: <a href="https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm">system architecture</a>, <a href="https://docs.cloud.google.com/tpu/docs/intro-to-tpu">introduction to Cloud TPU</a> (read 25 September 2026), <a href="https://docs.cloud.google.com/tpu/docs/v4">v4</a>, <a href="https://docs.cloud.google.com/tpu/docs/v5e">v5e</a>, <a href="https://docs.cloud.google.com/tpu/docs/v5p">v5p</a>, <a href="https://docs.cloud.google.com/tpu/docs/v6e">v6e</a>, <a href="https://docs.cloud.google.com/tpu/docs/tpu7x">TPU7x</a>, <a href="https://docs.cloud.google.com/tpu/docs/release-notes">release notes</a>, <a href="https://cloud.google.com/blog/products/compute/tpu-8t-and-tpu-8i-technical-deep-dive">TPU 8t and 8i deep dive</a>.</li>
       <li>Pricing: <a href="https://cloud.google.com/tpu/pricing">Cloud TPU pricing</a>, <a href="https://cloud.google.com/spot-vms/pricing">Spot VM pricing</a>, and <a href="https://www.thundercompute.com/blog/google-cloud-gpu-instances">Thunder Compute's Google Cloud GPU survey</a>.</li>
       <li>NVIDIA specifications: <a href="https://www.nvidia.com/en-us/data-center/gb300-nvl72/">GB300 NVL72</a>, <a href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/">GB200 NVL72</a> (read 25 September 2026), <a href="https://www.nvidia.com/en-us/data-center/h200/">H200</a>, and <a href="https://www.nvidia.com/en-us/data-center/rtx-pro-6000-blackwell-server-edition/">RTX PRO 6000</a>. Published sparse Tensor Core figures are divided by two where the page shows a dense peak.</li>
       <li>Optimizer memory: <a href="https://arxiv.org/abs/1910.02054">Rajbhandari et al., “ZeRO: Memory optimizations toward training trillion parameter models”</a>.</li>
