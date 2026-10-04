@@ -89,9 +89,9 @@
 
     <figure class="fig wide" id="fig-layers">
       <div class="multiples" id="layerMultiples">
-        <div class="panel" data-variant="dense"><h4>Dense</h4><p class="sub">0.9B, 3.7B, 7B, 32B</p><div class="graphic"></div></div>
-        <div class="panel" data-variant="moe"><h4>Mixture of experts</h4><p class="sub">375B-A23B</p><div class="graphic"></div></div>
-        <div class="panel" data-variant="mova"><h4>Mixture of experts + MoVA</h4><p class="sub">36B-A4B</p><div class="graphic"></div></div>
+        <div class="panel" data-variant="dense"><h3>Dense</h3><p class="sub">0.9B, 3.7B, 7B, 32B</p><div class="graphic"></div></div>
+        <div class="panel" data-variant="moe"><h3>Mixture of experts</h3><p class="sub">375B-A23B</p><div class="graphic"></div></div>
+        <div class="panel" data-variant="mova"><h3>Mixture of experts + MoVA</h3><p class="sub">36B-A4B</p><div class="graphic"></div></div>
       </div>
       <figcaption><span class="fig-n"></span>One layer of each type, with normalization and residual connections left out. Each small square is one expert; orange marks the experts a single token uses. Which experts light up here is illustrative, since the router chooses them per token. <span class="takeaway">A sparse layer stores many experts and runs a few; MoVA applies the same idea to the value projection.</span></figcaption>
     </figure>
