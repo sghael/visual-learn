@@ -18,8 +18,8 @@
   /* data colors: muted, colorblind-checked (derived from Okabe-Ito).
      Each page maps entities to these once and never reassigns them. */
   --c-blue:   #2f6ea6;
-  --c-orange: #c8682a;
-  --c-green:  #2a8a6a;
+  --c-orange: #ae5019;
+  --c-green:  #23765b;
   --c-purple: #6a51a3;
   --c-red:    #b8433a;
   --c-gold:   #b8901f;

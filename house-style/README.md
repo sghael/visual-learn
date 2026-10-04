@@ -16,6 +16,8 @@ remove everything else. This folder holds the reference.
 - Tertiary text uses `--ink-3: #716d63`: approximately 4.98:1 contrast on
   paper and 4.57:1 on the wash surface. Axis ticks, metadata and section links
   are reading content, so they need readable contrast even when visually quiet.
+- Orange and green use darker values (`#ae5019` and `#23765b`) so the same
+  entity colors remain readable in small labels as well as figures.
 - The top bar has a solid paper background. Its current section is underlined
   as well as darker; its horizontally scrolling navigation keeps a visible
   scrollbar and an inset focus outline so keyboard focus is not clipped.
