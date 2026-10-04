@@ -144,11 +144,11 @@ x̂ = s · q</pre>
   <!-- 6 -->
   <section id="lab">
     <h2>PTQ and QAT on a small network</h2>
-    <p>The lab below trains a network in your browser and quantizes it both ways. The network is small: one input, 32 tanh hidden units and one output, 97 parameters in all. Its task is to fit a wiggly one-dimensional curve through 64 points. Each run has three stages:<span class="sn-ref"></span><span class="sidenote">Details: full-batch Adam with a cosine learning-rate decay from 0.01 to 0. Weights are quantized per tensor with the symmetric scheme above, and the scale is recomputed from the largest master weight at every step, so no weight is ever clipped. Biases and activations stay in fp32. There is no distillation.</span></p>
+    <p>The lab below trains a network in your browser and quantizes it both ways. The network is small: one input, 32 tanh hidden units and one output, 97 parameters in all. Its task is to fit <code>sin(3x) + 0.3 cos(9x)</code> at 64 evenly spaced inputs in [−1, 1]. Each run has three stages:<span class="sn-ref"></span><span class="sidenote">Details: full-batch Adam with a cosine learning-rate decay from 0.01 to 0. Weights are quantized per tensor with the symmetric scheme above, and the scale is recomputed from the largest master weight at every step, so no weight is ever clipped. Biases and activations are not quantized. The scale is treated as constant during backpropagation, even though it is recomputed for the next step. There is no distillation.</span></p>
     <ol>
-      <li>Train in fp32 for 1,500 steps.</li>
+      <li>Train without quantization for 1,500 steps (the FP baseline).</li>
       <li>PTQ: round that model's weights to the grid at 2, 3 and 4 bits, and measure the loss.</li>
-      <li>QAT: starting from the same fp32 model, train 2,000 more steps at each bit width with fake-quantized weights and the STE.</li>
+      <li>QAT: starting from the same unquantized model, train 2,000 more steps at each bit width with fake-quantized weights and the STE.</li>
     </ol>
 
     <figure class="fig wide" id="fig-lab">
@@ -177,17 +177,17 @@ x̂ = s · q</pre>
           <p class="panel-note" id="labGain4">–</p>
         </div>
       </div>
-      <figcaption><span class="fig-n"></span>Simulated and simplified: a 97-parameter network, weights quantized, nothing else. Upper chart of each pair: the function each model computes, against the training points (grey). Lower chart: loss during QAT, as mean squared error on a log scale shared by all three pairs; the dashed fp32 and PTQ losses do not change during QAT. Blue: fp32 model. Orange: PTQ. Green: QAT. <span class="takeaway" id="labTakeaway"></span></figcaption>
+      <figcaption><span class="fig-n"></span>Simulated and simplified: a 97-parameter network, weights quantized, nothing else. All browser arithmetic uses JavaScript’s 64-bit floating-point numbers; FP labels the unquantized baseline, not an fp32 implementation. Upper chart of each pair: the function each model computes, against the training points (grey). Lower chart: loss during QAT, as mean squared error on a log scale shared by all three pairs; the dashed FP and PTQ losses do not change during QAT. Blue: FP baseline. Orange: PTQ. Green: QAT. <span class="takeaway" id="labTakeaway"></span></figcaption>
     </figure>
 
-    <p>Two patterns hold across seeds. PTQ gets much worse with each bit removed, and QAT degrades more slowly: the rounding is the same, but QAT has had 2,000 steps to move the other weights to compensate. At 2 bits the grid has three levels, −<i>s</i>, 0 and +<i>s</i>, and the outcome swings from seed to seed. Figure 8 shows all eight seeds at once.</p>
+    <p>Across these eight seeds, removing bits increases PTQ loss. QAT often reduces that loss by adjusting the master weights and unquantized biases over another 2,000 updates. At 2 bits the grid has three levels, −<i>s</i>, 0 and +<i>s</i>, and the outcome swings from seed to seed. Figure 8 shows all eight seeds at once.</p>
 
     <figure class="fig" id="fig-seeds">
       <div class="graphic" id="seedPlot"></div>
       <figcaption><span class="fig-n"></span>How many times lower QAT's final loss is than PTQ's, for each of the eight seeds, on a log scale. Right of 1×, QAT wins. The seed selected in Figure 7 is drawn in black. <span class="takeaway" id="seedTakeaway">At 3 and 4 bits QAT wins on every seed, by 2.8× to 41×. At 2 bits it wins on seven of eight, by anything from 1.1× to 56×, and on seed 3 it ends 2.7× worse.</span></figcaption>
     </figure>
 
-    <p>The lab is far simpler than QAT for a language model: weights only, per tensor, no activation quantization and no distillation. It shows the mechanism, not the size of the effect in a large model.</p>
+    <p>The lab is far simpler than QAT for a language model: weights only, per tensor, no activation quantization and no distillation. The losses are measured on the training points, so they do not measure generalization. QAT receives 2,000 extra training steps while the FP and PTQ references stay fixed; there is no equally long unquantized continuation for comparison. The experiment demonstrates the mechanism and its possible failures, but does not predict gains for a language model.</p>
   </section>
 
   <!-- 7 -->
@@ -232,7 +232,7 @@ x̂ = s · q</pre>
           <tr><td><a href="https://arxiv.org/abs/2305.17888" rel="noopener">LLM-QAT</a><br>Liu et al., 2023</td><td>Weights 4-bit, activations 8-bit, KV cache 4- to 8-bit</td><td>Distillation from the full-precision model on text the model generates itself</td><td>Needs no access to the original training data</td></tr>
           <tr><td><a href="https://arxiv.org/abs/2402.17764" rel="noopener">BitNet b1.58</a><br>Ma et al., 2024</td><td>Ternary weights {−1, 0, +1}, 8-bit activations</td><td>QAT from scratch, STE throughout</td><td>Extreme low-bit weights work when the model is trained for them from the start</td></tr>
           <tr><td><a href="https://arxiv.org/abs/2407.11062" rel="noopener">EfficientQAT</a><br>Chen et al., 2024</td><td>2- to 4-bit weights, per-group scales</td><td>Block-wise training of all parameters, then end-to-end training of the scales only</td><td>2-bit Llama-2-70B trained on one A100-80GB in 41 hours</td></tr>
-          <tr><td><a href="https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/" rel="noopener">Gemma 3 QAT</a><br>Google, 2025</td><td>Weights int4 (Q4_0)</td><td>About 5,000 steps with the non-quantized checkpoint's probabilities as targets</td><td>27B weights shrink from 54 GB (bf16) to 14.1 GB; the perplexity drop from Q4_0 quantization is 54% smaller, measured with llama.cpp</td></tr>
+          <tr><td><a href="https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/" rel="noopener">Gemma 3 QAT</a><br>Google, 2025</td><td>Weights int4 (Q4_0)</td><td>About 5,000 steps with the non-quantized checkpoint's probabilities as targets</td><td>27B weights shrink from 54 GB (bf16) to 14.1 GB; Google reports a 54% reduction in the perplexity degradation from Q4_0 quantization, measured with llama.cpp</td></tr>
           <tr><td><a href="https://arxiv.org/abs/2502.02631" rel="noopener">ParetoQ</a><br>Liu et al., 2025</td><td>Binary, ternary, 2-, 3- and 4-bit weights</td><td>One QAT framework with quantizers specific to each bit width</td><td>Compares accuracy against model size across these low-bit settings</td></tr>
         </tbody>
       </table>
