@@ -43,6 +43,14 @@ for (const width of [1440, 390]) {
     assert.equal(await page.$$eval('main > section', (els) => els.length), 7);
     assert.equal(await page.$$eval('.topbar nav a', (els) => els.length), 7);
     assert.equal(await page.$$eval('canvas', (els) => els.length), 0, 'no canvas animations remain');
+    const headingStyles = await page.evaluate(() => {
+      const prose = getComputedStyle(document.querySelector('#buy > h3'));
+      const panel = getComputedStyle(document.querySelector('figure h3'));
+      return { proseStyle: prose.fontStyle, proseSize: parseFloat(prose.fontSize), panelSize: parseFloat(panel.fontSize), proseMargin: parseFloat(prose.marginTop) };
+    });
+    assert.equal(headingStyles.proseStyle, 'italic', 'prose headings retain the house typography');
+    assert.ok(headingStyles.proseSize > headingStyles.panelSize, 'prose headings are larger than chart labels');
+    assert.ok(headingStyles.proseMargin > headingStyles.proseSize, 'prose headings have space above them');
     // Figure 1: 132 SMs drawn, and a TensorCore with its MXUs
     assert.ok(await page.$$eval('#anat-gpu rect', (els) => els.length) >= 132 + 8);
     assert.ok(await page.$$eval('#anat-tpu rect', (els) => els.length) >= 5);
