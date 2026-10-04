@@ -20,7 +20,7 @@
     {
       "id": "memory",
       "title": "Three compact updates, then sparse retrieval",
-      "html": "<p>The released configuration lists repeating groups of three linear-attention layers followed by a DeepSeek sparse-attention layer. The linear layers update state; sparse attention retains a selected-retrieval route. The configuration also exposes the indexer and its selection budget. These are inspectable properties of the released checkpoint, rather than deductions from a benchmark chart.</p> <a href=\"#source-config\">[3]</a><p>Think of processing a long technical manual. A running summary may preserve the current subject, but a later question might require a particular serial number. Direct retrieval and compression have complementary roles. The illustration does not assume that the real model separates them into human-readable tasks.</p><p>The widget counts a toy fixed state beside a history that stores 64 scalars per token. Increasing context length only grows the second count. In the actual hybrid, the retrieval layers still retain context-dependent storage, so a flat recurrent-state curve is not a flat memory curve for the entire model.</p>",
+      "html": "<p>The released configuration contains 45 layers: eleven groups of three linear-attention layers followed by one DeepSeek sparse-attention layer, then one final linear layer. That makes 34 linear layers and 11 sparse-attention layers. The linear layers update state; sparse attention retains a selected-retrieval route. The configuration names the linear-layer indices <code>kda_layers</code> and exposes sparse-indexer settings. A configuration identifies the chosen layout; it does not by itself explain every detail of the implemented kernels. These are inspectable properties of the released checkpoint, rather than deductions from a benchmark chart.</p> <a href=\"#source-config\">[3]</a><p>Think of processing a long technical manual. A running summary may preserve the current subject, but a later question might require a particular serial number. Direct retrieval and compression have complementary roles. The illustration does not assume that the real model separates them into human-readable tasks.</p><p>The widget counts a toy fixed state beside a history that stores 64 scalars per token. Increasing context length only grows the second count. In the actual hybrid, the retrieval layers still retain context-dependent storage, so a fixed recurrent-state count does not imply fixed memory for the entire model. Selecting fewer cached entries for attention is also different from discarding all entries outside a sliding window.</p>",
       "figure": {
         "kind": "state",
         "title": "One stack can contain two memory regimes",
@@ -36,7 +36,7 @@
     {
       "id": "depth",
       "title": "Constrain the mixing so signals do not grow freely",
-      "html": "<p>A residual stream carries representations between layers. Hyper-connections widen that route into multiple streams and learn how to mix them. The mHC component paper, from DeepSeek, constrains the residual mixing matrix to be doubly stochastic: entries are nonnegative, and each row and column sums to one. GLM adopts this prior mechanism.</p> <a href=\"#source-mhc\">[4]</a><p>A two-stream teaching example makes the constraint tangible. Begin with values 2 and 8. Mix using rows [0.75, 0.25] and [0.25, 0.75]. The outputs are 3.5 and 6.5. Each is a convex mixture of the inputs, and their sum stays 10. Apply the same matrix again and the outputs become 4.25 and 5.75.</p><p>Compare unrestricted rows [1, 1] and [1, 1]. The same inputs become 10 and 10, then 20 and 20. Repeating that mixing amplifies the signal. Constraining the connection matrix controls this pathway; it does not by itself prove that every nonlinear operation in the complete network is stable.</p>",
+      "html": "<p>A residual stream carries representations between layers. Hyper-connections widen that route into multiple streams and learn how to mix them. The mHC component paper, from DeepSeek, targets a doubly stochastic residual mixing matrix: entries are nonnegative, and each row and column sums to one. Repeated row and column normalization, called Sinkhorn–Knopp iteration, approximates that constraint in a finite number of steps. GLM adopts this prior mechanism.</p> <a href=\"#source-mhc\">[4]</a><p>An exactly normalized two-stream teaching example makes the target constraint tangible. Begin with values 2 and 8. Mix using rows [0.75, 0.25] and [0.25, 0.75]. The outputs are 3.5 and 6.5. Each is a convex mixture of the inputs, and their sum stays 10. Apply the same matrix again and the outputs become 4.25 and 5.75.</p><p>Compare unrestricted rows [1, 1] and [1, 1]. The same inputs become 10 and 10, then 20 and 20. Repeating that mixing amplifies the signal. Constraining the connection matrix controls this pathway; it does not by itself prove that every nonlinear operation in the complete network is stable.</p>",
       "figure": {
         "kind": "flow",
         "title": "Control the route between layers",
@@ -67,7 +67,7 @@
     {
       "id": "evidence",
       "title": "Read capabilities and mechanisms separately",
-      "html": "<p>The released configuration’s hc_mult value is four and it includes iterative normalization settings consistent with the mHC design. Configuration files establish chosen dimensions and switches; they cannot establish that a model understands a photograph or solves a software task reliably.</p> <a href=\"#source-config\">[3]</a><p>That second claim needs evaluation. For a visual task, change the evidence in the image and check whether the answer changes appropriately. For a coding task, run the repaired program against meaningful tests. For a long-context task, place relevant facts at several distances and include distractors.</p><p>The architecture suggests which costs to measure: recurrent-state storage, sparse cache and indexing, expert movement, and residual-stream traffic. The improvements may interact, so whole-system performance should be measured rather than inferred by multiplying favorable ratios from separate components.</p>"
+      "html": "<p>The released configuration’s <code>hc_mult</code> value is four, and <code>hc_sinkhorn_iters</code> is 20. The latter is a finite approximation to the ideal normalization, not proof of exact row and column sums in floating-point computation. Configuration files establish chosen dimensions and switches; they cannot establish that a model understands a photograph or solves a software task reliably.</p> <a href=\"#source-config\">[3]</a><p>That second claim needs evaluation. For a visual task, change the evidence in the image and check whether the answer changes appropriately. For a coding task, run the repaired program against meaningful tests. For a long-context task, place relevant facts at several distances and include distractors.</p><p>The architecture suggests which costs to measure: recurrent-state storage, sparse cache and indexing, expert movement, and residual-stream traffic. The improvements may interact, so whole-system performance should be measured rather than inferred by multiplying favorable ratios from separate components.</p>"
     }
   ],
   "sources": [
@@ -87,13 +87,13 @@
       "id": "config",
       "title": "Released GLM-5.3-Flash configuration",
       "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json",
-      "detail": "layer_types, indexer fields, hc_mult=4 and hc_sinkhorn_iters."
+      "detail": "45 layer_types entries (34 linear, 11 sparse), KDA-named indices, indexer fields, hc_mult=4 and hc_sinkhorn_iters=20."
     },
     {
       "id": "mhc",
       "title": "mHC component paper",
       "url": "https://arxiv.org/html/2512.24880v1",
-      "detail": "Sections 1 and 3; doubly stochastic residual mixing. The two-stream example is derived here."
+      "detail": "Sections 4.1–4.2 and 5.3; doubly stochastic residual mixing, finite Sinkhorn approximation and stability limits. The exact two-stream example is derived here."
     },
     {
       "id": "history",

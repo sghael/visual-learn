@@ -29,8 +29,8 @@
       input.addEventListener('input',()=>{out.textContent=input.value;update(+input.value);});
       wrap.append(name,input,out);controls.append(wrap);return input;
     };
-    const presets=(labels,initial,update)=>{
-      const group=document.createElement('span');group.className='seg';group.setAttribute('role','group');group.setAttribute('aria-label','Figure examples');
+    const presets=(labels,initial,update,groupLabel='Figure examples')=>{
+      const group=document.createElement('span');group.className='seg';group.setAttribute('role','group');group.setAttribute('aria-label',groupLabel);
       labels.forEach((label,i)=>{const b=button(label,()=>{[...group.children].forEach(x=>x.setAttribute('aria-pressed',String(x===b)));update(i);});b.setAttribute('aria-pressed',String(i===initial));group.append(b);});controls.append(group);return group;
     };
     if(kind==='flow') {
@@ -50,7 +50,8 @@
         const selected=Array.from({length:active},(_,i)=>(example*3+i*3)%n);
         let body=text(0,18,`Token ${['A','B','C'][example]} → router → ${active} selected experts`);
         for(let i=0;i<n;i++){const x=(i%4)*148,y=42+Math.floor(i/4)*69,on=selected.includes(i);body+=rect(x,y,133,52,'none',`stroke="${on?color.active:'var(--rule-2)'}" stroke-width="${on?2:1}"`)+text(x+8,y+21,`Expert ${i+1}`)+text(x+8,y+41,on?'Selected':'Not selected',`class="${on?'selected':'muted'}"`);}
-        graphic.innerHTML=svg(body,50+Math.ceil(n/4)*69,'Toy router with selected experts labeled');
+        if(shared){const y=42+Math.ceil(n/4)*69;body+=rect(0,y,577,52,'none',`stroke="${color.active}" stroke-width="2"`)+text(8,y+21,`${shared} shared expert${shared>1?'s':''} · always active`)+text(8,y+41,'Runs for every token, alongside the routed experts.');}
+        graphic.innerHTML=svg(body,50+Math.ceil(n/4)*69+(shared?69:0),'Toy router with selected and always-active shared experts labeled');
         result.textContent=`${active} / ${n} routed experts active (${fmt(active/n*100)}%). ${shared?`${shared} shared expert${shared>1?'s':''} always active. `:''}Unselected weights still exist. This fraction is not a speedup.`;el.dataset.value=active;
       };
       presets(['Token A','Token B','Token C'],0,i=>{example=i;draw();});slider('Experts per token',1,Math.min(4,n),1,active,v=>{active=v;draw();});draw();
@@ -130,11 +131,24 @@
         result.textContent=`${tokens} tokens: full KV = ${tokens} × ${kv} = ${fmt(tokens*kv)} scalars; recurrent state = ${fmt(state)} scalars. An illustrative single-layer comparison. Hybrid models also retain their attention layers' cache.`;el.dataset.value=tokens*kv;
       };
       slider('History tokens',16,2048,16,tokens,v=>{tokens=v;draw();});draw();
+    } else if(kind==='sink') {
+      let sinkLogit=0,enabled=true;
+      const draw=()=>{
+        const weights=c.logits.map(v=>Math.exp(v)),sink=enabled?Math.exp(sinkLogit):0,total=weights.reduce((a,b)=>a+b,0)+sink;
+        const probabilities=weights.map(v=>v/total),unused=sink/total,output=probabilities.reduce((s,p,i)=>s+p*c.values[i],0);
+        const rows=probabilities.map((p,i)=>({label:`Token ${i+1} · value ${c.values[i]}`,value:p*100}));
+        rows.push({label:'Sink · contributes zero',value:unused*100,color:color.latent});
+        graphic.innerHTML=bars(rows,'%',100);
+        result.textContent=`Token mass = ${fmt((1-unused)*100,3)}%; sink mass = ${fmt(unused*100,3)}%. Weighted output = ${fmt(output,3)}. The sink participates in normalization, then contributes no value vector. These logits and scalar values are invented.`;
+        el.dataset.value=output;
+      };
+      presets(['With sink','Without sink'],0,i=>{enabled=i===0;draw();},'Attention normalization');
+      slider('Hypothetical sink logit',-4,4,0.5,sinkLogit,v=>{sinkLogit=v;draw();});draw();
     } else if(kind==='verifier') {
       let example=0,strict=false;
       const candidates=['6','The answer is 6.','3 × 2 is 5. Final answer: 6.','7'];
       const draw=()=>{const response=candidates[example],last=response.match(/\d+(?=\D*$)/)?.[0],reward=(strict?response:last)==='6'?1:0;graphic.innerHTML=svg(text(0,24,'Prompt: What is 3 × 2?')+line(0,42,580,42)+text(0,78,`Response: ${response}`)+text(0,125,`Checker: ${strict?'exact text equals “6”':'last number equals 6'}`)+text(0,177,`Reward: ${reward}`,`fill="${reward?color.active:color.negative}"`),200,'A toy deterministic checker scores different responses');result.textContent=`${reward?'Accepted':'Rejected'}. ${example===2&&!strict?'The answer checker misses the incorrect intermediate arithmetic.':example===1&&strict?'Exact string matching rejects a correct answer because of formatting.':'The reward depends on the checker, not just whether the response sounds convincing.'} This is not Tülu’s production verifier.`;el.dataset.value=reward;};
-      presets(['Correct','Formatted','Flawed reasoning','Wrong'],0,i=>{example=i;draw();});presets(['Final number','Exact string'],0,i=>{strict=i===1;draw();});draw();
+      presets(['Correct','Formatted','Flawed reasoning','Wrong'],0,i=>{example=i;draw();},'Response example');presets(['Final number','Exact string'],0,i=>{strict=i===1;draw();},'Checking rule');draw();
     } else if(kind==='mixture') {
       let targeted=30;
       const draw=()=>{const a=c.tokens*targeted/100,b=c.tokens-a;graphic.innerHTML=bars([{label:'Targeted midtraining data',value:a},{label:'Broad replay data',value:b,color:color.context}],'B tokens',c.tokens);result.textContent=`Fixed budget: ${c.tokens}B tokens. ${fmt(a)}B targeted + ${fmt(b)}B replay. Changing the mixture holds token count fixed, but cannot by itself predict skill or forgetting.`;el.dataset.value=a;};
@@ -163,10 +177,10 @@
       presets(['Scattered order','Left-to-right order'],0,i=>{order=i;step=0;draw();});const next=button('Denoise one round',()=>{step=Math.min(4,step+1);draw();});controls.append(next,button('Reset',()=>{step=0;draw();}));draw();
     } else if(kind==='ternary') {
       let weight=0.65;const scale=0.5;
-      const draw=()=>{const q=Math.max(-1,Math.min(1,Math.round(weight/scale))),reconstructed=q*scale;let body=text(0,18,'Three forward-pass weight values, with scale s = 0.5');body+=line(40,80,552,80);
+      const draw=()=>{const q=Math.max(-1,Math.min(1,Math.sign(weight)*Math.round(Math.abs(weight/scale)))),reconstructed=q*scale;let body=text(0,18,'Three forward-pass weight values, with scale s = 0.5');body+=line(40,80,552,80);
         [-1,0,1].forEach(v=>{const x=296+v*scale*200;body+=`<circle cx="${x}" cy="80" r="5" fill="${color.subject}"/>`+text(x,112,`${v} × s`,'text-anchor="middle"');});
         const x=296+weight*200;body+=line(x,40,x,72,color.negative)+text(x,31,`Latent ${fmt(weight)}`,'text-anchor="middle"')+text(0,158,`Forward: ${q} × 0.5 = ${reconstructed}`)+text(0,187,`Rounding error: ${fmt(Math.abs(weight-reconstructed))}`);
-        graphic.innerHTML=svg(body,213,'A real-valued latent weight mapped to a ternary forward-pass value');result.textContent=`round(${fmt(weight)} / 0.5), clipped to −1, 0, +1, gives ${q}. The scale is fixed for this toy. Training adjusts higher-precision latent weights through a surrogate gradient.`;el.dataset.value=q;};
+        graphic.innerHTML=svg(body,213,'A real-valued latent weight mapped to a ternary forward-pass value');result.textContent=`round(${fmt(weight)} / 0.5), clipped to −1, 0, +1, gives ${q}. This toy rounds exact half-way ties away from zero and fixes the scale. Training adjusts higher-precision latent weights through a surrogate gradient.`;el.dataset.value=q;};
       slider('Latent weight',-1,1,0.05,weight,v=>{weight=v;draw();});draw();
     } else if(kind==='recurrence') {
       let step=0,selective=true;const values=[1,0,0,0,2,0,0,0];

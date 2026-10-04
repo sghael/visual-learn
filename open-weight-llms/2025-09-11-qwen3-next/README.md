@@ -10,12 +10,12 @@ Qwen3-Next combines Gated DeltaNet state updates with occasional full attention 
 
 - Two different meanings of remembering
 - Correct an association instead of accumulating it
-- Keep an exact-retrieval route in the stack
+- Keep a direct-retrieval route in the stack
 - Sparse arithmetic needs a matching implementation
 
 ## Figures
 
-- **The two memory curves diverge** (`state`): Illustrative scalar counts for one toy recurrent state and one toy KV history. Not Qwen3-Next memory measurements. Fixed-size state limits memory growth by compressing history.
+- **Compare a fixed state with a growing history** (`state`): Illustrative scalar counts for one toy recurrent state and one toy KV history. Not Qwen3-Next memory measurements. Fixed-size state limits memory growth by compressing history.
 - **A scalar analogy for the update** (`flow`): Simplified delta-rule teaching sequence; real Gated DeltaNet uses matrix state and learned gates. Targeted correction behaves differently from repeatedly adding the same observation.
 
 ## Accuracy and scope

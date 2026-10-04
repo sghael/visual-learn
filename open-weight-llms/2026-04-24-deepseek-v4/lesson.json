@@ -3,7 +3,7 @@
   "model": "DeepSeek-V4",
   "family": "DeepSeek",
   "date": "2026-04-24",
-  "dateNote": "Public V4-Pro and V4-Flash preview weights appeared April 24, 2026. The June technical report documents the architecture; later 0731 and 0813 revisions are not new architecture introductions.",
+  "dateNote": "Public V4-Pro and V4-Flash preview weights appeared April 24, 2026. The technical report documents the architecture; later 0731 and 0813 revisions are not new architecture introductions.",
   "subtitle": "Compress the history before deciding where to look",
   "summary": "V4 combines sequence compression, sparse retrieval and local attention to make very long contexts less expensive.",
   "category": "Memory",

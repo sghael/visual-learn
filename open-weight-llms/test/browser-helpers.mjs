@@ -119,15 +119,21 @@ export const click = (widget, name) => widget.getByRole('button', { name, exact:
 export const slide = (widget, value, index = 0) => widget.locator('input[type="range"]').nth(index).fill(String(value));
 
 export async function withWidget(browser, kind, run, options = {}) {
-  const entry = manifest.find(item => item.figures.includes(kind));
-  assert.ok(entry, `manifest has no ${kind} example`);
-  const lesson = lessons.get(entry.slug);
-  const config = lesson.sections.find(section => section.figure?.kind === kind).figure.config;
-  const session = await open(browser, { slug: entry.slug, ...options });
-  try {
-    const widget = session.page.locator(`[data-widget="${kind}"]`).first();
-    await widget.locator('.widget-graphic').waitFor();
-    await run(widget, config, session.page);
-    assert.deepEqual(session.errors, [], `${kind} emitted browser errors`);
-  } finally { await session.context.close(); }
+  const entries = manifest.filter(item => item.figures.includes(kind));
+  assert.ok(entries.length, `manifest has no ${kind} example`);
+  for (const entry of entries) {
+    const figures = lessons.get(entry.slug).sections.filter(section => section.figure?.kind === kind);
+    for (const [index, section] of figures.entries()) {
+      const session = await open(browser, { slug: entry.slug, ...options });
+      try {
+        const widget = session.page.locator(`[data-widget="${kind}"]`).nth(index);
+        await widget.locator('.widget-graphic').waitFor();
+        await run(widget, section.figure.config, session.page);
+        assert.deepEqual(session.errors, [], `${entry.slug}: ${kind} emitted browser errors`);
+      } catch (error) {
+        error.message = `${entry.slug} (${kind}): ${error.message}`;
+        throw error;
+      } finally { await session.context.close(); }
+    }
+  }
 }

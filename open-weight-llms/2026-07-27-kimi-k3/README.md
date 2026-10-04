@@ -22,7 +22,7 @@ Kimi K3 combines channel-controlled recurrent memory with attention over earlier
 
 Release date: 2026-07-27. Weights released July 27, 2026; July 16 was the hosted-model announcement.
 
-- The K3 full-report link could not be retrieved during research; architecture claims use the official model card and read component papers.
+- KDA and Attention Residuals originate in earlier component work; the full K3 report specifies the changes and configuration used in this release.
 - The scalar weighted-sum example isolates depth mixing and is not a K3 layer implementation.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.

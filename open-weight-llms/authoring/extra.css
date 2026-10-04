@@ -1,7 +1,12 @@
 /* Collection-specific extensions. Entity colors are stable across every lesson:
    blue = selected mechanism; green = selected experts/positive signal;
    red = negative signal; purple = latent state; grey = context. */
-:root { --ink-3: #666156; }
+:root {
+  --ink-3: #666156;
+  --text: 54rem;
+  --gap: 3rem;
+  --margin: 17rem;
+}
 html { scrollbar-color: var(--rule-2) var(--paper); }
 .skip-link { position: absolute; top: -4rem; left: 1rem; z-index: 100; padding: .5rem; background: var(--paper); }
 .skip-link:focus { top: .5rem; }
@@ -9,6 +14,7 @@ html { scrollbar-color: var(--rule-2) var(--paper); }
 .topbar-inner { min-width: 0; }
 .topbar nav { min-width: 0; mask-image: none; }
 .page > .lesson-header { max-width: none; }
+.page > h1, .lesson-header h1 { max-width: var(--text); }
 .lesson-header .subtitle, .lesson-header .lede { max-width: var(--text); }
 .release-note { max-width: var(--text); font: .87rem/1.55 var(--sans); color: var(--ink-2); border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1.5rem; }
 .release-note span { display: block; }
@@ -61,7 +67,14 @@ html { scrollbar-color: var(--rule-2) var(--paper); }
 .concepts dt { font-weight: 600; margin-bottom: .3rem; }
 .concepts dd { margin: 0; font-size: 1rem; color: var(--ink-2); }
 .math { display: block; font: .95rem/1.7 var(--mono); overflow-x: auto; padding: .65rem 0; }
-@media(max-width: 61.99rem) { .fig { max-width: var(--text); } }
+/* Keep the wider reading column at intermediate widths; move notes below it
+   until the full text + margin grid actually fits. */
+@media(max-width: 79.99rem) {
+  .page, .topbar-inner { max-width: calc(var(--text) + 3rem); }
+  .fig:not(.wide) { display: block; max-width: var(--text); }
+  .fig:not(.wide) > figcaption { margin-top: .85rem; }
+  .sidenote, .marginnote { float: none; display: block; width: auto; margin: .6rem 0 .9rem; padding-left: .9rem; border-left: 1px solid var(--rule-2); }
+}
 @media(max-width: 40rem) {
   .catalog li { grid-template-columns: 1fr; gap: .25rem; }
   .catalog .catalog-meta { margin-top: .5rem; }

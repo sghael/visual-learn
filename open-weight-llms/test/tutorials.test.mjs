@@ -25,6 +25,10 @@ for (const width of [1440, 390]) {
       try {
         assert.deepEqual(await session.page.locator('[data-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.widget)), entry.figures);
         await assertLayout(session.page);
+        if (width === 1440) {
+          const proseWidth = await session.page.locator('main section > p').first().evaluate(node => node.getBoundingClientRect().width);
+          assert.ok(proseWidth >= 800, `${entry.model}: desktop prose should use the wider book column`);
+        }
         if (width === 1440) await assertLocalLinks(session.page);
         await capturePage(session.page, entry.slug || 'collection', width);
         assert.deepEqual(session.errors, []);
@@ -37,7 +41,7 @@ test('the manifest covers every lesson directory and every interactive kind has 
   const { readdir } = await import('node:fs/promises');
   const folders = (await readdir(ROOT, { withFileTypes: true })).filter(item => item.isDirectory() && /^\d{4}-\d{2}-\d{2}-/.test(item.name)).map(item => item.name).sort();
   assert.deepEqual(manifest.map(item => item.slug).sort(), folders, 'regenerate the manifest before testing');
-  const covered = new Set(['flow', 'bars', 'kv', 'moe', 'attention', 'sparse', 'grpo', 'precision', 'scaling', 'latent', 'distill', 'parallel', 'state', 'verifier', 'mixture', 'cache', 'patches', 'diffusion', 'ternary', 'recurrence']);
+  const covered = new Set(['flow', 'bars', 'kv', 'moe', 'attention', 'sparse', 'grpo', 'precision', 'scaling', 'latent', 'distill', 'parallel', 'state', 'sink', 'verifier', 'mixture', 'cache', 'patches', 'diffusion', 'ternary', 'recurrence']);
   assert.deepEqual([...new Set(manifest.flatMap(item => item.figures))].filter(kind => !covered.has(kind)), [], 'new interactive kinds need behavioral tests');
 });
 
@@ -83,7 +87,10 @@ test('KV context and MHA/GQA/MQA presets preserve the advertised memory ratios',
 });
 
 test('MoE token examples reroute the selected experts without changing their count', async () => {
-  await withWidget(browser, 'moe', async widget => {
+  await withWidget(browser, 'moe', async (widget, config) => {
+    assert.equal(Number(await widget.locator('input').inputValue()), config.active);
+    assert.equal(await widget.locator('svg text.selected').count(), config.active);
+    if (config.shared) assert.match(await widget.locator('svg').textContent(), /shared expert.*always active/);
     await slide(widget, 2);
     const selected = () => widget.locator('svg text.selected').evaluateAll(nodes => nodes.map(node => `${node.getAttribute('x')},${node.getAttribute('y')}`));
     await click(widget, 'Token A'); const first = await selected(); assert.equal(first.length, 2);
@@ -200,8 +207,54 @@ test('recurrent state stays fixed while explicit history grows', async () => {
   });
 });
 
+test('an attention sink reserves normalized mass without contributing a value', async () => {
+  await withWidget(browser, 'sink', async (widget, config) => {
+    const output = () => widget.evaluate(node => Number(node.dataset.value));
+    const probabilities = () => widget.locator('svg text[text-anchor="end"]').allTextContents().then(values => values.map(value => number(value.replace('%','').trim())));
+    await click(widget, 'Without sink');
+    const mean = config.values.reduce((a,b)=>a+b,0)/config.values.length;
+    near(await output(), mean); near((await probabilities()).at(-1), 0);
+    await click(widget, 'With sink'); await slide(widget, 0);
+    const equal = await probabilities(); equal.forEach(value=>near(value, 25));
+    near(equal.reduce((a,b)=>a+b,0),100); near(await output(),mean*0.75);
+    await slide(widget, 4); assert.ok(await output() < mean*0.1);
+    await click(widget, 'Without sink'); near(await output(),mean);
+  });
+});
+
+test('the wide reading column and margin captions fit around their breakpoint', async () => {
+  for (const width of [768,1024,1279,1280,1920]) {
+    for (const slug of ['2024-05-06-deepseek-v2','2025-08-05-gpt-oss']) {
+      const {page,context,errors}=await open(browser,{slug,width});
+      try {
+        await assertLayout(page);
+        const boxes=await page.locator('.fig').first().evaluate(node=>{
+          const graphic=node.firstElementChild.getBoundingClientRect(),caption=node.querySelector('figcaption').getBoundingClientRect();
+          return {graphic:{x:graphic.x,right:graphic.right,bottom:graphic.bottom},caption:{x:caption.x,y:caption.y,right:caption.right}};
+        });
+        assert.ok(boxes.caption.right <= width);
+        if(width>=1280)assert.ok(boxes.caption.x >= boxes.graphic.right,'caption must sit beside the wider figure');
+        else assert.ok(boxes.caption.y >= boxes.graphic.bottom,'caption must move below the figure before the columns stop fitting');
+        assert.deepEqual(errors,[]);
+      }finally{await context.close();}
+    }
+  }
+});
+
+test('research notes open as a rendered page with relative local assets', async () => {
+  const {page,context,errors}=await open(browser,{width:390});
+  try {
+    await page.getByRole('link',{name:'Research method and coverage notes'}).click();
+    assert.equal(await page.locator('h1').innerText(),'Research method and coverage');
+    await assertLayout(page); await assertLocalLinks(page);
+    assert.deepEqual(errors,[]);
+  }finally{await context.close();}
+});
+
 test('verifier presets expose formatting rejection and an unchecked reasoning error', async () => {
   await withWidget(browser, 'verifier', async widget => {
+    assert.equal(await widget.getByRole('group', { name: 'Response example', exact: true }).count(), 1);
+    assert.equal(await widget.getByRole('group', { name: 'Checking rule', exact: true }).count(), 1);
     await click(widget, 'Formatted'); await click(widget, 'Exact string'); assert.match(await readout(widget), /^Rejected/);
     await click(widget, 'Final number'); assert.match(await readout(widget), /^Accepted/);
     await click(widget, 'Flawed reasoning'); assert.match(await readout(widget), /Accepted.*misses the incorrect intermediate arithmetic/);
@@ -248,6 +301,9 @@ test('ternary weights round, clip and return to the zero bin', async () => {
     await slide(widget, 1); assert.equal(await forward(), 1);
     await slide(widget, -1); assert.equal(await forward(), -1);
     await slide(widget, -0.2); assert.equal(await forward(), 0);
+    await slide(widget, 0.25); assert.equal(await forward(), 1);
+    await slide(widget, -0.25); assert.equal(await forward(), -1);
+    assert.match(await readout(widget), /ties away from zero/);
   });
 });
 

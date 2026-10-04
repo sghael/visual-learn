@@ -91,7 +91,7 @@
     {
       "id": "reconstruct",
       "title": "Reading back is only the first test",
-      "html": "<p>The paper evaluates OCR reconstruction under visual compression. It explicitly leaves general long-context reasoning validation to further work. A system that can reproduce a paragraph has passed a different test from one that can combine facts distributed across many compressed pages. <a href=\"#source-paper\">[2]</a></p><p>An independent follow-up compared optical compression with alternative autoencoding approaches. In its experiments, successful reconstruction did not translate into better language modeling than truncation, while a hierarchical alternative did improve that task. This is evidence about that experimental setup, not a universal verdict on every future visual memory system. <a href=\"#source-followup\">[4]</a></p>"
+      "html": "<p>The paper evaluates OCR reconstruction under visual compression. It explicitly leaves general long-context reasoning validation to further work. A system that can reproduce a paragraph has passed a different test from one that can combine facts distributed across many compressed pages. <a href=\"#source-paper\">[2]</a></p><p>An independent follow-up compared optical compression with alternative autoencoding approaches. On 1,000-token English Wikipedia contexts, optical reconstruction did not beat keeping recent text at matched input-token budgets for predicting a continuation. A hierarchical text encoder did. These experiments measured next-token prediction, not long-document question answering; other lengths, domains and tasks still need testing. <a href=\"#source-followup\">[4]</a></p>"
     },
     {
       "id": "interpret",

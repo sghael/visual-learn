@@ -46,11 +46,11 @@
     {
       "id": "reward",
       "title": "A group needs differences to supply a relative signal",
-      "html": "<p>In group-relative reinforcement learning, several attempts at the same prompt are scored and compared. In our teaching version, subtract the group mean from each reward and divide by the population standard deviation. Positive values mark above-average attempts; negative values mark below-average attempts. This is an illustrative signal calculation, not the complete GLM training objective.</p><p>For rewards 0, 0, 1, 1, the mean is 0.5 and the standard deviation is 0.5. The normalized values are −1, −1, +1, +1. If every reward is 1, all attempts are equally successful and the differences vanish. If every reward is 0, the group also supplies no ranking.</p><p>GLM-4.5’s report identifies this problem and uses a difficulty-based curriculum: tasks should remain challenging but learnable as the policy improves. Its experiments support this training choice; the widget isolates the underlying arithmetic.</p> <a href=\"#source-paper\">[1]</a>",
+      "html": "<p>In group-relative reinforcement learning, several attempts at the same prompt are scored and compared. In our teaching version, subtract the group mean from each reward and divide by the population standard deviation. Positive values mark above-average attempts; negative values mark below-average attempts. This is an illustrative signal calculation, not the complete GLM training objective.</p><p>For rewards 0, 0, 1, 1, the mean is 0.5 and the standard deviation is 0.5. The normalized values are −1, −1, +1, +1. If every reward is 1, all attempts are equally successful and the differences vanish. If every reward is 0, the group also supplies no ranking.</p><p>GLM-4.5’s report identifies this problem and uses a difficulty-based curriculum: tasks should remain challenging but learnable as the policy improves. The supporting curriculum experiments use a smaller experimental model, not the 355B flagship. The second stage selects problems with verified answers that are rarely but demonstrably solvable. The widget isolates the relative-reward arithmetic.</p> <a href=\"#source-paper\">[1]</a>",
       "figure": {
         "kind": "grpo",
         "title": "When relative feedback disappears",
-        "caption": "Pedagogical GRPO-style signal. Omits clipping, KL regularization, token-level loss and the release’s training implementation.",
+        "caption": "Pedagogical GRPO-style signal. Omits probability ratios, clipping and token-level loss. The GLM-4.5 report’s reasoning-RL recipe excludes the KL penalty used in some GRPO formulations.",
         "takeaway": "Perfect success and complete failure can both erase within-group comparison.",
         "config": {
           "rewards": [
@@ -78,7 +78,7 @@
       "id": "paper",
       "title": "GLM-4.5 technical report",
       "url": "https://arxiv.org/html/2508.06471v1",
-      "detail": "Sections 2.3 and 3.2; repository-scale mid-training and difficulty-based curriculum."
+      "detail": "Sections 2.3 and 3.2; repository-scale mid-training, a two-stage difficulty curriculum tested on a smaller model, and reasoning RL without a KL penalty."
     },
     {
       "id": "card",
