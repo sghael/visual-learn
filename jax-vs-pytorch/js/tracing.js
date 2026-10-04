@@ -64,7 +64,7 @@ def f(x):
         { lines: [2], note: 'jit calls <code>f</code> with a tracer for <code>x</code>.', jaxpr: ['{ lambda ; a:f32[3]. let'] },
         { lines: [3], note: 'The predicate is recorded as before, then converted to an integer branch index, 0 or 1.', jaxpr: ['    b:f32[] = reduce_sum[axes=(0,)] a', '    c:bool[] = gt b 0.0', '    d:i32[] = convert_element_type[new_dtype=int32] c'] },
         { lines: [3, 4, 5], note: '<code>lax.cond</code> traces both branch functions into sub-jaxprs and records one <code>cond</code> equation. The compiled program picks the branch at run time.', jaxpr: ['    e:f32[3] = cond[', '      branches=(', '        { lambda ; f:f32[3]. let g:f32[3] = neg f in (g,) }', '        { lambda ; h:f32[3]. let  in (h,) }', '      )', '    ] d a', '  in (e,) }'] },
-        { lines: [], done: true, note: 'Trace complete. <code>lax.cond</code> runs one branch; <code>jnp.where(x.sum() &gt; 0, x, -x)</code> would compute both and select. Both branches must return the same shape.', jaxpr: [] },
+        { lines: [], done: true, note: 'Trace complete. <code>lax.cond</code> runs one branch; <code>jnp.where(x.sum() &gt; 0, x, -x)</code> would compute both and select. Both branches must return the same pytree structure, shapes and dtypes.', jaxpr: [] },
       ],
       call: (n, hit, fixed) => (fixed ? { effects: [], error: null } : { effects: [], error: 'TracerBoolConversionError' }),
       eager: 'evaluates <code>x.sum() &gt; 0</code> to a Python <code>bool</code> (waiting for the GPU if <code>x</code> lives there) and runs one branch. Under <code>torch.compile</code> this data-dependent branch usually causes a graph break.',

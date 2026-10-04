@@ -10,7 +10,7 @@
   const JT = window.JT;
 
   /* ---------------- model (pure, no DOM; tested in node) ---------------- */
-  const TENSOR_MB = 64;                        // 4096 * 4096 * 4 bytes
+  const TENSOR_MIB = 64;                        // 4096 * 4096 * 4 bytes
   const TENSOR_BYTES = 4096 * 4096 * 4;
   const HBM_BW = 3.35e12;                      // H100 SXM HBM3 peak, bytes/s (vendor, approximate)
   const MATMUL_FLOPS = 2 * 4096 * 4096 * 4096; // 2 * N^3
@@ -38,7 +38,7 @@
    *  - compiled: consecutive pointwise ops fuse into one kernel; pointwise ops right after
    *    the matmul fuse into it as an epilogue; pointwise ops right before the softmax fuse
    *    into the reduction. A pointwise run between matmul and softmax goes to the matmul.
-   * Traffic model: each kernel reads every 64 MB HBM input once and writes its output once;
+   * Traffic model: each kernel reads every 64 MiB HBM input once and writes its output once;
    * vectors count as 0; intermediates inside a fused kernel cost 0.
    */
   function plan(enabledIds, mode) {
@@ -65,7 +65,7 @@
       return {
         index: k, ops: g.ops, first: g.first, last: g.last, inputs, output, internal,
         reads: inputs.length, writes: 1,
-        mb: tensors * TENSOR_MB, bytes: tensors * TENSOR_BYTES,
+        mib: tensors * TENSOR_MIB, bytes: tensors * TENSOR_BYTES,
         isIntermediate: k < groups.length - 1,
         kind: kindLabel(g.ops),
       };
@@ -75,7 +75,7 @@
       mode, ops, kernels,
       launches: kernels.length,
       intermediates: Math.max(0, kernels.length - 1),
-      mb: kernels.reduce((s, k) => s + k.mb, 0),
+      mib: kernels.reduce((s, k) => s + k.mib, 0),
       bytes,
       ms: (bytes / HBM_BW) * 1e3,
       hasMatmul: ops.some((o) => o.kind === 'matmul'),
@@ -104,7 +104,7 @@
     const n = p.ops.length;
     const L = layout(n, W);
     const svg = JT.svg('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
-      'aria-label': `${p.mode === 'eager' ? 'Eager' : 'Compiled'}: ${p.launches} kernel launch${p.launches === 1 ? '' : 'es'}, ${p.intermediates} intermediate tensor${p.intermediates === 1 ? '' : 's'} written to HBM, ${p.mb} MB of HBM traffic.` });
+      'aria-label': `${p.mode === 'eager' ? 'Eager' : 'Compiled'}: ${p.launches} kernel launch${p.launches === 1 ? '' : 'es'}, ${p.intermediates} intermediate tensor${p.intermediates === 1 ? '' : 's'} written to HBM, ${p.mib} MiB of HBM traffic.` });
     svg.appendChild(JT.svg('text', { class: 'label muted', x: 0, y: HB_Y + TH / 2 + 4, text: 'HBM' }));
     svg.appendChild(JT.svg('text', { class: 'label muted', x: 0, y: K_Y + K_H / 2 + 4, text: 'kernels' }));
 
@@ -171,7 +171,7 @@
       return { mode, readline, host };
     };
     const views = [
-      mk('eager', '<span class="torch-c">Eager</span> <span class="sub">one kernel per operation, as in PyTorch by default</span>'),
+      mk('eager', '<span class="torch-c">Eager</span> <span class="sub">separate kernels for this chain in the model</span>'),
       mk('compiled', '<span class="jax-c">Compiled</span> <span class="sub">fused by XLA under jax.jit, or by Inductor under torch.compile</span>'),
     ];
 
@@ -184,13 +184,13 @@
       const W = Math.max(width || MIN_W, MIN_W);
       views.forEach((v) => {
         const p = plan(ids, v.mode);
-        v.readline.innerHTML = `<b>${p.launches}</b> kernel launch${p.launches === 1 ? '' : 'es'} · <b>${p.intermediates}</b> intermediate${p.intermediates === 1 ? '' : 's'} written to HBM · <b>${p.mb} MB</b> of HBM traffic · at least <b>${p.ms.toFixed(2)} ms</b>`;
+        v.readline.innerHTML = `<b>${p.launches}</b> kernel launch${p.launches === 1 ? '' : 'es'} · <b>${p.intermediates}</b> intermediate${p.intermediates === 1 ? '' : 's'} written to HBM · <b>${p.mib} MiB</b> of HBM traffic · at least <b>${p.ms.toFixed(2)} ms</b>`;
         v.host.replaceChildren(draw(p, W));
       });
     }
     JT.onWidth(container, (w) => { width = w; render(); });
   }
 
-  init.model = { OPS, plan, TENSOR_MB, TENSOR_BYTES, HBM_BW };
+  init.model = { OPS, plan, TENSOR_MIB, TENSOR_BYTES, HBM_BW };
   JT.widget('fusion', init);
 })();

@@ -121,6 +121,13 @@ y = batched(w, X)       # X: ${axis === 0 ? 'f32[5, 3]' : 'f32[3, 5]'}`;
   function evaluate(stack) {
     let scalar = true, order = 0, batches = 0, compiled = false, error = null;
     const notes = [];
+    // params = {w: f32[D], b: f32[]}; a leaf stores its array dimensions.
+    let output = [];
+    const mapLeaves = (tree, fn) => Array.isArray(tree) ? fn(tree)
+      : Object.fromEntries(Object.entries(tree).map(([k, v]) => [k, mapLeaves(v, fn)]));
+    const differentiate = () => { output = mapLeaves(output, (dims) => ({ w: [...dims, 'D'], b: [...dims] })); };
+    const shapeText = (tree) => Array.isArray(tree) ? `f32[${tree.join(',')}]`
+      : '{' + Object.entries(tree).map(([k, v]) => `${k}: ${shapeText(v)}`).join(', ') + '}';
     for (const t of stack) {
       if (t === 'grad') {
         if (!scalar) {
@@ -129,26 +136,25 @@ y = batched(w, X)       # X: ${axis === 0 ? 'f32[5, 3]' : 'f32[3, 5]'}`;
             : `grad needs a scalar output, but the function it wraps returns f32[${Array(batches).fill('B').join(',')}]. Sum over the batch first, or move vmap outside: vmap(grad(loss)).`;
           break;
         }
-        order += 1; scalar = false;
+        order += 1; scalar = false; differentiate();
         notes.push('grad returns a function that computes ∂loss/∂params, a pytree with the same structure as params. It requires a scalar output, so it goes inside vmap.');
       } else if (t === 'jacfwd') {
-        order += 1; scalar = false;
-        notes.push(order === 1
-          ? 'jacfwd computes the Jacobian in forward mode. On a scalar loss that is the same gradient, computed one input element per pass, so grad (reverse mode) is cheaper here.'
-          : 'jacfwd of the gradient is the Hessian, computed forward-over-reverse. jax.hessian(f) is defined as jacfwd(jacrev(f)).');
+        order += 1; scalar = false; differentiate();
+        if (order === 1) notes.push(batches
+          ? 'jacfwd differentiates every component of the batched loss with respect to the shared params. Unlike grad, it accepts a vector output.'
+          : 'jacfwd computes the gradient of this scalar loss in forward mode. It propagates one tangent direction per parameter element; reverse-mode grad is usually cheaper when there are many parameters.');
+        else if (order === 2) notes.push(`The second derivative is the Hessian${batches ? ', one per example' : ''}. Each output leaf is differentiated with respect to both w and b, adding another level to the pytree.`);
+        else notes.push(`This is a derivative of order ${order}, not a Hessian. Each jacfwd adds another parameter-pytree level and the corresponding input dimensions to every leaf.`);
       } else if (t === 'vmap') {
-        batches += 1; scalar = false;
+        batches += 1; scalar = false; output = mapLeaves(output, (dims) => ['B', ...dims]);
+        if (batches > 1) notes.push('A repeated vmap needs another leading batch axis in x and y. B denotes the size of each batch axis in this example.');
         notes.push(`vmap adds a batch axis to every output. With in_axes=(None, 0, 0), params are shared and x and y are split per example; the result is ${order ? 'one derivative per example' : 'one loss per example'}.`);
       } else if (t === 'jit') {
         compiled = true;
         notes.push('jit traces the whole composed function once and compiles it with XLA. Output shapes do not change.');
       }
     }
-    const bd = batches ? Array(batches).fill('B').join(',') + ',' : '';
-    let outShape;
-    if (order === 0) outShape = batches ? `f32[${bd.slice(0, -1)}]` : 'f32[]';
-    else if (order === 1) outShape = `{w: f32[${bd}…], b: f32[${bd}…]}`;
-    else outShape = `{w: {w: f32[${bd}…,…], b: f32[${bd}…]}, b: {w: …, b: …}}`;
+    const outShape = shapeText(output);
     return { error, notes, outShape, compiled, batches, order };
   }
   function torchEquivalent(stack) {
@@ -193,14 +199,16 @@ y = batched(w, X)       # X: ${axis === 0 ? 'f32[5, 3]' : 'f32[3, 5]'}`;
       else {
         [...stack].reverse().forEach((t) => expr.appendChild(JT.el('span', { class: 't', text: t + '(' })));
         expr.appendChild(JT.el('span', { text: 'loss' }));
-        expr.appendChild(JT.el('span', { class: 'p', text: ')'.repeat(stack.length) + '(params, x, y)' }));
+        stack.forEach((t) => expr.appendChild(JT.el('span', { class: 'p', text: t === 'vmap' ? ', in_axes=(None, 0, 0))' : ')' })));
+        expr.appendChild(JT.el('span', { text: '(params, x, y)' }));
       }
+      wrap.forEach((button) => { button.disabled = stack.length >= 4; });
       const r = evaluate(stack);
       if (r.error) { sig.innerHTML = 'Returns: an error at trace time'; expl.textContent = r.error; expl.classList.add('bad'); }
       else {
         sig.innerHTML = `Returns: <code>${JT.escape(r.outShape)}</code>${r.compiled ? ', compiled' : ''}`;
         expl.classList.remove('bad');
-        expl.innerHTML = r.notes.length ? r.notes.map((n) => `<p>${n}</p>`).join('') : '<p>A plain loss of the parameters and one batch. Wrappers apply from the inside out; each returns a new function for the next one to wrap.</p>';
+        expl.innerHTML = r.notes.length ? r.notes.map((n) => `<p>${n}</p>`).join('') : '<p>A scalar loss of the parameters and one example. Wrappers apply from the inside out; each returns a new function for the next one to wrap.</p>';
       }
       eqHost.replaceChildren(JT.code(torchEquivalent(stack)));
       const key = stack.join(',');

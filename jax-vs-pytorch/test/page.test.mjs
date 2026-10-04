@@ -140,12 +140,12 @@ test('fusion readouts match the model, and toggling an op updates both multiples
   const { page, context, errors } = await open();
   const lines = () => page.locator('#w-fusion .readline').allInnerTexts();
   let [eager, compiled] = await lines();
-  assert.match(eager, /^5 kernel launches · 4 intermediates written to HBM · 704 MB of HBM traffic · at least 0\.22 ms/);
-  assert.match(compiled, /^2 kernel launches · 1 intermediate written to HBM · 320 MB of HBM traffic · at least 0\.10 ms/);
+  assert.match(eager, /^5 kernel launches · 4 intermediates written to HBM · 704 MiB of HBM traffic · at least 0\.22 ms/);
+  assert.match(compiled, /^2 kernel launches · 1 intermediate written to HBM · 320 MiB of HBM traffic · at least 0\.10 ms/);
   await page.locator('#w-fusion button[data-op="softmax"]').click();
   [eager, compiled] = await lines();
   assert.match(eager, /^4 kernel launches · 3 intermediates/);
-  assert.match(compiled, /^1 kernel launch · 0 intermediates written to HBM · 192 MB of HBM traffic/);
+  assert.match(compiled, /^1 kernel launch · 0 intermediates written to HBM · 192 MiB of HBM traffic/);
   // the last enabled op cannot be switched off
   for (const op of ['matmul', 'bias', 'relu']) await page.locator(`#w-fusion button[data-op="${op}"]`).click();
   assert.equal(await page.locator('#w-fusion button[data-op="scale"]').isDisabled(), true);
@@ -178,7 +178,7 @@ test('every composer preset resolves as its label promises', async () => {
   const { page, context, errors } = await open();
   const presets = page.locator('#w-composer .presets button');
   const expected = [
-    { label: /per-example gradients/, bad: false, sig: /\{w: f32\[B,…\], b: f32\[B,…\]\}/, torch: /torch\.func\.vmap\(torch\.func\.grad\(loss\)/ },
+    { label: /per-example gradients/, bad: false, sig: /\{w: f32\[B,D\], b: f32\[B\]\}/, torch: /torch\.func\.vmap\(torch\.func\.grad\(loss\)/ },
     { label: /compiled gradient/, bad: false, sig: /compiled/, torch: /torch\.compile\(torch\.func\.grad\(loss\)\)/ },
     { label: /Hessian/, bad: false, sig: /\{w: \{w: f32/, expl: /Hessian/, torch: /torch\.func\.jacfwd\(torch\.func\.grad\(loss\)\)/ },
     { label: /the wrong order/, bad: true, expl: /vmap\(grad\(loss\)\)/, torch: /torch\.func\.grad\(torch\.func\.vmap\(loss/ },
@@ -257,5 +257,36 @@ test('the top bar marks the section being read', async () => {
   await page.waitForFunction(() => document.querySelector('.topbar nav a[aria-current="true"]')?.getAttribute('href') === '#fusion');
   assert.equal(await page.locator('.topbar nav a[aria-current="true"]').count(), 1);
   assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('composer: repeated differentiation grows the pytree and vmap keeps params shared', async () => {
+  const { page, context, errors } = await open({ width: 390 });
+  assert.match(await page.locator('#w-composer .expr').innerText(), /vmap\(grad\(loss\), in_axes=\(None, 0, 0\)\)/);
+  await page.locator('#w-composer [data-role="clear"]').click();
+  const jac = page.locator('#w-composer [data-wrap="jacfwd"]');
+  await jac.click();
+  assert.equal(await page.locator('#w-composer .sig').innerText(), 'Returns: {w: f32[D], b: f32[]}');
+  await jac.click();
+  assert.equal(await page.locator('#w-composer .sig').innerText(), 'Returns: {w: {w: f32[D,D], b: f32[D]}, b: {w: f32[D], b: f32[]}}');
+  await jac.click();
+  assert.match(await page.locator('#w-composer .sig').innerText(), /w: \{w: \{w: f32\[D,D,D\]/);
+  assert.match(await page.locator('#w-composer .expl').innerText(), /derivative of order 3/);
+  await jac.click();
+  assert.match(await page.locator('#w-composer .sig').innerText(), /w: \{w: \{w: \{w: f32\[D,D,D,D\]/);
+  assert.equal(await jac.isDisabled(), true, 'the four-wrapper limit must be visible');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0, 'the larger derivative tree stays inside the phone page');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+
+test('composer: long code stays in its grid column beside the margin caption', async () => {
+  const { page, context } = await open();
+  const edges = await page.evaluate(() => ({
+    widget: document.querySelector('#w-composer').getBoundingClientRect().right,
+    caption: document.querySelector('#fig-composer figcaption').getBoundingClientRect().left,
+  }));
+  assert.ok(edges.widget < edges.caption, `widget ends at ${edges.widget}, caption starts at ${edges.caption}`);
   await context.close();
 });
