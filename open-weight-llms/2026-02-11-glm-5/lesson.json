@@ -3,24 +3,25 @@
   "model": "GLM-5",
   "family": "GLM",
   "date": "2026-02-11",
-  "dateNote": "Public weight uploads February 11, 2026; official blog dated February 12 and report February 17.",
+  "dateNote": "The weights were uploaded on February 11, 2026. Z.ai’s blog post is dated February 12 and the report February 17.",
   "subtitle": "How an agent can learn while other agents are still working",
-  "summary": "GLM-5 uses asynchronous agent reinforcement learning and sparse attention to reduce different sources of wasted computation.",
+  "summary": "GLM-5 lets rollout generation and learning run on separate schedules so slow agent tasks do not stall training, and adopts sparse attention to cut the cost of long contexts.",
   "category": "Training",
-  "readingMinutes": 8,
+  "readingMinutes": 7,
   "parameters": "744B total · 40B active",
   "license": "MIT model weights",
-  "lead": "<p>A training batch of agents does not finish like a synchronized classroom exam. One task may need a quick calculation while another waits for a long software build. GLM-5 separates experience generation from learning so that the slowest task does not always hold the entire system idle.</p>",
+  "lead": "<p>When a model learns from agent tasks, the tasks in a training batch take very different amounts of time: one needs a quick calculation, another waits minutes for a software build. If learning waits for every task in the batch to finish, most of the hardware sits idle behind the slowest one. GLM-5, released by Z.ai in February 2026, <a href=\"#source-launch\">[2]</a> separates generating experience from learning from it, so the slowest task no longer holds everything up. That separation creates a new problem, learning from experience produced by an older version of the model, and this page explains how GLM-5 handles it. The model has 744 billion parameters, 40 billion of them active per token. <a href=\"#source-paper\">[1]</a></p>",
   "sections": [
     {
       "id": "waiting",
-      "title": "The slowest rollout can determine the next update",
-      "html": "<p>A rollout is one sampled attempt at a task, including the model’s actions and the environment’s replies. In a simple synchronous scheme, a collection of rollouts must finish before the learner updates. Different task lengths then create waiting time.</p><p>Consider three rollout workers taking 2, 3 and 10 time units. If all wait for a barrier at time 10, the first worker sits idle for 8 units and the second for 7. Their spare time is a scheduling problem; it does not imply that the long task is less valuable.</p><p>GLM-5’s report describes separate inference and training engines. The inference side continually produces trajectories, while a learner consumes completed batches and periodically sends updated weights back. Task-specific services provide different environments through a common orchestration layer.</p> <a href=\"#source-paper\">[1]</a>",
+      "title": "The slowest attempt sets the pace",
+      "nav": "Waiting",
+      "html": "<p>A <strong>rollout</strong> is one attempt at a task: the model’s actions and the environment’s replies, from start to finish. In a simple <strong>synchronous</strong> setup, every rollout in a batch must finish before the model is updated, so tasks of different lengths leave workers waiting.</p> <p>Take three rollout workers whose tasks take 2, 3 and 10 time units. If all must wait until time 10, the first worker sits idle for 8 units and the second for 7. That idle time is a scheduling problem; it does not mean the long task is less valuable.</p> <p>GLM-5’s report describes separate engines for generating rollouts and for training. The generation side produces rollouts continuously. The learner takes batches of completed rollouts, updates the weights and periodically sends the new weights back to the generators. Each kind of task environment runs as its own service under a common coordinator. <a href=\"#source-paper\">[1]</a></p>",
       "figure": {
         "kind": "flow",
-        "title": "Experience and learning run on different schedules",
-        "caption": "Simplified asynchronous RL pipeline. Real rollout generation continues while the learner updates.",
-        "takeaway": "Decoupling removes a mandatory wait for every ongoing task.",
+        "title": "Generation and learning on separate schedules",
+        "caption": "Simplified asynchronous reinforcement-learning pipeline. Rollout generation continues while the learner updates.",
+        "takeaway": "Decoupling generation from learning removes the forced wait for every running task.",
         "config": {
           "steps": [
             {
@@ -45,13 +46,14 @@
     },
     {
       "id": "scheduling",
-      "title": "Overlap reduces waiting, not the amount of work",
-      "html": "<p>The interactive schedule below uses four independent jobs taking 3, 2, 4 and 1 arbitrary time units. With one worker, the total is 10. Adding workers overlaps tasks. It is a small analogy for keeping workers busy, not a simulation of the GLM training system.</p><p>Watch the longest worker row. That row determines the completion time of this finite job set. If every job depended on the previous result, additional workers would have no effect. The arithmetic therefore separates available parallelism from the number of machines purchased.</p><p>Training adds a further complication: a completed rollout may have been generated using older weights than the learner now holds. Faster scheduling changes the statistical problem as well as the hardware utilization. A useful system must account for both.</p>",
+      "title": "Overlap removes waiting, not work",
+      "nav": "Scheduling",
+      "html": "<p>The figure schedules four independent jobs that take 3, 2, 4 and 1 time units. One worker needs 10 units. Adding workers lets the jobs overlap. This is a small analogy for keeping workers busy, not a simulation of GLM-5’s training system.</p> <p>Watch the longest row; it sets when the whole set of jobs finishes. If each job depended on the previous one’s result, extra workers would not help at all. The arithmetic separates how much parallelism the work allows from how many machines are available.</p> <p>Training adds a complication. A rollout that finishes now may have been generated with older weights than the learner currently holds. Faster scheduling therefore changes the statistics of learning as well as the use of hardware, and a working system has to handle both.</p>",
       "figure": {
         "kind": "parallel",
-        "title": "See the cost of an uneven job mix",
-        "caption": "Illustrative independent durations and greedy scheduling. No model throughput or GLM training speedup is inferred.",
-        "takeaway": "Overlapping independent jobs can shorten elapsed time without reducing total work.",
+        "title": "The cost of an uneven mix of jobs",
+        "caption": "Made-up independent job durations with greedy scheduling. Nothing here estimates GLM-5’s training speed.",
+        "takeaway": "Overlapping independent jobs shortens elapsed time without reducing total work.",
         "config": {
           "tasks": [
             3,
@@ -64,13 +66,15 @@
     },
     {
       "id": "staleness",
-      "title": "Old experience came from an older policy",
-      "html": "<p>A policy is the model’s distribution over possible actions. After learning, that distribution changes. If a worker produced a trajectory before the latest updates, the learner cannot pretend it came from the current policy. This mismatch is commonly called policy lag or off-policy data.</p><p>GLM-5 periodically refreshes the rollout workers’ weights and preserves the exact generated token IDs. Reconstructing a rollout by re-tokenizing its displayed text can change boundaries and misalign the actions whose probabilities are used during learning.</p> <a href=\"#source-paper\">[1]</a><p>The report also stores the probability assigned to each sampled token when it was generated. During learning, it compares the current probability with that stored value. Tokens whose probability ratio falls outside a chosen interval contribute no gradient to this objective; they are masked, not merely assigned a capped ratio. Entire trajectories are dropped when their oldest policy version is too far behind the learner. These controls limit the influence of stale experience. <a href=\"#source-paper\">[1]</a></p><p>This is why asynchronous learning is more than moving a queue between two programs. The data must retain enough information for the objective to remain meaningful when generation and optimization no longer share one clock.</p>"
+      "title": "Learning from an older policy’s experience",
+      "nav": "Stale experience",
+      "html": "<p>A <strong>policy</strong> is the model viewed as a decision-maker: its probabilities over possible next actions. Every update changes those probabilities. A rollout generated before the latest updates came from an older policy, and the learner cannot treat it as if the current policy had produced it. This mismatch is called <strong>policy lag</strong>, and data affected by it is called off-policy.</p> <p>GLM-5 handles this in several ways. It refreshes the rollout workers’ weights periodically. It keeps the exact token IDs the model generated, because converting the text back into tokens later can split it differently and misalign the actions being learned from. <a href=\"#source-paper\">[1]</a></p> <p>It also stores the probability each generated token had when it was sampled. During learning, it compares that stored probability with the current policy’s probability for the same token. If their ratio falls outside a set range, the token is excluded from the update entirely, not merely capped. Whole rollouts are dropped when the policy that generated them is too many versions behind the learner. Together, these limit the influence of stale experience. <a href=\"#source-paper\">[1]</a></p> <p>Asynchronous learning is therefore more than putting a queue between two programs. The stored data must carry enough information for the training objective to stay meaningful when generation and learning no longer run in step.</p>"
     },
     {
       "id": "attention",
-      "title": "Reduce reading cost separately from training waits",
-      "html": "<p>GLM-5 also adopts DeepSeek Sparse Attention and scales to 744 billion total parameters with 40 billion active. A lightweight indexer scores the earlier context, then sparse attention uses its selected subset for the more expensive attention operation. The cache and indexing work still grow with context; this is not a bounded recurrent state. This is inherited from DeepSeek work; the asynchronous learning system addresses a different bottleneck.</p> <a href=\"#source-paper\">[1]</a><p>A sparse expert selects which parameter networks process a token. Sparse attention selects which earlier token representations to consult. Neither automatically fixes idle rollout workers. Keeping these mechanisms separate makes efficiency claims interpretable.</p><p>Later GLM-5.2 introduced IndexShare, reusing an indexer across groups of sparse-attention layers, while GLM-5.3 reused the 5.2 base and emphasized post-training. GLM-5.3-Flash then changed the base architecture again. The official family repository separates these developments.</p> <a href=\"#source-repo\">[3]</a><p>The broader lesson is to identify the cost before choosing the remedy: stored parameters, context retrieval, time waiting for tools and stale training data are different engineering problems.</p>"
+      "title": "A separate saving: sparse attention",
+      "nav": "Sparse attention",
+      "html": "<p>GLM-5 also adopts DeepSeek Sparse Attention, described on the DeepSeek-V3.2 page. A lightweight indexer scores the earlier context, and the expensive attention step reads only the selected tokens. The cache and the indexing work still grow with the context; this is not a fixed-size recurrent state. The technique comes from DeepSeek, and it addresses a different bottleneck from the asynchronous training system. <a href=\"#source-paper\">[1]</a></p> <p>Sparse experts choose which weights process a token. Sparse attention chooses which earlier tokens to read. Neither fixes idle rollout workers. Keeping these mechanisms apart makes each efficiency claim easier to check.</p> <p>Later versions changed things further. GLM-5.2 introduced IndexShare, which reuses one indexer across groups of sparse-attention layers. GLM-5.3 kept the 5.2 base model and focused on post-training, and GLM-5.3-Flash changed the base architecture again. The official family repository keeps these developments separate. <a href=\"#source-repo\">[3]</a></p> <p>The broader lesson is to identify the cost before choosing a remedy. Stored parameters, reading the context, time spent waiting for tools and stale training data are separate engineering problems.</p>"
     }
   ],
   "sources": [
@@ -100,8 +104,8 @@
     }
   ],
   "caveats": [
-    "The scheduling widget illustrates independent job overlap; it does not reproduce slime or asynchronous policy optimization.",
-    "Efficiency gains from sparse attention and asynchronous RL cannot be multiplied into an overall speedup without measurements."
+    "The scheduling figure shows independent jobs overlapping. It does not reproduce GLM-5’s training framework, called slime, or its asynchronous optimization.",
+    "The gains from sparse attention and from asynchronous training cannot be multiplied into one overall speed-up without measurements."
   ],
   "related": [
     "2025-07-28-glm-4-5",

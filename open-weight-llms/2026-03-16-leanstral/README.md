@@ -1,31 +1,31 @@
 # Leanstral / 1.5
 
-Turn a proposed proof into a checked artifact
+How a proof checker turns a model’s attempts into reliable feedback
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Formal proof tools turn code-agent attempts into inspectable feedback and verifiable training outcomes.
+Leanstral is trained to write formal Lean proofs inside real projects, using the proof checker’s feedback to guide its work and the checker’s verdict as its training reward.
 
-- Begin with something a checker can mean
-- Learn to work inside the feedback loop
-- Reward a completed trajectory
-- More attempts create more opportunities
-- A passed check has a precise boundary
+- A checker needs an exact statement
+- Working inside the feedback loop
+- Rewarding a completed session
+- More attempts, more chances
+- What a passed check proves
 
 ## Figures
 
-- **The model proposes; tools make the remaining work visible** (`flow`): Simplified proof-engineering loop. Rejected candidates return to editing; acceptance depends on the task’s statement and allowed assumptions. Reliable feedback changes both how an agent searches and which trajectories can teach it.
-- **Separate the amount of work from elapsed time** (`parallel`): Illustrative independent-attempt durations in arbitrary units. The generic scheduler is not the Leanstral inference implementation, and it does not predict proof success. Parallel attempts can spend more compute within a shorter time budget; verification identifies acceptable outputs.
+- **The model proposes; the tools show what remains** (`flow`): Simplified proof-engineering loop. Rejected attempts go back to editing; acceptance depends on the task’s statement and permitted assumptions. Reliable feedback changes how an agent searches and which attempts it can learn from.
+- **Total work versus elapsed time** (`parallel`): Made-up durations for independent attempts, in arbitrary units. This generic scheduler is not Leanstral’s serving system and does not predict proof success. Parallel attempts spend more computation in less time; the checker picks out the valid ones.
 
 ## Accuracy and scope
 
-Release date: 2026-03-16. First Leanstral public weights: March 16, 2026. The July 2 Leanstral 1.5 announcement and report are explicitly identified where their training details are discussed.
+Release date: 2026-03-16. Mistral released the first Leanstral weights on March 16, 2026. Training details from the Leanstral 1.5 announcement and report of July 2 are labeled where they appear.
 
-- March 2603 checkpoint facts and July 1.5 training details are labeled separately.
-- A checked proof establishes its formal statement under its assumptions; it does not automatically validate the English specification.
-- The parallel widget models independent scheduling only, not actual serving performance or coordinated agents.
+- Facts about the March checkpoint and training details from the July 1.5 report are labeled separately.
+- A checked proof establishes its formal statement under its assumptions; it does not show that the statement matches the English requirement.
+- The scheduling figure models independent attempts only, not real serving performance or cooperating agents.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

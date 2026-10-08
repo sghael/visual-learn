@@ -4,31 +4,31 @@
   "model": "BitNet b1.58 2B4T",
   "family": "BitNet",
   "subtitle": "How a network learns to compute with minus one, zero, and plus one",
-  "summary": "Round a weight onto a ternary grid and distinguish native low-bit training from compressing a finished model.",
+  "summary": "BitNet b1.58 2B4T trained a 2-billion-parameter model whose weights take only the values −1, 0 and +1, instead of rounding a finished model afterward.",
   "category": "Training",
   "parameters": "About 2B parameters, trained on 4T tokens",
   "license": "MIT for the official referenced model.",
-  "lead": "<p>Weights are usually represented with many possible numerical values. BitNet restricts the weights used in its linear layers to three values, with a scale that restores magnitude. The model learns under that restriction instead of having the restriction imposed only after training.</p>",
+  "lead": "<p>Most models store each weight as a 16-bit number, and shrinking a finished model to fewer bits usually costs some accuracy. BitNet b1.58 2B4T, released by Microsoft Research in April 2025, took a different path. Its weights can take only three values, −1, 0 and +1, multiplied by a scale factor, and the model was trained that way from the start so it could learn to work within the restriction. The report says the model, with about 2 billion parameters trained on 4 trillion tokens, performs about as well as full-precision models of similar size while using much less memory and energy. <a href=\"#source-paper\">[1]</a></p>",
   "sections": [
     {
       "id": "ternary",
-      "title": "Three choices are enough to define a different arithmetic",
-      "html": "<p>A <strong>ternary</strong> weight has three states: minus one, zero, and plus one. Multiplying an activation by those states means negating it, ignoring it, or retaining it, before accounting for scale. A matrix-vector product can therefore be implemented with specialized addition and lookup operations.</p><p>The 2B4T release replaces ordinary linear layers with BitLinear layers, quantizes weights using an absolute-mean scale, and uses eight-bit activation quantization. It was trained from scratch under this regime. <a href=\"#source-paper\">[1]</a> The name “1.58” comes from log₂(3), the information needed to distinguish three equally likely states in an ideal coding argument. It is not a promise that every parameter in every serialized file occupies exactly 1.58 bits.</p><p>For a toy scale of 0.5, a latent weight of 0.65 is mapped to the code +1 and reconstructed as 0.5. Move the latent value below the boundary and the forward value jumps. The mapping has flat intervals, which becomes important when trying to learn.</p>",
+      "title": "Weights with three values",
+      "html": "<p>A <strong>ternary</strong> weight has three possible values: −1, 0 and +1. Multiplying an input by such a weight means negating it, dropping it or keeping it. A matrix multiplication, the main work in a language model, then reduces mostly to additions and subtractions, with a single multiplication by a scale factor at the end. Software written for this can exploit it.</p> <p>The 2B4T model replaces the ordinary linear layers of a transformer with <strong>BitLinear</strong> layers. Each layer’s weights are divided by their average absolute value and rounded to −1, 0 or +1, and each layer’s inputs are stored as 8-bit integers. The model was trained from scratch under these rules. <a href=\"#source-paper\">[1]</a> The “1.58” in the name is log₂ 3 ≈ 1.58, the number of bits of information needed to tell three equally likely values apart. Real files pack the values in other ways, so a weight does not literally occupy 1.58 bits on disk.</p> <p>Training keeps a higher-precision copy of each weight, called the <strong>latent weight</strong>, and rounds it every time the layer runs. In the figure, the scale is fixed at 0.5. A latent weight of 0.65 divided by 0.5 is 1.3, which rounds to +1, so the layer uses +1 × 0.5 = 0.5. Drag the latent weight down: below 0.25 it rounds to 0, and the value the layer uses jumps. Between jumps, small changes to the latent weight change nothing in the calculation. That flatness is the problem the next section deals with.</p>",
       "figure": {
         "kind": "ternary",
-        "title": "A continuous latent weight, a discrete forward value",
+        "title": "A precise latent weight, a three-valued calculation",
         "config": {},
-        "caption": "Simplified fixed-scale ternary quantizer. Actual BitLinear scales are derived from weight statistics.",
-        "takeaway": "The network must learn while its forward computation sees a coarse grid."
+        "caption": "Simplified ternary rounding with a fixed scale of 0.5. In BitLinear, the scale comes from the average absolute value of each weight matrix.",
+        "takeaway": "The model trains a precise hidden value, but its calculations see only three levels."
       }
     },
     {
       "id": "gradient",
-      "title": "Learning needs a path through rounding",
-      "html": "<p>Ordinary differentiation of rounding gives zero almost everywhere and is undefined at the jumps. If an optimizer followed only that derivative, tiny changes to a latent weight would appear unable to improve the loss. Quantization-aware training therefore uses a surrogate gradient, often described as a straight-through estimator.</p><p>The conceptual loop is: keep higher-precision latent values for optimization; quantize for the forward computation; measure the loss; use a chosen backward approximation to update the latent values. This is a training method with approximation error, not a theorem that rounding is differentiable. The earlier BitNet b1.58 work describes the native low-bit design that the later release scales up. <a href=\"#source-earlier\">[2]</a></p><p>Suppose a latent weight moves from 0.20 to 0.24. At a scale of 0.5 it may stay on the same forward code. A later change to 0.30 crosses the threshold. Several latent updates can therefore accumulate before a visible forward change occurs. That is why the hidden optimization state and deployed representation should not be confused.</p>",
+      "title": "Learning through rounding",
+      "html": "<p>Training adjusts each weight in the direction that reduces the error, using the <strong>gradient</strong>: how much the error changes when the weight changes slightly. Rounding breaks this. A small change to the latent weight usually leaves the rounded value unchanged, so the gradient through rounding is zero almost everywhere and undefined at the jumps. An optimizer that followed it would never move.</p> <p><strong>Quantization-aware training</strong> works around this with a stand-in gradient. The most common, the <strong>straight-through estimator</strong>, passes the gradient through the rounding step as if the rounding were not there. Each training step keeps the latent weights in higher precision, rounds them for the forward calculation, measures the error, and applies the stand-in gradient to the latent weights. The stand-in is an approximation that works in practice; rounding itself is still not differentiable. The approach comes from the earlier BitNet b1.58 paper, which the 2B4T model scales up. <a href=\"#source-earlier\">[2]</a></p> <p>Suppose a latent weight moves from 0.20 to 0.24 over several steps. With a scale of 0.5, it still rounds to 0, so the model’s output does not change. One more step, to 0.30, crosses the threshold and the weight becomes +1. Many small updates can build up before any visible change. The latent weights exist only during training; the released model ships the rounded values.</p>",
       "figure": {
         "kind": "flow",
-        "title": "Train with the restriction already present",
+        "title": "Train with the restriction already in place",
         "config": {
           "steps": [
             {
@@ -49,19 +49,21 @@
             }
           ]
         },
-        "caption": "Simplified quantization-aware training loop; it omits normalization, optimizer state, and activation details.",
-        "takeaway": "Native low-bit training gives the optimizer opportunities to compensate."
+        "caption": "Simplified quantization-aware training loop. It omits normalization, optimizer state and the handling of activations.",
+        "takeaway": "Training under the restriction lets the optimizer learn to work around it."
       }
     },
     {
       "id": "release",
-      "title": "A model and an implementation must agree",
-      "html": "<p>The official model card identifies the two-billion-scale checkpoint, its training-token count, context configuration, and intended implementation. <a href=\"#source-card\">[3]</a> The release is not an instruction to round any existing large model to ternary values and expect the same behavior.</p><p>A general-purpose inference engine might unpack ternary codes into floating-point values and run ordinary matrix multiplication. That can preserve the represented calculation while losing much of the intended efficiency. A specialized implementation can exploit the restricted arithmetic and packing. The official BitNet repository provides CPU-oriented inference tooling and records the April 14, 2025 model release. <a href=\"#source-code\">[4]</a></p><p>For intuition, imagine storing directions as “left,” “stay,” and “right.” A compact representation saves storage only if the program understands the code. If the program expands every direction into a long record before every operation, some of the advantage disappears. The entire execution path matters.</p>"
+      "title": "The model needs matching software",
+      "nav": "Software",
+      "html": "<p>The model card describes the checkpoint: about 2 billion parameters, 4 trillion training tokens, its context length and the software it is meant to run with. <a href=\"#source-card\">[3]</a> The release does not show that any existing model can be rounded to three values and keep its quality. 2B4T works because it was trained under the restriction.</p> <p>A general-purpose inference engine might unpack the three-valued weights into ordinary 16-bit numbers and run a normal matrix multiplication. That gives the right answer but throws away most of the savings. Software written for ternary weights can pack them tightly and replace multiplications with additions. Microsoft’s bitnet.cpp provides such software for CPUs, and its repository records the model’s April 14, 2025 release. <a href=\"#source-code\">[4]</a></p> <p>Think of directions written in a code of “left”, “stay” and “right”. The short code saves space only if the program reading it understands it. If the program expands each direction into a long record before using it, much of the saving is lost. Efficiency depends on the whole path from the file to the arithmetic.</p>"
     },
     {
       "id": "limits",
-      "title": "Precision savings do not measure language quality",
-      "html": "<p>Compare two different claims. “Three states require fewer stored codes than a sixteen-bit number” is an arithmetic statement. “This trained model answers a particular question correctly” is an empirical statement. The first cannot prove the second.</p><p>The release reports evaluations against models of similar scale, and its training uses pretraining, supervised fine-tuning, and DPO. <a href=\"#source-paper\">[1]</a> Those evaluations depend on the tasks, prompts, data, and implementations. They do not establish a universal advantage for low-bit training at every model size or every task.</p><p>Weight memory is only one component of inference memory. Embeddings, scales, KV caches, activations, and runtime workspaces still matter. Training also maintains state beyond the low-bit forward weights. A careful experiment records the actual process memory and task quality, alongside the nominal bit width.</p>"
+      "title": "Fewer bits do not prove a better model",
+      "nav": "Limits",
+      "html": "<p>Two kinds of claim are easy to mix up. “A three-valued weight takes less storage than a 16-bit number” is arithmetic. “This trained model answers a question correctly” is an empirical result. The first cannot establish the second.</p> <p>The report compares 2B4T with similar-sized models trained in full precision, after its own fine-tuning on instructions and preference training with DPO. <a href=\"#source-paper\">[1]</a> Those comparisons depend on the chosen tasks, prompts, data and software. They do not show that ternary training is better at every size or for every task.</p> <p>Weight storage is also only part of the memory a running model needs. Embeddings, scale factors, the KV cache, temporary values and software workspace all add to it, and training needs far more memory than the final rounded weights. A careful test reports the memory actually used and the quality of the answers, not only the nominal bit width.</p>"
     }
   ],
   "sources": [
@@ -91,14 +93,14 @@
     }
   ],
   "caveats": [
-    "The displayed scale is fixed for teaching; actual quantization uses tensor statistics.",
-    "Theoretical code entropy, physical storage format, and total runtime memory are different quantities.",
-    "No hardware speedup or accuracy estimate is computed by this page."
+    "The figure fixes the scale for teaching; the real model computes it from each weight matrix.",
+    "Bits of information per weight, the storage format on disk and total runtime memory are three different quantities.",
+    "This page computes no speed-up or accuracy estimate."
   ],
-  "dateNote": "Official repository release note; technical report followed on arXiv.",
+  "dateNote": "Microsoft’s BitNet repository announced the model on April 14, 2025. The technical report followed on arXiv.",
   "related": [
     "2025-08-05-gpt-oss",
     "2024-06-27-gemma-2"
   ],
-  "readingMinutes": 9
+  "readingMinutes": 8
 }

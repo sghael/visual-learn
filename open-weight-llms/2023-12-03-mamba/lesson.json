@@ -4,16 +4,16 @@
   "model": "Mamba",
   "family": "Mamba",
   "subtitle": "How a model can remember by updating a state instead of keeping every token",
-  "summary": "Step through input-dependent memory and compare a fixed recurrent state with a growing KV cache.",
+  "summary": "Mamba replaced the growing attention cache with a fixed-size memory whose updates depend on the current token, and found a fast way to train it on GPUs.",
   "category": "Memory",
   "parameters": "Released checkpoints from 130M to 2.8B; original architecture",
   "license": "Apache 2.0 for the referenced official checkpoint.",
-  "lead": "<p>Reading a long story does not require keeping a literal copy of every sentence in your working memory. A model can also carry a compressed state forward. The difficulty is deciding what to retain. Mamba made that decision depend on the current input while preserving an efficient way to train the sequence model.</p>",
+  "lead": "<p>A transformer keeps the keys and values of every earlier token, so its memory grows with the conversation. A recurrent model keeps a fixed-size summary instead and updates it as each token arrives. Recurrent models of this kind had lagged behind transformers on language, partly because their update rule treated every token the same way. Mamba, published by Albert Gu and Tri Dao in December 2023, made the update depend on the current token and showed how to train such a model quickly on GPUs. <a href=\"#source-paper\">[1]</a></p>",
   "sections": [
     {
       "id": "history",
       "title": "Two ways to carry the past",
-      "html": "<p>During cached generation, full causal attention keeps keys and values for earlier tokens. Each new query can compare itself with that history. A recurrent model instead transforms a fixed-size <strong>state</strong>: a collection of numbers passed from one step to the next. The state is a summary, so recovering an arbitrary past token becomes a learned compression problem.</p><p>The Mamba paper frames selection as a way to improve this compression. Input-dependent parameters determine what enters the state and how its contents evolve. This extends earlier structured state-space models; it does not invent recurrence or selective memory from nothing. <a href=\"#source-paper\">[1]</a> The tradeoff is concrete: storing more history supports direct retrieval, while keeping a fixed state makes generation memory independent of the number of earlier tokens for that recurrent layer.</p>",
+      "html": "<p>A transformer generating text stores the keys and values of every earlier token in its KV cache, so each new token can compare itself directly with any of them. The cache grows by a fixed amount with every token. A <strong>recurrent</strong> model works differently. It carries a <strong>state</strong>, a fixed-size set of numbers, from one token to the next, and each token updates the state. The state never grows, so it cannot hold everything. It is a summary, and the model has to learn what to put in it.</p> <p>Mamba belongs to a family called <strong>state-space models</strong>: recurrent models whose state update is a linear rule with learned coefficients. In earlier models of this family, the coefficients were the same for every token, so the model could not decide to skip a filler word or hold on to a name. Mamba computes the coefficients from the current token. The paper calls this <strong>selection</strong>, because it lets the model choose what enters the state and what fades. <a href=\"#source-paper\">[1]</a></p> <p>The figure compares storage for a single layer. The attention line rises with every token; the recurrent state stays flat. The price of the flat line is that recovering an arbitrary earlier token now depends on how well the model compressed it.</p>",
       "figure": {
         "kind": "state",
         "title": "History grows; a recurrent state stays fixed",
@@ -22,29 +22,31 @@
           "kvScalarsPerToken": 64,
           "tokens": 128
         },
-        "caption": "Simplified single-layer storage example with illustrative dimensions. It excludes weights, temporary buffers, and training activations.",
-        "takeaway": "A fixed-size state shifts the burden from storage to learned compression."
+        "caption": "Simplified storage for one layer, with made-up sizes: 64 numbers per token for the attention cache and 256 for the recurrent state. Weights, temporary buffers and training memory are excluded.",
+        "takeaway": "A fixed-size state trades storage for compression: the model must learn what to keep."
       }
     },
     {
       "id": "select",
-      "title": "A distractor should not erase a useful value",
-      "html": "<p>Consider a deliberately tiny memory cell. It receives the sequence 1, 0, 0, 0, 2, 0, 0, 0. Treat nonzero values as signals and zeros as distractors. The cell updates according to <code>h_new = (1 − g) h_old + g x</code>. This example is a scalar teaching device, not a full Mamba layer.</p><p>With a fixed gate of 0.5, the first signal becomes 0.5, then 0.25, 0.125, and 0.0625 as zeros arrive. With a selective gate, use one for signals and zero for distractors. The state holds one until the two arrives, then holds two. The difference is the input-dependent decision, not a larger memory.</p><p>Before stepping the figure, predict the state after the fourth input. Then switch to the fixed gate and compare. Real Mamba uses learned, continuous, multidimensional transformations. Its scalar special case connects to a gated recurrence, as the paper’s appendix explains. <a href=\"#source-paper\">[1]</a></p>",
+      "title": "Why the update should depend on the input",
+      "nav": "Input-dependent updates",
+      "html": "<p>A memory that holds one number shows the idea. The state h is updated with each input x by the rule <code>h_new = (1 − g) × h_old + g × x</code>. The gate g sets how much the input replaces the old state: g = 0 leaves the state unchanged, and g = 1 replaces it entirely. Feed the memory the sequence 1, 0, 0, 0, 2, 0, 0, 0, where the nonzero numbers are signals worth keeping and the zeros are filler.</p> <p>With a fixed gate of 0.5, the signal fades. After the first input the state is 0.5, and each zero halves it, to 0.25, 0.125 and 0.0625. A selective gate looks at the input first. It uses g = 1 for a signal and g = 0 for filler, so the state holds 1 until the 2 arrives and then holds 2. Both versions store one number. Only the rule for updating it differs.</p> <p>Before pressing Step, predict the state after the fourth input under each gate. Real Mamba layers update many numbers at once, and a learned transformation of the input produces their gates; nobody chooses them by hand. The paper’s appendix shows that in the one-number case, Mamba’s update reduces to a gated recurrence like this one. <a href=\"#source-paper\">[1]</a></p>",
       "figure": {
         "kind": "recurrence",
         "title": "Make forgetting depend on the input",
         "config": {},
-        "caption": "Simplified scalar recurrence. The gates are hand-chosen; no network is trained here.",
-        "takeaway": "The same amount of state can behave differently when its update depends on content."
+        "caption": "Simplified one-number memory. The gate values are chosen by hand; nothing is trained.",
+        "takeaway": "The same memory behaves differently when its update depends on the input."
       }
     },
     {
       "id": "parallel",
-      "title": "Sequential meaning need not mean sequential training",
-      "html": "<p>At generation time, a recurrence naturally advances one token at a time. Training has the full sequence available. A sequence of affine updates can be composed associatively: applying one update and then another can be represented as a single combined update. This opens the door to parallel prefix computations.</p><p>Mamba combines input-dependent selection with a hardware-aware scan implementation. Its code exposes a selective state-space module and language-model checkpoints, so the algorithm is not only a mathematical proposal. <a href=\"#source-code\">[2]</a> Parallelism changes how the known sequence is evaluated; it does not allow a future generated token to be known before it has been produced.</p><p>For a concrete analogy, multiplying many small matrices can be grouped into pairs, then pairs of pairs, instead of carrying out the entire chain on a single thread. Associativity preserves the result in exact arithmetic, although finite-precision kernels can differ numerically. GPU efficiency also depends on memory movement, not just the number of operations.</p>",
+      "title": "Training without stepping token by token",
+      "nav": "Parallel training",
+      "html": "<p>Selection created a practical problem. Earlier state-space models, with fixed coefficients, could be trained as one large convolution, an operation GPUs run efficiently. Once the coefficients change with each token, that shortcut no longer applies, and computing the state one token after another would leave most of a GPU idle. <a href=\"#source-paper\">[1]</a></p> <p>During training, however, the whole sequence is known in advance. Each update has the form “multiply the state by something, then add something”, and two such updates combine into a single update of the same form. For example, “multiply by 0.5, add 1” followed by “multiply by 0.5, add 2” equals “multiply by 0.25, add 2.5”. Updates can therefore be combined in pairs, then pairs of pairs, like a tournament bracket. This is a <strong>parallel scan</strong>. Mamba runs the scan in a GPU kernel that keeps the expanded state in the chip’s small, fast on-chip memory instead of writing it to slower main memory. <a href=\"#source-paper\">[1]</a></p> <p>The scan only helps with text that already exists. During generation, the next token is unknown until the model produces it, so the model updates its state one token at a time, at the same small cost for every token. The official code includes the selective state-space layer and the pretrained language models. <a href=\"#source-code\">[2]</a></p>",
       "figure": {
         "kind": "flow",
-        "title": "One sequence, two execution settings",
+        "title": "One sequence, two ways to compute it",
         "config": {
           "steps": [
             {
@@ -61,14 +63,14 @@
             }
           ]
         },
-        "caption": "Simplified execution schematic; real kernels fuse several operations.",
-        "takeaway": "Parallel training and recurrent generation can implement the same sequence transformation."
+        "caption": "Simplified schematic. The real GPU kernels fuse several of these operations.",
+        "takeaway": "Training and generation compute the same transformation in different orders."
       }
     },
     {
       "id": "limits",
-      "title": "Compression has a price",
-      "html": "<p>A fixed state cannot preserve an unlimited collection of unrelated facts at arbitrary precision. Suppose a prompt contains thousands of random key-value pairs. Attention can retain an addressable representation of each pair; a recurrent state must encode them into a bounded object. That is a reason to test retrieval and copying, not assume that good average language-model loss settles every task.</p><p>The official releases include models trained on the Pile and a separate SlimPajama checkpoint. Those are pretrained language models, not automatically instruction-following assistants. <a href=\"#source-code\">[2]</a> The model repository records the first 130M weight release on December 3, 2023. <a href=\"#source-weights\">[3]</a> Later Mamba generations and hybrid models change the state update or reintroduce attention. Their successes do not retroactively describe the original release.</p>"
+      "title": "What a fixed state cannot do",
+      "html": "<p>A fixed-size state cannot hold an unlimited number of unrelated facts exactly. Suppose a prompt lists a thousand random pairs such as “plum → 4417” and later asks which number went with “plum”. Attention can look back at that exact line. A recurrent model must have squeezed all thousand pairs into its state while reading them. Tasks like this, which test exact retrieval and copying, reveal the cost of compression. A good average score on ordinary text does not.</p> <p>The first release included models from 130 million to 2.8 billion parameters trained on the Pile, a public text collection, plus a separate model trained on SlimPajama. These are base models that predict text; they were not trained to follow instructions. <a href=\"#source-code\">[2]</a> The first weights, for the 130M model, appeared on December 3, 2023. <a href=\"#source-weights\">[3]</a> Later recurrent and hybrid models, including Mamba-3 and Qwen3-Next, change the update rule or add attention layers back.</p>"
     }
   ],
   "sources": [
@@ -92,11 +94,11 @@
     }
   ],
   "caveats": [
-    "The recurrence is a hand-designed teaching example and omits learned projections, multidimensional state, discretization, convolution, and gating in the actual block.",
-    "Constant recurrent state does not mean constant total training memory or unlimited reliable context.",
-    "No benchmark speedup is inferred from the storage chart."
+    "The one-number memory is a hand-built example. A real Mamba block adds learned projections, a many-number state, discretization, a short convolution and an output gate.",
+    "A fixed recurrent state does not make training memory constant, and it does not give the model unlimited reliable context.",
+    "The storage chart does not predict any speedup."
   ],
-  "dateNote": "Official checkpoint history dates the first weight-bearing model release to December 3, 2023.",
+  "dateNote": "The official checkpoint history shows the first weights, for the 130M-parameter model, published on December 3, 2023.",
   "related": [
     "2025-09-11-qwen3-next",
     "2026-07-28-mamba-3"

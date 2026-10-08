@@ -6,26 +6,26 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-A causal encoder–decoder and cross-layer cache reuse reduce distinct costs of input-heavy agent workloads.
+DeepSeek-V4.1-Flash splits the model into an encoder that prepares input once and a decoder that generates, shares cached entries across layers and stores them in four bits, cutting the cost of input-heavy agent work.
 
-- Reading the prompt and writing a reply are different jobs
-- Construct decoder memory from the encoder’s output
-- A third compression axis runs through depth
-- Keep persistent memory distinct from working memory
-- Several mechanisms contribute to the release
+- Reading input and writing output are different jobs
+- Building the decoder’s memory from the encoder
+- Sharing the cache across layers
+- Fast memory, persistent storage and recomputation
+- Several mechanisms in one release
 
 ## Figures
 
-- **Separate prompt preparation from full generation** (`flow`): Simplified causal encoder–decoder flow. Layer-local sliding-window work and bounded replay remain outside this abbreviated global-cache path. The model can prepare decoder history from encoder states without fully decoding every prompt token.
-- **Share across layers; reduce bits per cached number** (`cache`): Simplified uniform global-cache accounting. It omits local KV, indexer keys, scales, tail states, nonuniform sharing and allocator overhead; it is not a V4.1 memory estimator. Depth sharing and bit width multiply their effects because they reduce different factors.
+- **Prepare the input separately from generating** (`flow`): Simplified encoder–decoder flow. Each decoder layer’s local sliding-window work and bounded replay are left out of this outline of the global cache path. The decoder’s memory is built from the encoder’s output, so prompt tokens do not need full decoding.
+- **Share across layers; use fewer bits per number** (`cache`): Simplified accounting for a uniform global cache. It omits local-window caches, indexer keys, scale factors, nonuniform sharing and allocator overhead; it is not a memory estimator for V4.1. Sharing across layers and using fewer bits reduce different factors, so their savings multiply.
 
 ## Accuracy and scope
 
-Release date: 2026-09-10. Official public release and Hugging Face weight link on September 10, 2026. The technical report was submitted September 17. Verified before the October 3, 2026 research cutoff.
+Release date: 2026-09-10. DeepSeek released the model and linked the weights on Hugging Face on September 10, 2026. The technical report was posted on September 17.
 
-- The cache widget uses invented uniform dimensions and cannot estimate the release’s complete runtime memory.
-- Bounded replay approximately reconstructs local state; it is not exact full-history recomputation.
-- Prefill/decode active counts do not equal total weight-storage requirements.
+- The cache figure uses made-up uniform sizes and cannot estimate the release’s total runtime memory.
+- Bounded replay reconstructs the local state approximately; it does not exactly recompute the full history.
+- The active parameter counts for prefill and decode are not the memory needed to store the weights.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

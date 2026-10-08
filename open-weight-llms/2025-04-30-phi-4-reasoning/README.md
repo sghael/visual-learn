@@ -1,31 +1,31 @@
 # Phi-4-reasoning · reasoning-plus
 
-How teachable examples and verifiable rewards shape a compact reasoner
+How well-chosen worked examples and a short round of rewards trained a small reasoning model
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Phi-4-reasoning adds carefully selected demonstrations to Phi-4, then reasoning-plus learns from group-relative rewards.
+Phi-4-reasoning fine-tuned the 14B Phi-4 on long worked solutions to carefully chosen problems; reasoning-plus added reinforcement learning on checked answers.
 
-- Begin with an already trained model
-- Choose problems near the model’s boundary
-- Several attempts create a local comparison
-- Reward design determines what is being practiced
-- More generated work has a cost
+- Starting from Phi-4
+- Choosing problems at the edge of ability
+- Comparing several attempts
+- The reward defines what gets practiced
+- Longer answers cost time
 
 ## Figures
 
-- **A curriculum before a reward loop** (`flow`): Simplified Phi-4-reasoning development sequence. The plus checkpoint adds the final reinforcement-learning stage. Demonstrations establish useful behavior before outcome-based refinement.
-- **Compute a group-relative learning signal** (`grpo`): Simplified pedagogical GRPO signal with illustrative binary rewards. Uses population standard deviation and returns zero for an equal-reward group. Omits clipping, KL, entropy, token loss and Phi’s actual length/format/repetition reward. A relative signal needs differences among sampled outcomes.
+- **Examples first, then rewards** (`flow`): Simplified development sequence. Only the plus model has the final reinforcement-learning stage. Demonstrations establish good habits before rewards refine them.
+- **Compute a group-relative learning signal** (`grpo`): Simplified GRPO advantage with made-up rewards of 0 or 1, using the population standard deviation; a group with equal rewards gets zero. It omits clipping, the drift penalty, per-token weighting and Phi’s length, format and repetition terms. A relative signal needs the attempts to differ.
 
 ## Accuracy and scope
 
-Release date: 2025-04-30. Public reasoning and reasoning-plus weights launched April 30, 2025. The underlying Phi-4 was a prior release.
+Release date: 2025-04-30. Microsoft released the reasoning and reasoning-plus weights on April 30, 2025. The underlying Phi-4 model was released earlier.
 
-- The widget is only a simplified advantage calculation, not Phi’s full training loss.
-- Sequence imitation is not the same as token-distribution distillation.
-- Longer reasoning is not guaranteed to improve an individual answer.
+- The figure computes only a simplified advantage, not Phi’s full training objective.
+- Imitating written solutions is different from matching a teacher’s token probabilities.
+- Longer reasoning does not guarantee a better answer to any particular question.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

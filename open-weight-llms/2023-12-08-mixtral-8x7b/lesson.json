@@ -3,29 +3,30 @@
   "model": "Mixtral 8×7B",
   "family": "Mistral",
   "date": "2023-12-08",
-  "dateNote": "Public torrent weights appeared December 8, 2023; Mistral’s formal announcement is dated December 11. The technical report followed January 8, 2024.",
-  "subtitle": "A large library of parameters, a small working selection",
-  "summary": "A router chooses two feed-forward experts for each token at each layer, separating total capacity from active computation.",
+  "dateNote": "Mistral AI posted the weights as a torrent on December 8, 2023, announced the model on December 11, and published the technical report on January 8, 2024.",
+  "subtitle": "A model with many parameters that uses only a few of them for each token",
+  "summary": "In each layer, a router sends every token to two of eight feed-forward networks, so Mixtral stores 46.7 billion parameters but uses about 12.9 billion for each token.",
   "category": "Sparse compute",
-  "readingMinutes": 9,
+  "readingMinutes": 8,
   "parameters": "46.7B total · 12.9B active",
   "license": "Apache 2.0",
-  "lead": "<p>A dense model asks the same learned feed-forward machinery to process every token. Mixtral puts several alternatives at each layer and learns which ones to use. Its 46.7 billion total parameters and 12.9 billion active parameters answer different questions: how much machinery exists, and how much processes one token. <a href=\"#source-release\">[1]</a></p>",
+  "lead": "<p>In an ordinary transformer, every token passes through every weight in the model, so a bigger model costs proportionally more computation per token. Mixtral 8×7B breaks that link. Each of its layers holds eight alternative feed-forward networks, and a small router sends each token through only two of them. The model has 46.7 billion parameters in total, but only about 12.9 billion take part in processing any one token. <a href=\"#source-release\">[1]</a> This page explains how the routing works and what it does and does not save.</p>",
   "sections": [
     {
       "id": "block",
-      "title": "An expert is a component, not a complete chatbot",
-      "html": "<p>A transformer layer performs two broad jobs. Attention combines information across token positions. A feed-forward network transforms the representation at each position. Mixtral replaces that second component with a <strong>mixture of experts</strong>, or MoE. Its attention machinery is shared; eight alternative feed-forward networks are available at each layer. The original Mixtral supports full causal attention across its 32,768-token context, unlike Mistral 7B v0.1’s sliding window. <a href=\"#source-paper\">[2]</a></p><p>Think of a workshop with a common measuring station and several specialized tools. Every workpiece passes through the measuring station, then selected tools act on it. The analogy explains selective work, but it should not suggest that the tools were assigned subjects such as law or biology. The router learns a numerical dispatch rule.</p><p>The name “8×7B” therefore does not mean eight complete seven-billion-parameter models independently answer a question. Counting shared components only once explains why the total is below 56 billion.</p>"
+      "title": "What an “expert” is",
+      "html": "<p>Each transformer layer does two jobs. <strong>Attention</strong> moves information between token positions. A <strong>feed-forward network</strong> then transforms each token’s representation on its own; in most models, this part holds the majority of the weights. Mixtral keeps a single attention block per layer, shared by all tokens, and replaces the single feed-forward network with eight of them. This design is a <strong>mixture of experts</strong> (MoE), and each of the eight networks is called an <strong>expert</strong>. <a href=\"#source-paper\">[2]</a></p> <p>Unlike Mistral 7B, Mixtral uses full attention over its whole 32,768-token context, with no sliding window. <a href=\"#source-paper\">[2]</a></p> <p>The name “8×7B” suggests eight complete 7-billion-parameter models, which would total 56 billion. That is not the design. Only the feed-forward networks come in eights; attention and the other shared parts exist once. That is why the total is 46.7 billion.</p>"
     },
     {
       "id": "route",
-      "title": "Choose two transformations and combine them",
-      "html": "<p>For each token at each layer, a small router scores the available experts and selects two. Their outputs are combined using routing weights. Another token, or the same token at another layer, may take a different route. <a href=\"#source-paper\">[2]</a></p><p>Here is an invented two-number example. Expert A produces [2, 0], expert B produces [0, 3], and the router gives them weights 0.75 and 0.25. Their weighted contribution is 0.75[2, 0] + 0.25[0, 3] = [1.5, 0.75]. The router combines internal vectors; it does not hold a vote between two written answers.</p><p>Change the token example in the widget and observe which experts light up. Then change the active count. More active experts mean more transformations for a token, even though the inventory of available experts stays the same. The demonstration uses deterministic teaching routes, not measured routes from Mixtral.</p>",
+      "title": "How a token picks two experts",
+      "nav": "Routing",
+      "html": "<p>At every layer, a small <strong>router</strong> scores the eight experts for the current token and keeps the two highest. Both chosen experts process the token, and their outputs are added together, weighted by the router’s scores. The next token may pick a different pair, and the same token may pick a different pair at the next layer. <a href=\"#source-paper\">[2]</a></p> <p>Here is the combining step with two-number vectors. Expert A outputs [2, 0], expert B outputs [0, 3], and the router gives them weights 0.75 and 0.25. The layer’s output is 0.75 × [2, 0] + 0.25 × [0, 3] = [1.5, 0.75]. The router blends internal vectors, partway through a calculation; the experts are not voting between finished answers.</p> <p>In the figure, switch between Token A, Token B and Token C to see different experts selected, then change how many experts each token uses. Using more experts per token adds computation; the number of experts stored stays at eight. The routes are made up for illustration; they are not Mixtral’s measured choices.</p>",
       "figure": {
         "kind": "moe",
-        "title": "Follow a token through the expert choices",
-        "caption": "Simplified token router with eight available experts. The release uses two selected experts; other active counts are counterfactual teaching settings.",
-        "takeaway": "Capacity can grow without applying every expert to every token.",
+        "title": "Follow a token through the router",
+        "caption": "Simplified router with eight experts. Mixtral uses two per token; the other settings show what would change.",
+        "takeaway": "The model can store many experts without running all of them on every token.",
         "config": {
           "experts": 8,
           "active": 2,
@@ -35,13 +36,14 @@
     },
     {
       "id": "memory",
-      "title": "Unused this time does not mean absent from memory",
-      "html": "<p>If the next token might choose any expert, a serving system must keep those expert weights available somewhere. A small active count reduces arithmetic, but does not make the model’s full weight storage disappear. Offloading weights changes where they live and adds data movement.</p><p>The common-scale bars separate two parameter counts. Their ratio is not a wall-clock speedup: shared attention, routing, network transfers, batching and hardware utilization still cost time. Reading “12.9B active” as “fits like a 12.9B dense model” confuses computation with storage. <a href=\"#source-release\">[1]</a></p><p>For an original idealized calculation, storing 46.7 billion numbers at two bytes each requires 93.4 decimal GB. That is weights alone. Cache entries, temporary activations and software overhead are additional. Smaller numerical formats can reduce weight bytes, but require a separate accuracy and implementation analysis.</p>",
+      "title": "All experts must stay in memory",
+      "nav": "Memory",
+      "html": "<p>Any token might pick any expert, so a server has to keep all eight experts of every layer ready. Routing reduces the arithmetic for each token. It does not reduce the memory needed for the weights. Moving idle experts out to slower memory saves space but adds time spent fetching them back.</p> <p>The bars compare the two parameter counts on the same scale. Their ratio is not a speed-up. Attention, routing, moving data between chips, batching and hardware efficiency all add time that the parameter count leaves out. A common mistake is to read “12.9 billion active” as “runs like a 12.9-billion-parameter model”. It computes like one per token, roughly, but it must be stored like a 46.7-billion-parameter model. <a href=\"#source-release\">[1]</a></p> <p>Storing 46.7 billion numbers at two bytes each takes 93.4 GB, for the weights alone. The KV cache, temporary values and software overhead come on top. Storing the weights in fewer bits reduces this figure, but a smaller format needs its own testing for accuracy.</p>",
       "figure": {
         "kind": "bars",
-        "title": "Inventory and per-token work use the same unit",
-        "caption": "Illustrative comparison of the released model’s reported parameter counts. Parameter counts are not measured latency.",
-        "takeaway": "The inactive experts still contribute to the model’s storage requirement.",
+        "title": "Stored parameters versus parameters used per token",
+        "caption": "Mixtral’s reported parameter counts. Parameter counts are not measured speed.",
+        "takeaway": "Experts that a token skips still take up memory.",
         "config": {
           "unit": "B parameters",
           "bars": [
@@ -60,19 +62,21 @@
     },
     {
       "id": "specialize",
-      "title": "The word “expert” can mislead",
-      "html": "<p>The paper examined routing across datasets and did not find clean divisions by topic. Nearby tokens often selected similar experts, and routing reflected patterns more complicated than one expert per school subject. This empirical observation is narrower than saying experts never specialize. <a href=\"#source-paper\">[2]</a></p><p>Imagine that one expert is often useful for punctuation and another for completing a certain internal feature. A biology sentence and a legal sentence could both need those transformations. A chart labeled “the math expert” would hide that possibility. Numbered expert labels keep this tutorial honest about what has been observed.</p><p>Mixture-of-experts layers also predate Mixtral. Earlier sparsely gated MoE research developed conditional computation and addressed the difficulty of balancing traffic among experts. Mixtral made this approach conspicuous in a capable public-weight language model rather than originating the general technique. <a href=\"#source-moe-paper\">[3]</a></p>"
+      "title": "Experts do not specialize by subject",
+      "nav": "What experts learn",
+      "html": "<p>The word “expert” suggests one network for biology and another for law. The Mixtral paper looked for that pattern and did not find it. When the authors tracked which experts handled text from different subjects, the choices were spread similarly across subjects. What they did find was structure in the text itself: consecutive tokens often went to the same experts, and some choices tracked syntax, such as indentation in code. <a href=\"#source-paper\">[2]</a></p> <p>That makes sense once you remember what an expert does. It transforms a token’s internal representation, and a biology sentence and a legal sentence may need the same transformation, for punctuation for instance. This page numbers the experts instead of naming them, because the evidence supports no names.</p> <p>Mixtral did not invent the mixture of experts. Earlier research on sparsely gated MoE layers developed the routing idea and the problem of spreading tokens evenly across experts. Mixtral showed that the approach could produce a strong language model with downloadable weights. <a href=\"#source-moe-paper\">[3]</a></p>"
     },
     {
       "id": "companion",
-      "title": "The larger Mixtral follows the same principle",
-      "html": "<p>Mixtral 8×22B continued the family in April 2024, with 141B total and 39B active parameters and a longer advertised context. It is a meaningful scaling companion, but it does not require a new story about what an expert is: the published release still describes sparse selection among eight experts. <a href=\"#source-larger\">[4]</a></p><p>Increasing the library can improve what a model can represent, while increasing the selected subset raises per-token work. These are distinct design decisions. The next DeepSeek lesson adds a further distinction: some expertise can be shared on every token while finer-grained routed experts handle the remainder.</p><p>The public Mixtral model card also matters operationally: base and instruction-following models are different checkpoints. Architecture tells you how computation is organized; post-training determines much of the behavior people experience in a conversation. <a href=\"#source-card\">[5]</a></p>"
+      "title": "The larger Mixtral uses the same design",
+      "nav": "Mixtral 8×22B",
+      "html": "<p>Mistral AI released Mixtral 8×22B in April 2024. It has 141 billion parameters in total and 39 billion active per token, with a longer context window. It still routes each token to two of eight experts per layer, so it scales up the same design. <a href=\"#source-larger\">[4]</a></p> <p>The two sizes show two separate settings in an MoE design. Adding more or larger experts increases what the model can store and represent. Sending each token to more experts increases the computation per token.</p> <p>The model card lists the base model and the instruction-tuned model as separate downloads. The routing design describes how computation is organized; how the model behaves in a conversation depends mostly on the training that follows pretraining. <a href=\"#source-card\">[5]</a> The DeepSeek pages that follow change the design further, adding experts that every token uses alongside many smaller routed ones.</p>"
     }
   ],
   "caveats": [
-    "Expert labels in this tutorial are numerical; no topic-specific specialization is assumed.",
-    "Active/total parameter ratios are not latency or throughput estimates.",
-    "The date records the initial torrent release; the formal official blog is dated December 11."
+    "Experts are numbered, not named; the paper found no evidence of subject specialization.",
+    "The ratio of active to total parameters is not an estimate of speed.",
+    "The release date is the torrent posting; the official announcement is dated December 11."
   ],
   "sources": [
     {

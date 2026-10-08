@@ -6,24 +6,24 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Qwen3.5 combines early multimodal fusion with the recurrent-attention architecture developed in Qwen3-Next.
+Qwen3.5 trained images and text together on top of Qwen3-Next’s hybrid architecture, whose fixed-size memory layers keep long visual inputs affordable.
 
-- The interface between pixels and language
-- Three recurrent layers, then a retrieval layer
-- A useful training example joins perception and consequence
-- A downloadable checkpoint and a hosted product differ
+- From pixels to vectors
+- Three memory layers, then one attention layer
+- Training examples that need the image
+- The open model and the hosted product
 
 ## Figures
 
-- **A shared reasoning context** (`flow`): Simplified vision-language interface. It omits image tiling, position encoding and internal encoder layers. Visual understanding requires evidence beyond transcribed words.
-- **Long inputs create different memory costs** (`state`): Illustrative recurrent-state versus KV-history scaling, not a Qwen3.5 memory calculation. Multimodal input makes the cost of retaining context a practical design concern.
+- **One context for images and text** (`flow`): Simplified path from image to language model. It omits image tiling, position encoding and the encoder’s internal layers. Understanding an image takes more than the words in it.
+- **Long inputs, two kinds of memory cost** (`state`): Made-up sizes comparing a recurrent state with a growing attention history; not a Qwen3.5 memory calculation. Long image and document inputs make the cost of keeping context a practical concern.
 
 ## Accuracy and scope
 
-Release date: 2026-02-16. First public flagship weight release February 16, 2026; smaller members were released later.
+Release date: 2026-02-16. Qwen released the flagship weights on February 16, 2026. Smaller models followed later.
 
-- The diagram is conceptual; it does not specify the exact image-tokenization pipeline.
-- Perception diagnostics described here are original teaching examples, not published measurements.
+- The diagram is conceptual; it does not specify Qwen3.5’s exact image tokenization.
+- The perception tests described here are suggestions for teaching, not published measurements.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

@@ -3,24 +3,25 @@
   "model": "Kimi K2",
   "family": "Kimi",
   "date": "2025-07-11",
-  "dateNote": "Official first public Base and Instruct release July 11, 2025; report appeared later.",
-  "subtitle": "How stable training and practiced tool use meet",
-  "summary": "Kimi K2 combines a sparse model, MuonClip optimization, and training trajectories that include actions and feedback.",
+  "dateNote": "Moonshot AI released the Base and Instruct weights on July 11, 2025. The technical report followed later.",
+  "subtitle": "Training a trillion-parameter model without instability, and teaching it to use tools",
+  "summary": "Kimi K2 trained a trillion-parameter mixture of experts stably with the MuonClip optimizer, and learned tool use from large numbers of generated practice sessions.",
   "category": "Training",
   "readingMinutes": 8,
   "parameters": "1T total · 32B active",
   "license": "Modified MIT license; attribution condition for large-scale products",
-  "lead": "<p>A model that can describe a spreadsheet operation may still fail to perform it through a tool. Kimi K2 joins two engineering problems: train a large sparse network without numerical instability, and give it experience with actions whose consequences appear in later messages.</p>",
+  "lead": "<p>Kimi K2, released by the Beijing company Moonshot AI in July 2025, has about one trillion parameters, of which 32 billion are used for each token. It was built to act as well as answer: to call tools, read their results and decide what to do next. Two problems stood in the way. Training a model this large tends to become numerically unstable, and good examples of tool use are scarce. Moonshot addressed the first with a new optimizer, MuonClip, and the second by generating large numbers of practice tool-use sessions. The report says pretraining on 15.5 trillion tokens ran without a single loss spike. <a href=\"#source-paper\">[2]</a></p>",
   "sections": [
     {
       "id": "capacity",
-      "title": "Many stored experts, a few consulted at a time",
-      "html": "<p>A mixture-of-experts layer contains several feed-forward networks and a router that chooses which ones process each token. Kimi K2’s model card lists 384 routed experts, eight selected per token, and one shared expert that processes every token. The checkpoint has about one trillion total parameters while activating about 32 billion per token. It inherits multi-head latent attention and the broad sparse-transformer approach from prior work.</p> <a href=\"#source-card\">[1]</a><p>The toy router has eight experts so that every route remains visible. Switch the example and observe which experts light up; then change the number selected. More selected experts means more computation in this layer. The expert labels identify networks, not preassigned professions. The router is learned, and a token’s context influences its representation.</p><p>Storing eight books but opening two does not make the shelf smaller. Likewise, unused experts still consume storage. Communication, attention and shared computation also remain. The routed fraction is therefore not a speedup estimate.</p>",
+      "title": "Many experts, few used at a time",
+      "nav": "Experts",
+      "html": "<p>K2 is a mixture-of-experts model. Each expert layer contains many feed-forward networks, the experts, and a router that chooses which of them process each token. K2’s model card lists 384 routed experts per layer, of which each token uses 8, plus 1 shared expert that every token uses. Its attention is multi-head latent attention, the compressed-cache design from DeepSeek-V2. <a href=\"#source-card\">[1]</a></p> <p>The figure shrinks the layer to eight experts so every route is visible. Switch between tokens to see different experts selected, then change how many each token uses. More experts per token means more computation in the layer. The numbers identify networks, not specialties; the router is learned, and which experts a token picks depends on its context.</p> <p>A shelf of eight books takes the same space whether you open two or all eight. Unused experts likewise still need storage, and attention, the shared expert and communication between chips still take time. The fraction of experts used is not a speed-up.</p>",
       "figure": {
         "kind": "moe",
-        "title": "Storage capacity and selected computation differ",
-        "caption": "Simplified eight-expert teaching model. Actual K2 has 384 routed experts with eight selected and one shared expert.",
-        "takeaway": "Sparse activation reduces the work performed per token without removing the stored experts.",
+        "title": "Stored experts versus experts used",
+        "caption": "Simplified router with eight experts. K2 has 384 routed experts per layer, uses 8 per token, and adds 1 shared expert.",
+        "takeaway": "Using few experts per token reduces computation, not storage.",
         "config": {
           "experts": 8,
           "active": 2,
@@ -30,13 +31,14 @@
     },
     {
       "id": "stability",
-      "title": "An optimizer needs numerical guardrails",
-      "html": "<p>An optimizer changes model weights in response to training errors. Muon reshapes matrix-valued weight updates using an approximate orthogonalization, which controls their directional scales. K2 adds QK-Clip because the team observed attention scores growing excessively at scale. After an update, QK-Clip rescales query and key projection weights when observed scores exceed a threshold. The measured scores come from the current batch; the rescaling changes weights used by future batches. It does not alter the forward or backward computation already performed for that batch.</p> <a href=\"#source-paper\">[2]</a><p>Here is a scalar illustration of the rescaling. If a query-key product is 400 and a chosen bound is 100, multiply each factor by one half. Their product becomes 100 because 0.5 × 0.5 = 0.25. The actual MLA implementation treats shared and head-specific components differently; this arithmetic only explains why rescaling factors can control a product.</p><p>The distinction matters because a training run repeatedly compounds updates. A method that looks useful on a short experiment may become unstable at a much larger scale. The evidence needed is a stable learning trajectory plus downstream evaluation, not merely a lower error at one moment.</p>",
+      "title": "Keeping a giant training run stable",
+      "nav": "MuonClip",
+      "html": "<p>An <strong>optimizer</strong> is the rule that turns training errors into weight changes. Most large models use one called AdamW. K2 instead uses <strong>Muon</strong>, which treats each weight matrix as a whole and reshapes its update so that no single direction dominates, a step called orthogonalization. Muon can learn more from each token of data, but the K2 team found that at scale it let attention scores grow until training became unstable. <a href=\"#source-paper\">[2]</a></p> <p>An attention score is the product of a query and a key, so if the weights that produce queries and keys keep growing, the scores can explode. K2’s fix, <strong>QK-Clip</strong>, tracks the largest attention score in each head during training. When one exceeds a threshold, QK-Clip shrinks that head’s query and key weights after the update, so future scores stay in range. The batch just processed is unaffected; the change applies from the next batch on. Muon combined with QK-Clip is called <strong>MuonClip</strong>. <a href=\"#source-paper\">[2]</a></p> <p>The arithmetic is simple. If a query–key product is 400 and the limit is 100, multiply both the query weights and the key weights by 0.5. The product shrinks by 0.5 × 0.5 = 0.25, to 100. The real implementation treats the parts of MLA that are shared across heads differently from the per-head parts.</p> <p>Stability matters because a training run compounds millions of updates. A method that looks fine in a short experiment can blow up at full scale. The evidence that it works is a smooth loss curve over the entire run, followed by good results on held-out tests.</p>",
       "figure": {
         "kind": "flow",
-        "title": "Stabilize the update before the next batch",
-        "caption": "Simplified optimizer cycle. K2’s report specifies per-head and MLA-specific details.",
-        "takeaway": "Training stability is part of making an optimizer useful at scale.",
+        "title": "Keep the next update in range",
+        "caption": "Simplified training step with QK-Clip. The report specifies per-head details and special handling for MLA.",
+        "takeaway": "At this scale, keeping training stable is part of what makes an optimizer useful.",
         "config": {
           "steps": [
             {
@@ -61,13 +63,14 @@
     },
     {
       "id": "experience",
-      "title": "A tool trajectory is a lesson with consequences",
-      "html": "<p>K2’s launch describes a synthesis pipeline that creates tool specifications, tasks and agents, generates interactions with simulated or real environments, and filters them against task rubrics. The tool definitions tell the learner which inputs an action requires; the returned result supplies evidence for the next action.</p> <a href=\"#source-launch\">[3]</a><p>Imagine a toy file-search task. The first call asks for a file that does not exist. A useful training trajectory includes the error, a directory listing, a corrected path, and a final answer grounded in the retrieved content. A dataset containing only successful-looking final answers would omit the recovery behavior.</p><p>This is also why simulation quality matters. If a simulated tool always succeeds, the learner receives little practice in handling missing data, ambiguous outputs or rejected arguments. If a judge rewards a confident final answer without checking the result, the pipeline can select a convincing failure. These are consequences of the learning setup, not claims about observed K2 failure rates.</p>"
+      "title": "Practicing tool use",
+      "html": "<p>Examples of a model using tools well are hard to find in ordinary text. K2’s launch describes a pipeline that manufactures them. It generates tool descriptions, tasks and agents, runs the agents against simulated or real tools, and keeps only the sessions that meet each task’s grading rubric. In each session, the tool descriptions tell the model what inputs an action needs, and each tool result is evidence for the next action. <a href=\"#source-launch\">[3]</a></p> <p>Take a small file-search task. The first call asks for a file that does not exist. A useful training session includes the error, a directory listing, a corrected path and a final answer based on the file’s contents. A dataset of clean, successful answers alone would never teach recovery from mistakes.</p> <p>That is why the quality of the simulation matters. If a simulated tool always succeeds, the model gets no practice with missing data, confusing outputs or rejected inputs. If the grader rewards a confident final answer without checking it, the pipeline can select convincing failures. These are risks of the method in general, not observed problems with K2.</p>"
     },
     {
       "id": "boundary",
-      "title": "Separate the model from the machinery around it",
-      "html": "<p>The July release supplied Base and Instruct checkpoints; the initial Instruct model did not expose the later extended-thinking behavior and did not support vision. Subsequent K2 releases changed those capabilities, so this lesson keeps the initial version separate.</p> <a href=\"#source-launch\">[3]</a><p>An application still provides the tool runner, permissions, context handling and error reporting. The model predicts a requested action; surrounding software executes it and returns the result. A benchmark for the resulting agent therefore measures both the checkpoint and its environment. Reproducing a score requires the same tools and evaluation protocol, not just the same model name.</p>"
+      "title": "The model and the software around it",
+      "nav": "Model and harness",
+      "html": "<p>The July release included Base and Instruct checkpoints. The first Instruct model did not have the long-thinking mode or the image input that later K2 releases added, so this page describes the original version only. <a href=\"#source-launch\">[3]</a></p> <p>A model alone does not run tools. An application supplies the tool runner, permissions, context management and error reporting. The model writes a request for an action, the surrounding software carries it out, and the result comes back as text. An agent benchmark therefore measures the checkpoint and its environment together. Reproducing a score needs the same tools and evaluation setup, not only the same model.</p>"
     }
   ],
   "sources": [
@@ -91,8 +94,8 @@
     }
   ],
   "caveats": [
-    "Muon and mixture-of-experts predate K2; MuonClip and their scaled integration are the release-specific focus.",
-    "The eight-expert router and scalar clipping arithmetic are teaching models."
+    "Muon and mixtures of experts predate K2. The release’s own contributions are QK-Clip and making the combination work at this scale.",
+    "The eight-expert router and the clipping arithmetic are teaching examples."
   ],
   "related": [
     "2025-11-06-kimi-k2-thinking",

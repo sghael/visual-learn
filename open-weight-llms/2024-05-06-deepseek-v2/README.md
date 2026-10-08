@@ -1,31 +1,31 @@
 # DeepSeek-V2
 
-Remember a compact description instead of every expanded view
+Caching a small compressed vector for each token instead of full keys and values
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Multi-head latent attention compresses each token’s cached representation while fine-grained experts keep feed-forward work sparse.
+DeepSeek-V2 cached one small learned vector per token instead of full keys and values, and paired it with many small experts, cutting both memory and computation.
 
-- Several large views can share a small description
-- Make the storage bottleneck visible
-- Position is information that compression must preserve
-- Share routine work and route the remainder
-- Cache efficiency and weight size remain separate
+- Storing a compact summary instead of full keys and values
+- How much smaller the cache gets
+- Why position needs separate handling
+- Shared experts plus many small routed ones
+- Two savings for two different costs
 
 ## Figures
 
-- **How many numbers must one token leave behind?** (`latent`): Simplified dimensional bottleneck with invented dimensions. This is not a faithful MLA cache implementation and omits the separate rotary-position component. A smaller learned coordinate system reduces cached numbers before numerical precision is considered.
-- **One shared path plus selected paths** (`moe`): Simplified, scaled-down DeepSeekMoE teaching model. Eight routed experts and one shared expert are illustrative counts, not V2’s configuration. Shared work remains active even when routed work is sparse.
+- **How many numbers must each token leave behind?** (`latent`): Simplified storage comparison with made-up sizes. It omits MLA’s separate position key and the cost of rebuilding keys and values. Storing fewer numbers per token shrinks the cache before any reduction in bits.
+- **One shared path plus selected paths** (`moe`): Simplified router with 8 routed experts and 1 shared expert. DeepSeek-V2 has 160 routed and 2 shared experts in each layer. Shared experts run on every token, however sparse the routed experts are.
 
 ## Accuracy and scope
 
-Release date: 2024-05-06. The official repository records the public release on May 6, 2024. The paper was submitted May 7; folder dates track weights rather than paper submission.
+Release date: 2024-05-06. DeepSeek’s repository records the weight release on May 6, 2024. The paper was posted on May 7.
 
-- The latent-width slider does not model quality, RoPE storage or exact MLA implementation.
-- The expert widget uses scaled-down counts and cannot predict throughput.
-- The weights use the release’s custom DeepSeek Model License; code and weights have different licenses.
+- The latent-width figure does not model quality, the separate position key or the exact MLA computation.
+- The expert figure uses scaled-down counts and cannot predict speed.
+- The weights use DeepSeek’s own model license; the code uses the MIT license.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

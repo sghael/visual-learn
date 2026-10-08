@@ -3,29 +3,30 @@
   "model": "DeepSeek-V4",
   "family": "DeepSeek",
   "date": "2026-04-24",
-  "dateNote": "Public V4-Pro and V4-Flash preview weights appeared April 24, 2026. The technical report documents the architecture; later 0731 and 0813 revisions are not new architecture introductions.",
+  "dateNote": "DeepSeek released preview weights for V4-Pro and V4-Flash on April 24, 2026. The technical report describes the architecture; the later 0731 and 0813 updates did not change it.",
   "subtitle": "Compress the history before deciding where to look",
-  "summary": "V4 combines sequence compression, sparse retrieval and local attention to make very long contexts less expensive.",
+  "summary": "DeepSeek-V4 merges groups of tokens into compressed cache entries, selects among them for distant context and keeps a local path for recent detail, making million-token contexts cheaper.",
   "category": "Memory",
-  "readingMinutes": 9,
+  "readingMinutes": 8,
   "parameters": "Pro: 1.6T total / 49B active · Flash: 284B / 13B",
   "license": "MIT",
-  "lead": "<p>A million-token context can contain a long sequence of documents and tool results. Keeping a detailed record for every token at every layer is expensive even when attention reads selectively. DeepSeek-V4 changes the stored history itself: groups of tokens become compressed entries, while a local path preserves recent detail. <a href=\"#source-release\">[1]</a></p>",
+  "lead": "<p>A context window of a million tokens can hold dozens of documents and a long trail of tool results. DeepSeek-V2 made each token’s cache entry smaller, and V3.2 made attention read only selected entries, but every token still left its own entry in every layer. DeepSeek-V4, released as a preview in April 2026, also compresses along the sequence. Groups of neighboring tokens are merged into single entries, while a local attention path keeps recent tokens in full detail. <a href=\"#source-release\">[1]</a></p>",
   "sections": [
     {
       "id": "axes",
-      "title": "Compression can act across features or across time",
-      "html": "<p>Think of a notebook represented as a table: one row per token, one column per stored feature. Earlier latent attention compressed the columns, retaining fewer numbers for each row. V4 also compresses the rows, combining information from groups of token positions. These are distinct axes of the same storage problem.</p><p>An invented table with 1,024 rows and 256 columns contains 262,144 numbers. Reducing feature width to 64 leaves 65,536. Keeping the original width but combining every eight rows into one leaves 32,768. Applying both changes leaves 8,192 numbers. This arithmetic explains why independent compression axes can multiply.</p><p>The important caveat is information. Combining records may blur individual details. The model therefore needs learned compression and training that make the retained representation useful; storage savings alone do not establish good recall.</p>"
+      "title": "Compressing features versus compressing time",
+      "nav": "Two axes",
+      "html": "<p>Picture the cache as a table, with one row per token and one column per stored number. DeepSeek’s earlier latent attention compressed the columns, storing fewer numbers per token. V4 also compresses the rows, merging groups of neighboring tokens into one entry. The two are separate axes of the same storage problem.</p> <p>A made-up table with 1,024 rows and 256 columns holds 262,144 numbers. Cutting the width to 64 columns leaves 65,536. Keeping the width but merging every eight rows into one leaves 32,768. Doing both leaves 8,192, which is 32 times fewer than at the start. Because the two axes are independent, their savings multiply.</p> <p>The cost is detail. Merging rows can blur individual tokens, so the merging is learned, and the model is trained to keep what it needs in the merged entries. A smaller cache alone does not show that recall survives.</p>"
     },
     {
       "id": "csa",
-      "title": "Compress groups, then select useful groups",
-      "html": "<p><strong>Compressed Sparse Attention</strong>, or CSA, first creates fewer cached entries along the sequence dimension. A learned indexer then selects entries for attention. This combines compression with the content-dependent selection developed in DSA. A local sliding-window path supplies recent fine-grained information alongside the selected compressed history. <a href=\"#source-paper\">[2]</a></p><p>Imagine 64 old passages compressed into sixteen records, then four of those records selected for close use. The widget starts at the selection step: each displayed candidate stands for a compressed record, not one original token. Changing the query can choose distant records. Changing the selected count changes how much compressed history is directly consulted.</p><p>The interpretation matters. Selecting four compressed records could expose information from more than four original positions, but it does not reconstruct all those positions exactly. Compression is a learned representation, not a lossless archive hidden behind a smaller label.</p>",
+      "title": "Compress, then select",
+      "html": "<p><strong>Compressed Sparse Attention</strong> (CSA) first merges the sequence into fewer cached entries. A learned indexer, like the one in DeepSeek-V3.2, then picks which merged entries each query reads. Alongside this, a local sliding-window path gives full detail on the most recent tokens. <a href=\"#source-paper\">[2]</a></p> <p>Imagine 64 earlier passages compressed into 16 entries, of which the query reads 4. The figure starts at the selection step: each bar stands for one compressed entry, not one original token. Switch queries to see distant entries chosen, and change the number selected to change how much compressed history is read directly.</p> <p>Reading four compressed entries can bring in information from many more than four original tokens, but it does not recover them exactly. The compression is learned, and it loses detail.</p>",
       "figure": {
         "kind": "sparse",
-        "title": "Choose among compressed history records",
-        "caption": "Simplified CSA selection stage. Each of sixteen candidates represents a compressed record; the widget omits the learned compressor and the parallel local window.",
-        "takeaway": "Sequence compression reduces candidates; sparse selection reduces expensive reads among them.",
+        "title": "Choose among compressed entries",
+        "caption": "Simplified CSA selection step. Each of the 16 candidates is a compressed entry; the figure omits the learned compressor and the parallel local window.",
+        "takeaway": "Compression reduces the number of candidates; selection reduces how many of them the expensive step reads.",
         "config": {
           "tokens": 16,
           "selected": 4,
@@ -52,13 +53,14 @@
     },
     {
       "id": "hca",
-      "title": "A coarse global view complements local detail",
-      "html": "<p>V4 interleaves CSA with <strong>Heavily Compressed Attention</strong>, or HCA. HCA compresses sequence entries more aggressively and attends densely to that smaller set. “Dense” here refers to access among compressed entries, not full attention over every original token. Both patterns retain a local attention component. <a href=\"#source-paper\">[2]</a></p><p>A map analogy helps separate their jobs. A coarse map shows the whole region cheaply. A more detailed index lets a query focus on a few relevant areas. A local street view keeps immediate surroundings precise. None alone supplies every detail at every distance.</p><p>For an invented equal-width example, 4,096 original records compressed 16-to-1 become 256 records. Reading all 256 is dense over that coarse representation while still far smaller than reading all original records. This is a counting example, not V4’s actual compression setting.</p>",
+      "title": "A coarse overview alongside local detail",
+      "nav": "HCA",
+      "html": "<p>V4 alternates CSA layers with <strong>Heavily Compressed Attention</strong> (HCA) layers. HCA merges the sequence much more aggressively and then attends to every one of the resulting entries. “Every” refers to the compressed entries, not the original tokens. Both layer types also keep the local attention path. <a href=\"#source-paper\">[2]</a></p> <p>A map analogy separates the roles. A coarse map shows the whole region cheaply, like HCA. An index lets you zoom in on a few relevant areas, like CSA. Street view keeps your immediate surroundings sharp, like the local path. None of them alone gives every detail at every distance.</p> <p>In a made-up example, 4,096 original tokens compressed 16 to 1 become 256 entries. Reading all 256 is full attention over the coarse version, yet it is sixteen times cheaper than reading all 4,096 tokens. This shows the counting only; it is not V4’s real compression ratio.</p>",
       "figure": {
         "kind": "flow",
-        "title": "Interleave two affordable views of the global history",
-        "caption": "Simplified example of interleaved CSA and HCA layers, not the release’s exact layer schedule. Each layer combines its own global pattern with local attention.",
-        "takeaway": "Dense attention can be inexpensive when its input has already been compressed.",
+        "title": "Alternate two affordable views of the history",
+        "caption": "Simplified alternation of CSA and HCA layers, not the release’s exact layer order. Each layer combines its own view of the distant history with local attention.",
+        "takeaway": "Full attention is affordable when its input has already been compressed.",
         "config": {
           "steps": [
             {
@@ -87,19 +89,20 @@
     },
     {
       "id": "residual",
-      "title": "More information paths need stable mixing",
-      "html": "<p>V4 also adopts <strong>manifold-constrained hyper-connections</strong>, or mHC. Ordinary residual connections carry a representation forward while adding a layer’s update. Hyper-connections widen this into multiple streams; mHC constrains how the residual streams mix to prevent uncontrolled amplification through repeated transformations. <a href=\"#source-mhc\">[3]</a></p><p>A small numeric example exposes the issue. Repeatedly multiplying a scalar by two gives 1, 2, 4, 8. Repeated mixing through a matrix with nonnegative entries whose rows and columns each sum to one behaves differently. For [[0.8, 0.2], [0.2, 0.8]], inputs [2, 6] become [2.8, 5.2]: each is a weighted blend of previous values.</p><p>The real method constrains a residual mapping, not every operation in the network. The example explains the stability motive without claiming that an entire nonlinear language model can never amplify an activation.</p>"
+      "title": "Keeping the residual streams stable",
+      "nav": "mHC",
+      "html": "<p>V4 also adopts <strong>manifold-constrained hyper-connections</strong> (mHC). In a standard transformer, a <strong>residual connection</strong> carries each layer’s input forward and adds the layer’s output to it, so information passes up the network along one stream. Hyper-connections widen this into several parallel streams that mix with each other between layers. mHC constrains that mixing so the streams cannot amplify each other without limit over many layers. <a href=\"#source-mhc\">[3]</a></p> <p>A small example shows the danger and the fix. Multiplying by 2 again and again gives 1, 2, 4, 8 and keeps growing. Mixing with a matrix whose entries are nonnegative and whose rows and columns each sum to one behaves differently: each output is a weighted average of the inputs. With the matrix [[0.8, 0.2], [0.2, 0.8]], the inputs [2, 6] become [2.8, 5.2], and repeated mixing keeps the values between 2 and 6.</p> <p>The constraint applies to how the residual streams mix, not to every operation in the network. It does not guarantee that no activation anywhere in the model can grow.</p>"
     },
     {
       "id": "scope",
-      "title": "What the release establishes",
-      "html": "<p>The April launch provided two public-weight scales: V4-Pro at 1.6T total and 49B active parameters, and V4-Flash at 284B total and 13B active. The official card makes their weights available under MIT. These counts remain much larger than what “small active fraction” might suggest for storage. <a href=\"#source-release\">[1]</a> <a href=\"#source-card\">[4]</a></p><p>The family also retains MoE and multi-token prediction while adopting Muon optimization. Those are additional training and architectural choices; this lesson’s memory arithmetic does not attribute all quality improvements to attention compression. <a href=\"#source-card\">[4]</a></p><p>A long supported context is a capacity specification, not a guarantee that every buried fact will be retrieved. To evaluate a long task, ask which details must survive compression, how much new input arrives per turn, and whether the serving system can reuse previous state. Those questions lead directly to V4.1’s attention to cache reuse across layers.</p>"
+      "title": "What the release contains",
+      "html": "<p>The April release included two sizes: V4-Pro, with 1.6 trillion parameters in total and 49 billion active per token, and V4-Flash, with 284 billion in total and 13 billion active. Both are available under the MIT license. A small active fraction does not make either of them small to store. <a href=\"#source-release\">[1]</a> <a href=\"#source-card\">[4]</a></p> <p>V4 keeps the mixture of experts and multi-token prediction of earlier DeepSeek models and adopts the Muon optimizer, described on the Kimi K2 page. These are separate choices, so improvements in quality cannot all be credited to the attention compression described here. <a href=\"#source-card\">[4]</a></p> <p>A long supported context says how much the model accepts, not whether it will find a fact buried deep inside. To judge a long task, ask which details must survive compression, how much new input arrives each turn, and whether the serving system can reuse earlier work. That last question leads to DeepSeek-V4.1-Flash, which reuses caches across layers.</p>"
     }
   ],
   "caveats": [
-    "Toy token counts and compression ratios are illustrative, not V4 configurations.",
-    "The sparse widget models selection after compression and omits the local path.",
-    "The June report describes the architecture after the April preview announcement; later checkpoint refreshes are not treated as separate inventions."
+    "Token counts and compression ratios in the examples are made up; they are not V4’s settings.",
+    "The selection figure starts after compression and omits the local path.",
+    "The June report describes the architecture of the April preview; later checkpoint updates are not treated as new designs."
   ],
   "sources": [
     {

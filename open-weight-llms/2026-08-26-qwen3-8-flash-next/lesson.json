@@ -3,28 +3,30 @@
   "model": "Qwen3.8-Flash-Next",
   "family": "Qwen",
   "date": "2026-08-26",
-  "dateNote": "Public weight release August 26, 2026; architecture report August 31.",
+  "dateNote": "Qwen released the weights on August 26, 2026. The architecture report followed on August 31.",
   "subtitle": "How lookup memory, sparse retrieval and depth gates divide the work",
-  "summary": "Qwen3.8-Flash-Next adds micro-block sparse attention, gated residual streams and offloaded n-gram embeddings.",
+  "summary": "Qwen3.8-Flash-Next adds large n-gram lookup tables kept in host memory, a block-based sparse attention and gated residual streams to a Qwen3-Next-style hybrid.",
   "category": "Memory",
   "readingMinutes": 8,
   "parameters": "125B backbone · 6B active; +51B n-gram tables and 4B MTP",
   "license": "Qwen Community License 1.0; custom terms",
-  "lead": "<p>Adding capacity need not mean running every new parameter through an expensive computation. Qwen3.8-Flash-Next separates several jobs: summarize token history, retrieve selected context, mix information across depth, and look up familiar short token patterns in a large embedding table.</p>",
+  "lead": "<p>A model can gain stored knowledge without doing more computation per token, if the new capacity is something it looks up rather than runs. Qwen3.8-Flash-Next, released by Alibaba’s Qwen team in August 2026, adds 51 billion parameters of lookup tables for common short sequences of tokens, kept in the host computer’s memory instead of on the accelerator. It also changes how its attention layers choose what to read and how its layers pass information to one another. The backbone has 125 billion parameters, about 6 billion of them active per token. <a href=\"#source-card\">[1]</a></p>",
   "sections": [
     {
       "id": "costs",
-      "title": "Different forms of memory have different prices",
-      "html": "<p>The released card lists a 125-billion-parameter backbone with about 6 billion active, plus 51 billion parameters in n-gram embeddings and a 4-billion-parameter multi-token-prediction component. These categories must remain separate: quoting only 125B omits a substantial stored table, while adding every category and calling it active computation would be equally misleading.</p> <a href=\"#source-card\">[1]</a><p>The model inherits a hybrid of Gated DeltaNet and attention, but replaces the direct attention layers with Qwen Sparse Attention, or QSA. The report also introduces Gated Residual and offloaded n-gram embeddings. The August 26 weight release precedes the August 31 architecture report.</p> <a href=\"#source-paper\">[2]</a><p>A useful accounting sheet asks four questions: how many numbers are stored, how many are fetched for one token, how much arithmetic is performed, and which device holds them. No single parameter count answers all four.</p>"
+      "title": "Four counts that one parameter number hides",
+      "nav": "Parameter counts",
+      "html": "<p>The model card lists a 125-billion-parameter backbone with about 6 billion active per token, plus 51 billion parameters in n-gram embedding tables and a 4-billion-parameter multi-token-prediction module. These must be kept apart. Quoting only 125 billion omits a large stored table; adding everything together and calling it active would be just as misleading. <a href=\"#source-card\">[1]</a></p> <p>The model inherits Qwen3-Next’s mix of Gated DeltaNet and attention layers, but replaces the attention layers with <strong>Qwen Sparse Attention</strong> (QSA). The architecture report, published on August 31, five days after the weights, also introduces a <strong>Gated Residual</strong> and the offloaded n-gram tables. <a href=\"#source-paper\">[2]</a></p> <p>For any model, four questions are worth asking separately: how many numbers are stored, how many are fetched for one token, how much arithmetic is done, and which device holds each part. No single parameter count answers all four.</p>"
     },
     {
       "id": "lookup",
-      "title": "A table can store capacity without evaluating every entry",
-      "html": "<p>An n-gram is a short sequence of tokens. A bigram has two, a trigram three. The model hashes such short patterns to addresses in learned embedding tables. These entries are trained vectors, not a database of saved source passages. The report places the tables in the host computer’s memory and inserts their output at the second layer, letting transfers overlap computation in the first layer. Lookup parameters add stored information with a different compute pattern from an expert network.</p> <a href=\"#source-paper\">[2]</a><p>Imagine an illustrative table with a million rows, each containing 16 numbers. Looking up one row reads 16 values, not all 16 million. The table still occupies space. If the requested row lives across a slow connection and cannot be fetched in advance, the lookup may stall computation.</p><p>This explains both the opportunity and the constraint. A predictable token-pattern index can support prefetching. But the table cannot replace arbitrary reasoning: recognizing a familiar phrase and resolving a new contradiction are different operations. The backbone must still interpret and combine the retrieved representation.</p>",
+      "title": "Lookup tables for short token patterns",
+      "nav": "N-gram tables",
+      "html": "<p>An <strong>n-gram</strong> is a short run of consecutive tokens: two for a bigram, three for a trigram. The model hashes each such run to a row in a learned embedding table and adds that row’s vector to its computation. The rows are trained vectors, not saved passages of text. The report keeps the tables in the host computer’s main memory and adds their output at the second layer, so the transfer can happen while the first layer is computing. A lookup adds stored knowledge at a different cost from an expert network: it is read, not computed. <a href=\"#source-paper\">[2]</a></p> <p>Imagine a table with a million rows of 16 numbers each. Looking up one row reads 16 numbers, not 16 million. The table still takes up space, though, and if a row must cross a slow connection and cannot be fetched early, the lookup can stall the computation.</p> <p>That explains both the opportunity and the limit. Which row to fetch depends only on the recent tokens, which are already known, so it can be fetched early. But a table cannot reason: recognizing a familiar phrase is different from resolving a new contradiction. The backbone still has to interpret and use what the table returns.</p>",
       "figure": {
         "kind": "flow",
-        "title": "Move only the needed table entry",
-        "caption": "Simplified n-gram lookup pipeline, not an exact Qwen hashing or transfer implementation.",
+        "title": "Move only the table row that is needed",
+        "caption": "Simplified n-gram lookup; not Qwen’s exact hashing or data transfer.",
         "takeaway": "Stored capacity can grow without reading every parameter for each token.",
         "config": {
           "steps": [
@@ -50,13 +52,14 @@
     },
     {
       "id": "attention",
-      "title": "Select small blocks before expensive attention",
-      "html": "<p>QSA’s lightweight indexer averages its key representations within non-overlapping four-token blocks, then scores those block summaries. It selects up to 512 complete blocks, expands their indices back to up to 2,048 individual token positions, and additionally includes any incomplete final block, up to three more tokens. The expensive attention reads the selected individual representations, not just the averages. <a href=\"#source-paper\">[2]</a> Selection is content-dependent; it is not a fixed sliding window.</p> <a href=\"#source-card\">[1]</a><p>An analogy is searching a book’s short section summaries before closely reading selected passages. Good summaries save reading time. A summary that hides the one crucial exception can cause retrieval to miss it. Sparse attention therefore needs evaluation of both indexing cost and retained task quality.</p><p>The attention layers retain token representations in a growing cache so that future queries can choose different blocks. QSA reduces the set read by the expensive attention step, not the history to a fixed-size state. The companion recurrent layers still keep bounded state. In the toy below, doubling the sequence doubles the explicit history but leaves the recurrent state unchanged. QSA changes how much history is consulted, while recurrence changes how history is represented. Those are separate operations, and the scalar-count comparison illustrates only the second distinction.</p>",
+      "title": "Selecting small blocks before expensive attention",
+      "nav": "Sparse attention",
+      "html": "<p>QSA’s lightweight indexer first averages its keys within non-overlapping blocks of four tokens and scores those block averages against the current query. It selects up to 512 whole blocks, which expand to up to 2,048 individual tokens, and always includes any unfinished final block of up to three tokens. The expensive attention then reads the selected tokens themselves, not the averages. <a href=\"#source-paper\">[2]</a> Selection depends on content, not on a fixed window. <a href=\"#source-card\">[1]</a></p> <p>It is like skimming a book’s short section summaries before reading chosen passages closely. Good summaries save time, but a summary that hides the one crucial exception can make the search miss it. Sparse attention therefore has to be judged on both its indexing cost and the task quality it keeps.</p> <p>The attention layers still keep every token in a growing cache, so later queries can choose different blocks. QSA reduces how much of the history the expensive step reads; it does not shrink the history into a fixed-size state. The Gated DeltaNet layers are the ones that keep a fixed-size state. In the figure, doubling the sequence doubles the stored history but leaves the recurrent state unchanged. The figure illustrates only that distinction; it does not model QSA’s selection.</p>",
       "figure": {
         "kind": "state",
-        "title": "Distinguish stored history from a running state",
-        "caption": "Illustrative state and KV scalar counts. The widget does not implement QSA selection or estimate released-model memory.",
-        "takeaway": "Compression and selective retrieval address different parts of the context cost.",
+        "title": "Stored history versus a running state",
+        "caption": "Made-up sizes for a recurrent state and a stored history. The figure does not implement QSA or estimate the released model’s memory.",
+        "takeaway": "Compressing the history and reading it selectively address different parts of the cost of context.",
         "config": {
           "stateScalars": 512,
           "kvScalarsPerToken": 64,
@@ -67,7 +70,8 @@
     {
       "id": "residual",
       "title": "Gates choose what each layer reads",
-      "html": "<p>Gated Residual widens the residual stream into four branches, uses elementwise gates when reading them, and writes each block’s result with per-branch weights. The report removes an additional branch-mixing operator to reduce memory traffic. This is related to, but distinct from, mHC and Attention Residuals.</p> <a href=\"#source-paper\">[2]</a><p>For a scalar analogy, suppose two streams hold 2 and 8. A gate can read mostly the first for one computation and mostly the second for another. In vectors, separate coordinates can receive different weights, permitting finer selection than one scalar weight for an entire branch. The branches are normalized independently, gated with values between zero and one, then averaged. Unlike softmax attention across sources, these gates need not sum to one. This scalar analogy omits that normalization and the learned projections.</p><p>The report evaluates architecture, optimization and stability together rather than relying only on training loss. That is a useful lesson for reading model releases: a lower loss, fewer active weights and a faster kernel are different pieces of evidence. A deployment still needs whole-task quality, memory and timing measurements.</p> <a href=\"#source-paper\">[2]</a>"
+      "nav": "Gated Residual",
+      "html": "<p>The <strong>Gated Residual</strong> widens the residual stream, the path that carries each token’s representation up through the layers, into four branches. Each block reads the branches through elementwise gates and writes its result back with a separate weight for each branch. The report drops an extra operation that would mix the branches with each other, to reduce memory traffic. The design is related to, but different from, mHC, described on the GLM-5.3-Flash page, and Attention Residuals, described on the Kimi K3 page. <a href=\"#source-paper\">[2]</a></p> <p>As a one-number analogy, suppose two branches hold 2 and 8. A gate can read mostly the first branch for one computation and mostly the second for another. With vectors, each coordinate gets its own gate value, which allows finer selection than one weight per branch. In the real model, each branch is normalized, multiplied by gates between zero and one, and the results are averaged. Unlike attention weights, these gates do not have to sum to one. The analogy leaves out the normalization and the learned projections.</p> <p>The report evaluates the architecture, the optimizer and training stability together instead of relying on training loss alone. That is good practice when reading any release. Lower loss, fewer active weights and a faster kernel are different pieces of evidence, and a deployment still needs measurements of task quality, memory and speed. <a href=\"#source-paper\">[2]</a></p>"
     }
   ],
   "sources": [
@@ -91,8 +95,8 @@
     }
   ],
   "caveats": [
-    "The 51B embedding table is additional stored capacity, not included in the 125B backbone count.",
-    "The n-gram lookup and scalar-gate examples are teaching analogies, not implementation code."
+    "The 51 billion parameters of embedding tables are stored in addition to the 125-billion-parameter backbone.",
+    "The n-gram lookup and the one-number gate examples are teaching analogies, not implementation code."
   ],
   "related": [
     "2025-09-11-qwen3-next",

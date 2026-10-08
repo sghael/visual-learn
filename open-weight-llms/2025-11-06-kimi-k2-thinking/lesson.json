@@ -3,24 +3,24 @@
   "model": "Kimi K2 Thinking",
   "family": "Kimi",
   "date": "2025-11-06",
-  "dateNote": "Public release November 6, 2025.",
-  "subtitle": "How long reasoning changes the economics of precision",
-  "summary": "Kimi K2 Thinking pairs reasoning interleaved with tools with quantization-aware post-training for its expert weights.",
+  "dateNote": "Moonshot AI released the model on November 6, 2025.",
+  "subtitle": "Why a model built for long reasoning was trained to run in four-bit precision",
+  "summary": "Kimi K2 Thinking interleaves reasoning with hundreds of tool calls, and was trained with four-bit expert weights so that long tasks move less data through memory.",
   "category": "Reasoning",
-  "readingMinutes": 8,
+  "readingMinutes": 7,
   "parameters": "1T total · 32B active",
   "license": "Modified MIT license; attribution condition for large-scale products",
-  "lead": "<p>Thinking for longer costs more than storing a longer answer. Each step uses the model again, and each tool result can change the next decision. Kimi K2 Thinking makes that extended loop central while training its expert weights for low-bit inference.</p>",
+  "lead": "<p>Kimi K2 Thinking, released by Moonshot AI in November 2025, is built for long tasks in which the model alternates between reasoning and using tools, sometimes for hundreds of steps. Long tasks make every generated token count, because each one requires reading the model’s weights from memory again. Moonshot therefore trained the model’s expert weights to work as four-bit integers, a quarter of the size of 16-bit storage, and reports its benchmark scores using that four-bit version. <a href=\"#source-card\">[2]</a></p>",
   "sections": [
     {
       "id": "loop",
-      "title": "Reason, act, observe, then revise",
-      "html": "<p>In a tool-using reasoning loop, the model can propose a calculation, ask a program to run it, inspect the result and choose another action. The returned evidence becomes part of the conversation. This is different from writing all intermediate steps without checking the outside world.</p><p>The release announcement presents K2 Thinking as an agent that interleaves generated reasoning with tool calls and reports experiments involving hundreds of sequential calls. Those are reported capabilities under particular task setups, not a promise that an arbitrary task will run successfully for that many steps.</p> <a href=\"#source-launch\">[1]</a><p>For example, suppose a proposed equation solution fails when substituted into the original equation. A tool can reveal the mismatch. The next useful action is to revisit the derivation or test another candidate. Merely generating a longer explanation of the failed candidate adds cost without adding evidence.</p>",
+      "title": "Reason, act, observe, revise",
+      "html": "<p>In a reasoning loop with tools, the model can propose a calculation, ask a program to run it, read the result and decide what to do next. The result becomes part of the conversation. That differs from writing out every step without ever checking anything against the outside world.</p> <p>Moonshot’s announcement presents K2 Thinking as an agent that interleaves reasoning with tool calls, and reports tests with 200 to 300 tool calls in sequence. Those results come from specific task setups; they do not promise that any task will run successfully for that many steps. <a href=\"#source-launch\">[1]</a></p> <p>Suppose a proposed solution to an equation fails when substituted back in. A tool reveals the mismatch, and the useful next step is to recheck the derivation or try another candidate. Writing a longer explanation of the failed candidate adds cost without adding evidence.</p>",
       "figure": {
         "kind": "flow",
-        "title": "A loop that can change its own plan",
-        "caption": "Simplified tool-using reasoning loop, not an extracted K2 Thinking trace.",
-        "takeaway": "Useful extra computation responds to evidence.",
+        "title": "A loop that can change its plan",
+        "caption": "Simplified reasoning loop with tools, not a real K2 Thinking transcript.",
+        "takeaway": "Extra computation is useful when it responds to new evidence.",
         "config": {
           "steps": [
             {
@@ -45,13 +45,14 @@
     },
     {
       "id": "precision",
-      "title": "Long generation repeatedly reads the weights",
-      "html": "<p>A weight is a stored number. Lower precision represents that number with fewer bits, reducing the ideal storage and often the memory traffic needed to use it. K2 Thinking applies INT4 weight-only quantization to its MoE components and uses quantization-aware training during post-training. The model card says its benchmark results use the INT4 checkpoint. That evidence concerns this trained quantization recipe; it does not establish that any later four-bit conversion would behave the same way.</p> <a href=\"#source-card\">[2]</a><p>Quantization-aware training lets optimization encounter the effects of the lower-precision representation. A toy analogy is practicing measurements with the ruler that will actually be used: a procedure depending on invisible millimeter distinctions is unreliable if the deployed ruler only marks centimeters. Training can adapt to the coarser representation, although this analogy does not specify its gradients or quantizer.</p><p>In the widget, 20 billion weights at 16 bits occupy an ideal 40 decimal gigabytes. At four bits the ideal count is 10 gigabytes. The ratio is exact for that imaginary uniform array. It is not an estimate for the whole K2 Thinking checkpoint, because the actual quantization applies selectively and stores additional quantization scales. “Weight-only” also means that four bits does not describe the activations or the attention cache.</p>",
+      "title": "Four-bit weights for long generation",
+      "nav": "Four-bit weights",
+      "html": "<p>Every generated token requires reading the weights of the experts it uses, and in long generation that reading takes much of the time. Storing weights in fewer bits reduces both the memory they occupy and the data that must be moved. K2 Thinking stores the weights of its expert layers as 4-bit integers (INT4). This is <strong>weight-only</strong> quantization: activations and the attention cache keep their own formats. The model was trained with <strong>quantization-aware training</strong> during post-training, and the model card says its benchmark results were measured with the INT4 checkpoint. That evidence covers this trained recipe; it does not show that converting some other model to four bits after training would work as well. <a href=\"#source-card\">[2]</a></p> <p>Quantization-aware training lets the model experience the rounding while it is still learning. Think of practicing measurements with the ruler you will actually use. If your method depends on millimeter marks and the real ruler shows only centimeters, the method fails; practicing with the coarse ruler lets you adapt. The analogy says nothing about the exact rounding rule or how training passes gradients through it.</p> <p>In the figure, 20 billion weights take 40 GB at 16 bits and 10 GB at 4 bits. That ratio is exact for this made-up uniform array. It does not size the K2 Thinking checkpoint, which quantizes only some weights and also stores scale factors.</p>",
       "figure": {
         "kind": "precision",
-        "title": "Count bits before predicting performance",
-        "caption": "Illustrative uniform weight array. Excludes scales, mixed precision, activations, KV cache, sharding and accuracy effects.",
-        "takeaway": "Four-bit storage is one quarter of sixteen-bit storage for the same uniformly encoded weights.",
+        "title": "Count the bits before predicting performance",
+        "caption": "Simplified storage for a made-up uniform array of weights. It excludes scale factors, mixed precision, activations, the KV cache, sharding and any effect on accuracy.",
+        "takeaway": "Four-bit storage is a quarter of 16-bit storage for the same weights.",
         "config": {
           "billions": 20
         }
@@ -59,13 +60,14 @@
     },
     {
       "id": "error",
-      "title": "An early error can change all later steps",
-      "html": "<p>Autoregressive generation feeds its earlier output back into the context. A small change in one token can alter the entire later route: choose a different search query, inspect another file, or accept a wrong assumption. This makes the evaluation of a long reasoning model different from checking a few isolated output probabilities.</p><p>Consider two versions of a toy assistant. Both answer nine easy questions correctly. On a tenth question, one writes “plus” where the other writes “minus” in an intermediate expression. A final-answer evaluation catches the difference only if it includes that difficult problem and enough samples to observe unstable behavior. A short calibration set can miss such sensitivity.</p><p>A useful precision comparison therefore holds the prompt, tools, context and generation budget fixed. It checks complete outcomes and repeats stochastic runs. The model card’s speed claims belong to its specified low-latency setting; the storage arithmetic above does not derive them.</p> <a href=\"#source-card\">[2]</a>"
+      "title": "One early error changes everything after it",
+      "nav": "Compounding errors",
+      "html": "<p>Each generated token becomes input for the next, so a small change in one token can redirect everything that follows: a different search query, a different file opened, a wrong assumption accepted. That makes a long reasoning model harder to evaluate than a model judged on a few isolated outputs.</p> <p>Take two versions of a model, one in full precision and one in four bits. Both answer nine easy questions correctly. On a tenth, one writes “plus” where the other writes “minus” in an intermediate step. A test catches the difference only if it includes that harder problem and runs it enough times to reveal unstable behavior. A short test set can miss this kind of sensitivity.</p> <p>A fair precision comparison therefore keeps the prompt, tools, context and generation budget the same, checks complete outcomes, and repeats each run several times, because generation involves random sampling. The model card’s speed claims apply to its own low-latency setup; the storage arithmetic above cannot produce them. <a href=\"#source-card\">[2]</a></p>"
     },
     {
       "id": "budget",
-      "title": "Count the work across the whole task",
-      "html": "<p>A task’s time includes reasoning generation, tool latency and subsequent recovery. A quick first answer can be expensive if it leads to repeated failed actions. A longer initial plan can also be wasteful if a direct lookup would settle the question. The relevant budget is the completed task, not the first token.</p><p>K2 Thinking keeps the K2-family sparse architecture and MLA, while adding the long-thinking and native low-bit post-training emphasis. These changes should be distinguished from a new base attention architecture.</p> <a href=\"#source-card\">[2]</a><p>To inspect such a system, record which claims were verified, which tool calls changed the plan, and when the final answer became justified. An extended transcript is valuable when its additional steps reduce uncertainty. Its length alone says nothing about whether the model discovered better evidence or merely spent more computation.</p>"
+      "title": "Measuring the whole task",
+      "html": "<p>A task’s total time includes generating the reasoning, waiting for tools, and recovering from mistakes. A quick first answer can turn out expensive if it leads to repeated failed actions. A long initial plan can be wasteful when a single lookup would settle the question. The budget that matters is the completed task, not the first token.</p> <p>K2 Thinking keeps the original K2’s sparse expert architecture and its MLA attention. What it adds is training for long reasoning and for low-bit inference, not a new attention design. <a href=\"#source-card\">[2]</a></p> <p>To inspect such a system, record which claims were checked, which tool calls changed the plan and when the final answer became justified. A long transcript is valuable when its extra steps reduce uncertainty. Its length alone does not show whether the model found better evidence or simply spent more computation.</p>"
     }
   ],
   "sources": [
@@ -89,8 +91,8 @@
     }
   ],
   "caveats": [
-    "The weight-storage widget is deliberately a 20B toy array, not a Kimi deployment sizing calculator.",
-    "Vendor throughput and tool-horizon reports do not establish a general speedup or reliability guarantee."
+    "The storage figure uses a made-up array of 20 billion weights; it is not a sizing calculator for Kimi deployments.",
+    "Moonshot’s reported speeds and tool-call counts do not establish a general speed-up or guarantee reliability."
   ],
   "related": [
     "2025-07-11-kimi-k2",

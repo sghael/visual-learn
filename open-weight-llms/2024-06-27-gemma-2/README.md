@@ -1,31 +1,31 @@
 # Gemma 2 · 9B and 27B
 
-How a teacher can make each training example more informative
+How a larger teacher model gave a smaller student more to learn from each token
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Gemma 2’s smaller models learn a teacher’s probability distribution, while alternating local and global attention limits memory.
+Gemma 2 trained its 9B model on a larger teacher’s next-token probabilities instead of only the observed text, and alternated local and global attention layers to limit memory.
 
-- One observed word hides many possibilities
-- Train on a distribution rather than a single label
-- A small numerical example explains the objective
-- Not every layer needs to inspect the whole past
-- Distillation changes training cost, not the student’s identity
+- What one observed word leaves out
+- Softening the teacher’s prediction
+- Why matching the whole distribution helps
+- Alternating local and global attention
+- Two meanings of “distillation”
 
 ## Figures
 
-- **Reveal the alternatives in a teacher’s prediction** (`distill`): Illustrative logits and temperature. This is token-distribution distillation, not sequence imitation and not Gemma 2’s disclosed temperature recipe. Soft targets communicate relationships among alternatives.
-- **Compare one local layer with one global layer** (`attention`): Simplified 16-token causal mask. Local/full presets represent different layer types; the hybrid preset is a generic toy, not Gemma 2’s alternating-layer architecture. Locality restricts direct access in a layer while global layers restore long-range access.
+- **See the alternatives in a teacher’s prediction** (`distill`): Made-up scores for four candidate words. The figure shows distillation from token probabilities; it does not reproduce Gemma 2’s training settings. A soft target shows how the alternatives compare, not only which one won.
+- **Compare a local layer with a global layer** (`attention`): Simplified attention pattern for one layer, with 16 tokens. Local and Full show Gemma 2’s two layer types; “Toy hybrid” is a generic teaching pattern, not Gemma 2’s layer order. Local layers limit what each layer sees directly; the global layers between them keep long-range access.
 
 ## Accuracy and scope
 
-Release date: 2024-06-27. June 27, 2024 public release of 9B and 27B weights; not the earlier preview or later 2B release.
+Release date: 2024-06-27. Google released the 9B and 27B weights on June 27, 2024. The date excludes the earlier preview and the 2B model, which came later.
 
-- The June date refers to 9B and 27B; 2B arrived later.
-- The teacher widget uses arbitrary probabilities and does not reproduce Gemma’s training hyperparameters.
-- Attention masks are scaled teaching examples, not a model execution trace.
+- The release date covers the 9B and 27B models; the 2B model came later.
+- The temperature figure uses made-up scores and does not reproduce Gemma 2’s training settings.
+- The attention figure is a scaled-down illustration, not a trace of the model running.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

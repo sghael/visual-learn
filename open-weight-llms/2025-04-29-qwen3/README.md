@@ -6,24 +6,24 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Qwen3 combines explicit thinking control with a teacher-to-student training route.
+Qwen3 put a switchable thinking mode into one model, trained it in four stages for the largest models, and distilled it into the smaller ones.
 
-- Extra tokens are extra computation
-- Teach the behavior before transferring it
-- A teacher can provide more than a winning token
-- Mode control must survive the chat template
+- Thinking costs tokens
+- Four training stages, then distillation
+- What a teacher’s probabilities add
+- Switching modes in practice
 
 ## Figures
 
-- **A conditional path through the same model** (`flow`): Simplified inference sequence for the original hybrid-thinking Qwen3 release. Thinking mode spends additional generated tokens before the answer.
-- **Inspect the information in a soft target** (`distill`): Illustrative token distribution. Temperature is a teaching control, not a reconstruction of Qwen3 training. The teacher can communicate relative alternatives as well as the top choice.
+- **One model, an optional detour** (`flow`): Simplified flow for the original Qwen3 release, in which one model handles both modes. Thinking mode spends extra tokens before the answer.
+- **See what a soft target contains** (`distill`): Made-up scores for four tokens. Temperature is a teaching control here, not a reconstruction of Qwen3’s training. A teacher’s distribution shows how the alternatives compare, not only which one is best.
 
 ## Accuracy and scope
 
-Release date: 2025-04-29. Official announcement date April 29, 2025; weight uploads are dated April 28 UTC. The folder follows the announcement calendar date. Technical report submitted May 14.
+Release date: 2025-04-29. Qwen announced the models on April 29, 2025; the weight uploads are dated April 28 UTC. The page uses the announcement date. The technical report followed on May 14.
 
-- Generated reasoning is not a faithful explanation of every internal computation.
-- The softmax widget teaches distillation information; it does not implement training or predict student quality.
+- The written reasoning is not a complete or faithful account of the model’s internal computation.
+- The softmax figure shows what information distillation carries. It does not train anything or predict a student’s quality.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

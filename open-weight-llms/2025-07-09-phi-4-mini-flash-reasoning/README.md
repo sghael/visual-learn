@@ -6,26 +6,26 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Phi’s SambaY architecture combines recurrent state, local attention, shared global memory and gated reuse of earlier representations.
+Phi-4-mini-flash-reasoning stores the full history once, shares it across layers, and lets some layers reuse earlier results through gates, which speeds up long answers.
 
-- Long generation repeats the memory problem
-- A running summary has a fixed number of slots
-- Keep both a summary and an addressable record
-- A gate selects channels from an earlier representation
-- Efficiency claims need the workload beside them
+- Why long answers are slow
+- A running summary of fixed size
+- Keeping a summary and a full record
+- Reusing an earlier result through a gate
+- Speed claims need their conditions
 
 ## Figures
 
-- **A fixed summary versus an expanding record** (`state`): Illustrative scalar counts for isolated memory components. Phi-mini-flash is hybrid and still has attention memory; this is not its total runtime memory or a quality comparison. A fixed-state component bounds one memory term by compressing the past.
-- **Reuse representations across the decoder** (`flow`): Simplified SambaY organization; the real layers interleave and include additional projections, feedforward computation and differential attention. Some later layers read global memory; others gate a representation already computed.
+- **A fixed summary beside a growing record** (`state`): Made-up sizes for two separate memory components. Phi-4-mini-flash-reasoning is a hybrid that still has an attention cache, so this is not its total memory. A fixed-size state caps one part of memory by compressing the past.
+- **Reuse results across the decoder** (`flow`): Simplified SambaY layout. The real model interleaves the layers and includes extra projections, feed-forward layers and a variant of attention called differential attention. Some later layers read the shared cache; others reuse a result computed earlier.
 
 ## Accuracy and scope
 
-Release date: 2025-07-09. Public weights and SambaY paper announced July 9, 2025.
+Release date: 2025-07-09. Microsoft released the weights and announced the SambaY paper on July 9, 2025.
 
-- The fixed-state curve describes only a toy component; the real hybrid still stores global attention memory.
-- The gate example is arithmetic intuition, not the full published GMU formula.
-- Reported throughput is conditional on workload and runtime, not a universal multiplier.
+- The flat line in the memory figure describes one component only; the real model still stores a full attention cache.
+- The gate example shows the arithmetic idea, not the full published formula.
+- The reported throughput depends on the workload and software; it is not a general speed-up.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

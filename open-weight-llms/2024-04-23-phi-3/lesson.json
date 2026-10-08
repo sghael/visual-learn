@@ -3,29 +3,31 @@
   "model": "Phi-3 · mini",
   "family": "Phi",
   "date": "2024-04-23",
-  "dateNote": "Phi-3-mini public weights were announced April 23, 2024. Later small, medium and 3.5 variants are not assigned this date.",
-  "subtitle": "How choosing the curriculum can matter as much as increasing the model",
-  "summary": "Phi-3-mini emphasizes educationally filtered and synthetic data to develop a useful model with few stored weights.",
+  "dateNote": "Microsoft released the Phi-3-mini weights on April 23, 2024. The small, medium and 3.5 models came later.",
+  "subtitle": "How a small model trained on carefully chosen and generated text kept up with much larger ones",
+  "summary": "Phi-3-mini trained a 3.8-billion-parameter model on heavily filtered web text and generated lessons, aiming for strong reasoning at a size that fits on a phone.",
   "category": "Training",
   "readingMinutes": 8,
   "parameters": "3.8B dense · Phi-3-mini",
   "license": "MIT",
-  "lead": "<p>A small model cannot devote unlimited capacity to every fact on the web. Phi-3-mini asks what happens when its training material is chosen for the skills we want it to learn. The lesson is a relationship between capacity, curriculum and the cost of deployment.</p>",
+  "lead": "<p>Most progress in language models has come from making them larger and training them on more text. Phi-3-mini, released by Microsoft in April 2024, tested another route. It is a 3.8-billion-parameter model, small enough to run on a phone, trained on text that was filtered and written to teach reasoning. This page explains that data strategy, what it bought, and what it cost.</p>",
   "sections": [
     {
       "id": "goal",
-      "title": "Choose the student before choosing the curriculum",
-      "html": "<p>Microsoft publicly released Phi-3-mini on April 23, 2024, with weights available through Hugging Face and local deployment options. The initial released mini model has 3.8B parameters. The announcement’s broader family plans should not be mistaken for all models sharing that first weight-release date. <a href=\"#source-release\">[1]</a></p><p>Imagine teaching a compact model to solve small programming problems. A repository might contain useful algorithms, repeated boilerplate, generated files, documentation fragments and broken experiments. More text does not automatically mean more useful practice. Under a fixed training budget, every repeated file occupies time that another example could have used.</p><p>This is not a claim that a small model has a tidy compartment for each fact. Parameters participate in distributed representations. “Capacity” is a shorthand for the limitations imposed by its architecture, size and training, not a literal number of facts that fit into labeled drawers.</p>"
+      "title": "Why training data matters more for a small model",
+      "nav": "Why data matters",
+      "html": "<p>Microsoft released Phi-3-mini on April 23, 2024, with downloadable weights on Hugging Face. It has 3.8 billion parameters. The same announcement described larger Phi-3 models, which arrived later. <a href=\"#source-release\">[1]</a></p> <p>A model learns from whatever its training text contains, and training time is limited. Imagine teaching a small model to write short programs from a scrape of public code. The scrape contains useful algorithms, but also boilerplate copied thousands of times, auto-generated files and abandoned experiments. Every copy of boilerplate uses training time that a more instructive example could have used. A large model can absorb that waste and still learn a lot. A small model can represent less, so what it reads matters more.</p>"
     },
     {
       "id": "textbook",
-      "title": "A worked example supplies intermediate structure",
-      "html": "<p>The earlier “Textbooks Are All You Need” work studies filtered code and synthetic textbook-style examples for smaller models. Its synthetic-data discussion warns that naive generation can produce homogeneous material, then describes constraints intended to diversify topics and exercises. Phi-3 extends this research direction; it did not invent the idea that training data quality matters. <a href=\"#source-textbooks\">[2]</a></p><p>Compare two invented examples. One says only “the sum is 45.” The other lists the input values, shows a loop accumulating them, and tests the returned sum. The second exposes connections that the first leaves implicit. It gives next-token training more opportunities to learn a useful sequence of operations.</p><p>Diversity still matters. A thousand nearly identical addition examples do not cover subtraction, empty inputs, incorrect types or overflow. A synthetic curriculum should vary the underlying problem, not merely rename the variables. And a beautifully formatted wrong explanation remains wrong.</p>",
+      "title": "The idea behind “textbook-quality” data",
+      "nav": "Textbook-quality data",
+      "html": "<p>Phi-3 continues a line of Microsoft research that began with the 2023 paper “Textbooks Are All You Need”. That work trained small coding models on code filtered for educational value, plus textbook-style lessons and exercises written by a larger model. The paper warned that naively generated text tends to repeat itself, and it varied the topics and intended audiences in its prompts to make the generated lessons more diverse. <a href=\"#source-textbooks\">[2]</a> The general idea that data quality matters is much older; this research pushed it hard for small models.</p> <p>Compare two ways of teaching the same sum. One example says only “the sum is 45.” Another lists the numbers, shows a loop adding them up, and tests the result. Both end at 45, but the second shows every step along the way. A model trained to predict the next token gets to practice each of those steps.</p> <p>Variety matters as much as clarity. A thousand near-identical addition problems teach nothing about empty lists, wrong input types or overflow. A good synthetic set varies the underlying problem, not just the variable names. Generated text also has to be checked, because a well-formatted wrong explanation teaches the wrong thing.</p>",
       "figure": {
         "kind": "flow",
-        "title": "Turn raw material into useful practice",
-        "caption": "Simplified conceptual curriculum inspired by the Phi research direction; this is not Microsoft’s complete internal data pipeline.",
-        "takeaway": "Filtering chooses the material; generation changes how a skill is demonstrated.",
+        "title": "Turn raw text into useful practice",
+        "caption": "Simplified outline of a curated-data pipeline in the spirit of the Phi research. Microsoft has not published its full pipeline at this level of detail.",
+        "takeaway": "Filtering chooses existing material; generation rewrites a skill into a form the model can learn from.",
         "config": {
           "steps": [
             {
@@ -50,18 +52,18 @@
     },
     {
       "id": "recipe",
-      "title": "Phi-3 uses both filtering and synthesis",
-      "html": "<p>The Phi-3 report describes 3.3T training tokens for mini, combining heavily filtered web content with generated examples. It describes an earlier phase emphasizing broad language and knowledge, followed by a phase emphasizing more strongly filtered and synthetic material. The architecture remains a transformer with a Llama-like block structure. <a href=\"#source-paper\">[3]</a></p><p>Filtering and synthesis have different roles. Filtering selects existing material. Synthesis creates or rewrites material into another form. In an illustrative curriculum, a web passage might supply the underlying concept, while a generated exercise turns it into a question with an explicit solution. Checking the solution prevents the generation stage from silently corrupting the lesson.</p><p>The report also acknowledges weaker factual recall in some settings. That is an important boundary: success on reasoning exercises does not establish equal coverage of arbitrary trivia. The choice of curriculum can improve targeted skills while leaving gaps elsewhere. <a href=\"#source-paper\">[3]</a></p>"
+      "title": "Phi-3’s training recipe",
+      "html": "<p>The Phi-3 report describes training mini on 3.3 trillion tokens in two phases. The first phase used heavily filtered web text, chosen to teach general knowledge and language. The second used web text filtered even more strictly, mixed with synthetic data aimed at reasoning and other skills. The architecture itself is ordinary: a transformer with the same block structure as Llama 2. The report says the result scores about as well as Mixtral 8×7B and GPT-3.5 on several benchmarks, including 69% on MMLU, a broad multiple-choice knowledge test. <a href=\"#source-paper\">[3]</a></p> <p>Filtering and generation play different roles. Filtering selects from text that already exists. Generation creates new text or rewrites existing text into another form. A web page might supply a concept, for example, and a generated exercise might turn it into a question with a worked solution. Checking the solution keeps errors out of the training data.</p> <p>The report is open about the cost. Phi-3-mini does poorly on tests of factual recall such as trivia questions, which the authors attribute to its small size. A curriculum aimed at reasoning can raise reasoning scores and still leave gaps in what the model knows. <a href=\"#source-paper\">[3]</a></p>"
     },
     {
       "id": "storage",
-      "title": "A compact model changes what can be stored locally",
-      "html": "<p>The model card identifies Phi-3-mini as a 3.8B-parameter model and supplies an MIT license. Smaller weight arrays make local deployment more approachable, but deployment still depends on numerical precision, runtime support and working memory. The linked card now describes a June 2024 update to the instruction-tuned checkpoint; its newer evaluation scores should not be attributed to the April launch. <a href=\"#source-card\">[4]</a></p><p>The interactive calculation starts with 3.8 billion numbers. At sixteen bits each, ideal weight storage is 7.6 decimal GB. At eight bits it becomes 3.8 GB; at four bits, 1.9 GB. These are independently calculated lower-level storage examples, not measured memory usage for a running phone application.</p><p>Quantization rounds or otherwise encodes weights into a smaller numerical representation. Its error can change the model’s outputs. The 4-, 8- and 16-bit buttons therefore select storage calculations only. These calculations do not measure how a particular quantizer preserves accuracy or how a particular phone schedules the computation.</p>",
+      "title": "How small the weights are",
+      "html": "<p>The model card lists Phi-3-mini as a 3.8-billion-parameter model under the MIT license, which permits almost any use. The card has since been updated for a June 2024 revision of the instruction-tuned model, and its newer benchmark scores belong to that revision, not to the April release. <a href=\"#source-card\">[4]</a></p> <p>The figure starts from 3.8 billion numbers. At 16 bits (2 bytes) each, the weights take 7.6 GB. At 8 bits they take 3.8 GB, and at 4 bits, 1.9 GB. The report shows a 4-bit version running offline on an iPhone 14. <a href=\"#source-paper\">[3]</a></p> <p>Storing weights in fewer bits is called <strong>quantization</strong>: each weight is rounded to the nearest value the smaller format can represent. The rounding changes the model’s outputs, sometimes noticeably. The figure’s buttons change only the storage arithmetic. Whether a 4-bit Phi-3 still answers well has to be measured.</p>",
       "figure": {
         "kind": "precision",
         "title": "Count the weight bytes",
-        "caption": "Illustrative ideal storage for 3.8B weights. Excludes quantization metadata, mixed precision, activations, KV cache and runtime overhead; no accuracy or phone-fit claim.",
-        "takeaway": "Small parameter counts and fewer bits reduce different factors in the same product.",
+        "caption": "Simplified storage for 3.8 billion weights at each bit width. It excludes quantization metadata, the KV cache and other runtime memory, and says nothing about accuracy.",
+        "takeaway": "Fewer parameters and fewer bits per parameter both shrink the weights, and the two savings multiply.",
         "config": {
           "billions": 3.8
         }
@@ -69,8 +71,9 @@
     },
     {
       "id": "evaluate",
-      "title": "Test the curriculum’s blind spots",
-      "html": "<p>Try separating an evaluation into two questions. Can the model execute a familiar kind of reasoning on a new example? Does it know the external facts required by the question? A failure of either kind may look like a wrong answer, but each calls for a different intervention.</p><p>For instance, a model might correctly calculate travel time from a supplied distance and speed while having no reliable knowledge of a newly opened train route. Supplying a trustworthy document could address missing information. It would not automatically repair an inability to combine the values correctly.</p><p>Phi-3’s lasting lesson is to treat data design as part of model design. The relevant result is a trained system under an explicit curriculum and evaluation, not a slogan that small models always replace large ones. A compact model can be useful when its learned skills and limitations match the task.</p>"
+      "title": "Telling a skill gap from a knowledge gap",
+      "nav": "Skill or knowledge gap",
+      "html": "<p>When a small model gets a question wrong, ask which of two things failed: the reasoning or a fact. Suppose a question gives a distance and a speed and asks for the travel time on a newly opened train line. A model might do the division perfectly and still know nothing about the line. Handing it a reliable timetable fixes the missing fact. It does not help a model that cannot do the division.</p> <p>That distinction is Phi-3’s main lesson: choosing the training data is part of designing the model. A curriculum built for reasoning produced a small model that reasons well for its size and recalls facts poorly. Such a model is useful when its strengths and gaps fit the task, for example when the facts it needs can be supplied in the prompt.</p>"
     }
   ],
   "sources": [
@@ -100,9 +103,9 @@
     }
   ],
   "caveats": [
-    "The lesson focuses on mini, the first public Phi-3 release.",
-    "Educational-data selection does not prove a universal optimum or complete factual knowledge.",
-    "The memory calculator models ideal weights only."
+    "This page covers mini, the first Phi-3 model with public weights.",
+    "Careful data selection does not prove the curriculum is optimal, and it does not give the model complete factual knowledge.",
+    "The storage figure counts weights only."
   ],
   "related": [
     "2025-04-30-phi-4-reasoning"
