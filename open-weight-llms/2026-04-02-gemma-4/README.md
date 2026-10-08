@@ -1,32 +1,32 @@
 # Gemma 4 · E2B, E4B, 26B-A4B, 31B, later 12B
 
-How a family separates weight memory, token computation and sensory encoding
+Reading a model family whose names count parameters three different ways
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Gemma 4 combines sparse and dense models, compression-aware training, and a later encoder-free 12B variant under Apache 2.0.
+Gemma 4 mixes sparse and dense models, counts parameters in several ways, adds a 12B model without separate image and audio encoders, and offers quantization-aware checkpoints, all under Apache 2.0.
 
-- One family contains different architectures
-- The 12B addition removes separate sensory encoders
-- Moving work does not make it disappear
-- Train while seeing the rounding error
-- A small drafter can propose several next tokens
+- One family, several architectures
+- The 12B model reads images and audio directly
+- Moving work does not remove it
+- Training with the rounding in view
+- A small drafter proposes several tokens
 
 ## Figures
 
-- **A direct path from sensory chunks to tokens** (`flow`): Simplified conceptual path for the June 2026 Gemma 4 12B addition. Other Gemma 4 variants retain modality encoders. Removing a separate encoder shifts representation learning into the joint model.
-- **What the bit budget buys** (`precision`): Illustrative ideal weight storage for 12B numbers, not measured Gemma 4 memory. Excludes scales, mixed precision, KV cache, activations and runtime overhead; the widget does not simulate quantization error. QAT addresses the quality consequences that a storage calculator cannot show.
+- **A direct path from raw input to tokens** (`flow`): Simplified path for the Gemma 4 12B model added in June 2026. The other Gemma 4 models keep separate encoders. Without a separate encoder, the main model has to learn to interpret raw image and audio pieces.
+- **What the bit budget buys** (`precision`): Simplified storage for 12 billion weights, not measured Gemma 4 memory. It excludes scale factors, mixed precision, the KV cache, activations and runtime overhead, and does not simulate rounding error. The storage arithmetic is exact; QAT addresses the quality loss that the arithmetic cannot show.
 
 ## Accuracy and scope
 
-Release date: 2026-04-02. First Gemma 4 weights April 2, 2026. The 12B addition launched June 3; QAT checkpoints launched June 5. Research includes the July technical report.
+Release date: 2026-04-02. Google released the first Gemma 4 weights on April 2, 2026. The 12B model followed on June 3 and the QAT checkpoints on June 5; the technical report appeared in July.
 
-- The April folder date is the family launch; 12B and QAT additions are explicitly dated June.
+- The page is dated by the April family launch; the 12B model and the QAT checkpoints are dated June.
 - Effective, active and total parameter counts are not interchangeable.
-- The precision figure is an ideal calculation and makes no device-fit claim.
-- Encoder-free applies to the 12B addition, not every Gemma 4 variant.
+- The storage figure is an ideal calculation and makes no claim about fitting on a device.
+- Only the 12B model is encoder-free; the other Gemma 4 models keep their encoders.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

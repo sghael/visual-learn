@@ -3,24 +3,24 @@
   "model": "Qwen3-Next",
   "family": "Qwen",
   "date": "2025-09-11",
-  "dateNote": "Public launch September 11; repository contains staged weight uploads dated September 9. The folder uses the public release date, not the staging timestamp.",
+  "dateNote": "Qwen released the model publicly on September 11, 2025. The repository shows the weights uploaded on September 9; the page uses the public release date.",
   "subtitle": "How a running memory and a searchable history cooperate",
-  "summary": "Qwen3-Next combines Gated DeltaNet state updates with occasional full attention and sparse experts.",
+  "summary": "Qwen3-Next makes three of every four layers update a fixed-size memory instead of a growing cache, keeps full attention in the rest, and uses about 3 billion of its 80 billion parameters per token.",
   "category": "Memory",
   "readingMinutes": 8,
   "parameters": "80B total · 3B active",
   "license": "Apache 2.0",
-  "lead": "<p>Reading a long conversation creates a choice: keep every detail available for retrieval, or continually fold the past into a compact state. Qwen3-Next combines both strategies. Most layers update a running memory; periodic attention layers retain access to individual earlier tokens.</p>",
+  "lead": "<p>A model reading a long conversation can keep every detail available to look up, which costs memory that grows with the conversation, or it can fold the past into a fixed-size summary, which is cheap but loses detail. Qwen3-Next, released by Alibaba’s Qwen team in September 2025, does both. Three of every four layers keep a running summary, and the fourth uses ordinary attention over the full history. The model also uses only about 3 billion of its 80 billion parameters for each token. The model card reports that it beats the dense Qwen3-32B base model at about a tenth of the training cost, with ten times the throughput on inputs over 32,000 tokens. <a href=\"#source-card\">[2]</a></p>",
   "sections": [
     {
       "id": "history",
-      "title": "Two different meanings of remembering",
-      "html": "<p>A notebook preserves each line so that you can look it up later. A running total preserves a conclusion while discarding the list that produced it. Both are memories, but they answer different questions. From a total of 27 you cannot recover whether the last two entries were 10 and 17 or 8 and 19.</p><p>Ordinary cached attention resembles the notebook: it stores key/value representations of previous tokens. A recurrent layer resembles the running summary: new input updates a fixed-size state. The Gated DeltaNet paper describes a matrix-valued associative memory with both forgetting and targeted updates. Its state size is set by architecture, not by the length of the conversation.</p> <a href=\"#source-gdn\">[1]</a><p>The widget compares a toy 256-scalar state with 64 cached scalars per token. At 128 tokens the latter contains 8,192 scalars; the former still contains 256. Those are deliberately small teaching dimensions. Equal scalar counts would not mean equal representational ability.</p>",
+      "title": "Two kinds of remembering",
+      "html": "<p>A notebook keeps every line so you can look it up later. A running total keeps a conclusion and throws away the list that produced it. Both are memory, but they answer different questions. From a total of 27, you cannot tell whether the last two entries were 10 and 17 or 8 and 19.</p> <p>Attention with a KV cache works like the notebook: it stores keys and values for every earlier token. A recurrent layer works like the running total: each new token updates a fixed-size <strong>state</strong>. Qwen3-Next’s recurrent layers use <strong>Gated DeltaNet</strong>, a design from earlier research. Its state is a matrix that stores associations between keys and values; it can forget, and it can revise a specific association. The state’s size is set by the architecture, not by the length of the conversation. <a href=\"#source-gdn\">[1]</a></p> <p>The figure compares a made-up state of 256 numbers with a cache that grows by 64 numbers per token. At 128 tokens the cache holds 8,192 numbers, and the state still holds 256. The sizes are kept small for teaching. Holding the same count of numbers would not mean holding the same information.</p>",
       "figure": {
         "kind": "state",
-        "title": "Compare a fixed state with a growing history",
-        "caption": "Illustrative scalar counts for one toy recurrent state and one toy KV history. Not Qwen3-Next memory measurements.",
-        "takeaway": "Fixed-size state limits memory growth by compressing history.",
+        "title": "A fixed state beside a growing history",
+        "caption": "Made-up sizes for one recurrent state and one attention cache. These are not Qwen3-Next’s memory figures.",
+        "takeaway": "A fixed-size state stops memory from growing by compressing the history.",
         "config": {
           "stateScalars": 256,
           "kvScalarsPerToken": 64,
@@ -30,13 +30,14 @@
     },
     {
       "id": "delta",
-      "title": "Correct an association instead of accumulating it",
-      "html": "<p>The delta rule changes an existing association by its prediction error. In a scalar teaching example, let the current stored value be 6 and the new target be 10. With write strength one half, the update is 6 + 0.5 × (10 − 6) = 8. Repeating the same observation gives 9, then 9.5. Blindly adding 10 every time would instead make the state grow without representing the desired value.</p><p>Gated DeltaNet adds a learned decay of the old state before this correction. For example, a retention factor of 0.5 first turns 6 into 3; the same half-strength correction toward 10 then gives 3 + 0.5 × (10 − 3) = 6.5. The decay answers how much of the current memory to retain; the delta update answers how to revise the association selected by a key. The real operation uses vectors and matrices, so different keys may overlap. Our scalar example isolates the mechanism without pretending that one human-readable fact occupies one slot.</p> <a href=\"#source-gdn\">[1]</a>",
+      "title": "Correcting a memory instead of adding to it",
+      "nav": "Delta rule",
+      "html": "<p>The <strong>delta rule</strong> updates a stored association in proportion to its error. Take a stored value of 6 and a new target of 10. With a write strength of one-half, the update is 6 + 0.5 × (10 − 6) = 8. Seeing the same target again gives 9, then 9.5: the memory converges on 10. Simply adding 10 each time would instead make the stored value grow without limit.</p> <p>Gated DeltaNet first shrinks the old state by a learned <strong>decay</strong> factor and then applies the correction. With a decay factor of 0.5, the 6 first becomes 3, and the same half-strength correction toward 10 gives 3 + 0.5 × (10 − 3) = 6.5. The decay decides how much of the existing memory to keep; the delta update decides how to revise the association picked out by the current key. In the real layer, the state is a matrix and different keys can overlap, so a fact does not sit in one slot. The single number here only shows the mechanism. <a href=\"#source-gdn\">[1]</a></p>",
       "figure": {
         "kind": "flow",
-        "title": "A scalar analogy for the update",
-        "caption": "Simplified delta-rule teaching sequence; real Gated DeltaNet uses matrix state and learned gates.",
-        "takeaway": "Targeted correction behaves differently from repeatedly adding the same observation.",
+        "title": "The update, with one number",
+        "caption": "Simplified teaching sequence for the delta rule. Real Gated DeltaNet uses a matrix state and learned gates.",
+        "takeaway": "Correcting toward a target behaves differently from repeatedly adding the same observation.",
         "config": {
           "steps": [
             {
@@ -61,13 +62,15 @@
     },
     {
       "id": "hybrid",
-      "title": "Keep a direct-retrieval route in the stack",
-      "html": "<p>The released 80B-A3B model has 48 layers arranged as twelve repetitions of three Gated DeltaNet layers followed by one gated-attention layer. It also uses 512 routed experts, selecting 10 per token, plus one shared expert. These are separate savings: recurrent layers reduce attention-history work, while sparse experts reduce the feed-forward weights used by a token.</p> <a href=\"#source-card\">[2]</a><p>Imagine a long meeting transcript. A compact state could track the current plan and recurring participants. A full-attention layer can still consult the stored representation of an unusual identifier mentioned near the start. Access to that representation does not guarantee that the model will reproduce the identifier correctly. This example is a motivation for combining the mechanisms, not an assertion that the model assigns these human roles to particular layers.</p><p>The full-attention layers still have a growing cache. Calling the whole hybrid “constant-memory” would hide that remaining cost. Some layers use bounded recurrent state while others preserve a growing retrieval history. This also differs from sliding-window attention, which keeps an explicit recent history and discards entries outside its window.</p>"
+      "title": "Keeping a direct route to the past",
+      "nav": "Hybrid layout",
+      "html": "<p>The released 80B-A3B model has 48 layers in twelve repeating groups: three Gated DeltaNet layers followed by one gated-attention layer, which is full attention whose output passes through a learned gate. It also uses experts: 512 routed experts per layer, of which each token uses 10, plus 1 shared expert. These are separate savings. The recurrent layers reduce the work of attending over the history, and the experts reduce the feed-forward weights each token uses. <a href=\"#source-card\">[2]</a></p> <p>Think of a long meeting transcript. A compact state can track the current plan and who keeps speaking. A full-attention layer can still look up an unusual identifier mentioned at the start. Access does not guarantee that the model reproduces the identifier correctly, and the trained layers need not divide the work along these human lines. The example only shows why combining the two is useful.</p> <p>The full-attention layers still keep a cache that grows with the conversation, so the hybrid as a whole is not constant-memory. It also differs from sliding-window attention. A sliding window keeps exact recent tokens and drops everything older; Gated DeltaNet keeps a compressed summary of everything it has read.</p>"
     },
     {
       "id": "systems",
-      "title": "Sparse arithmetic needs a matching implementation",
-      "html": "<p>Qwen3-Next also includes multi-token prediction, which can supply draft tokens for speculative decoding. Drafts must be checked by the main model. The model card warns that actual throughput depends strongly on the serving implementation and that multi-token prediction is not generally available in the basic Transformers path.</p> <a href=\"#source-card\">[2]</a><p>The practical experiment therefore has several axes: context length, batch size, attention implementation, expert placement and draft acceptance. A small active-parameter count does not guarantee a correspondingly small wall-clock time. The machine still stores the full experts, moves activations, reads memory and coordinates work.</p><p>Its native context is 262,144 tokens, with an extension recipe documented separately. The Instruct checkpoint covered here is a direct-answer model; the companion Thinking checkpoint is distinct. Confusing the two can change both latency and the shape of generated output.</p> <a href=\"#source-card\">[2]</a>"
+      "title": "Speed depends on the serving software",
+      "nav": "Serving",
+      "html": "<p>Qwen3-Next also includes multi-token prediction, which can propose draft tokens for speculative decoding: the main model checks several proposed tokens at once and keeps the ones it agrees with. The model card warns that real throughput depends heavily on the serving software, and that multi-token prediction is not generally available in the basic Hugging Face Transformers implementation. <a href=\"#source-card\">[2]</a></p> <p>Measuring speed therefore involves several settings at once: context length, batch size, the attention implementation, where the experts are placed, and how often drafts are accepted. A small number of active parameters does not guarantee a correspondingly short response time, because the hardware still stores all the experts, moves data between them and coordinates the work.</p> <p>The model accepts 262,144 tokens natively, and a separately documented recipe extends that further. This page covers the Instruct model, which answers directly; a companion Thinking model reasons step by step first. Mixing them up changes both response time and the form of the output. <a href=\"#source-card\">[2]</a></p>"
     }
   ],
   "sources": [
@@ -91,8 +94,8 @@
     }
   ],
   "caveats": [
-    "The state widget shows scaling behavior, not a faithful implementation or memory estimate for the released model.",
-    "Gated DeltaNet originated in earlier research; Qwen3-Next’s contribution is its model and systems integration."
+    "The memory figure shows how the two kinds of memory scale. It does not implement or estimate the released model’s memory.",
+    "Gated DeltaNet came from earlier research; Qwen3-Next’s contribution is building it into a large hybrid model."
   ],
   "related": [
     "2025-04-29-qwen3",

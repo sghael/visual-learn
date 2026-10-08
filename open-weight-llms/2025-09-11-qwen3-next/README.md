@@ -6,24 +6,24 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Qwen3-Next combines Gated DeltaNet state updates with occasional full attention and sparse experts.
+Qwen3-Next makes three of every four layers update a fixed-size memory instead of a growing cache, keeps full attention in the rest, and uses about 3 billion of its 80 billion parameters per token.
 
-- Two different meanings of remembering
-- Correct an association instead of accumulating it
-- Keep a direct-retrieval route in the stack
-- Sparse arithmetic needs a matching implementation
+- Two kinds of remembering
+- Correcting a memory instead of adding to it
+- Keeping a direct route to the past
+- Speed depends on the serving software
 
 ## Figures
 
-- **Compare a fixed state with a growing history** (`state`): Illustrative scalar counts for one toy recurrent state and one toy KV history. Not Qwen3-Next memory measurements. Fixed-size state limits memory growth by compressing history.
-- **A scalar analogy for the update** (`flow`): Simplified delta-rule teaching sequence; real Gated DeltaNet uses matrix state and learned gates. Targeted correction behaves differently from repeatedly adding the same observation.
+- **A fixed state beside a growing history** (`state`): Made-up sizes for one recurrent state and one attention cache. These are not Qwen3-Next’s memory figures. A fixed-size state stops memory from growing by compressing the history.
+- **The update, with one number** (`flow`): Simplified teaching sequence for the delta rule. Real Gated DeltaNet uses a matrix state and learned gates. Correcting toward a target behaves differently from repeatedly adding the same observation.
 
 ## Accuracy and scope
 
-Release date: 2025-09-11. Public launch September 11; repository contains staged weight uploads dated September 9. The folder uses the public release date, not the staging timestamp.
+Release date: 2025-09-11. Qwen released the model publicly on September 11, 2025. The repository shows the weights uploaded on September 9; the page uses the public release date.
 
-- The state widget shows scaling behavior, not a faithful implementation or memory estimate for the released model.
-- Gated DeltaNet originated in earlier research; Qwen3-Next’s contribution is its model and systems integration.
+- The memory figure shows how the two kinds of memory scale. It does not implement or estimate the released model’s memory.
+- Gated DeltaNet came from earlier research; Qwen3-Next’s contribution is building it into a large hybrid model.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

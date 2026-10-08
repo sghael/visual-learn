@@ -6,27 +6,27 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Falcon-H1 combines attention and Mamba-2 branches in parallel within a block, then concatenates their outputs.
+Falcon-H1 runs attention and a Mamba-2 recurrent branch side by side inside each block and mixes their outputs, instead of alternating the two in separate layers.
 
-- A hybrid family, rather than one fixed size
-- Both branches receive the same input
-- The hybrid retains two different memory terms
-- Equal parameter counts can hide different paths
-- Check the checkpoint and workload you actually need
+- Six sizes of one hybrid design
+- Both branches read the same input
+- A hybrid keeps both kinds of memory
+- The same size can be built different ways
+- Choosing a checkpoint and measuring it
 
 ## Figures
 
-- **Two branches inside one mixer** (`flow`): Simplified Falcon-H1 block. The attention and Mamba-2 operations shown together run as parallel branches, not as consecutive stages; residual, normalization and MLP details are omitted. Combine branch outputs after both have processed the same token representation.
-- **Two components contribute to hybrid memory** (`state`): Illustrative recurrent-state and attention-cache scalar counts. Falcon-H1 contains both terms, so its total sequence memory is not the flat recurrent line. Excludes weights, batch and runtime overhead. A hybrid reduces some costs while retaining a sequence-length-dependent attention cache.
+- **Two branches inside one block** (`flow`): Simplified Falcon-H1 block. Attention and Mamba-2 run as parallel branches, not one after the other. Residual connections, normalization and the feed-forward layer are omitted. Both branches process the same token representation before their outputs are combined.
+- **Two parts of a hybrid’s memory** (`state`): Made-up sizes for a recurrent state and an attention cache. Falcon-H1 has both, so its memory keeps growing with the input instead of following the flat line. Weights, batching and runtime overhead are excluded. A hybrid saves memory but still keeps an attention cache that grows with the input.
 
 ## Accuracy and scope
 
-Release date: 2025-05-21. TII’s public launch announcement is dated May 21, 2025. The detailed report appeared in July; repository creation alone was not used as proof of public release.
+Release date: 2025-05-21. TII announced the models on May 21, 2025. The detailed technical report appeared in July.
 
-- Hybrid memory includes both fixed-state and growing attention-cache components.
-- The block diagram is architectural; it does not promise simultaneous kernel execution.
-- The state widget uses invented scalar counts and does not predict real memory or quality.
-- Model-family size labels are rounded names, not exact parameter inventories.
+- A hybrid’s memory includes both a fixed-size state and an attention cache that grows with the input.
+- The block diagram shows the architecture; it does not mean the two branches run simultaneously on the hardware.
+- The memory figure uses made-up sizes and predicts neither real memory use nor quality.
+- Size labels such as 7B are rounded names, not exact parameter counts.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

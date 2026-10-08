@@ -6,25 +6,25 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Follow pretraining, midtraining, and post-training through a model family with public data and checkpoints.
+Ai2 published Olmo 3’s data, code and checkpoints from every training stage, so researchers can change one step and measure its effect on the final model.
 
-- A model is the endpoint of many choices
-- Changing the curriculum changes the experiment
-- Reasoning and conversation can share a base
-- Availability is the beginning of reproducibility
+- A model is the end of a series of choices
+- Changing the training mix
+- Several models from one base
+- Publishing is the first step toward reproducing
 
 ## Figures
 
-- **Find a point where the experiment can branch** (`flow`): Simplified map of Olmo 3’s published model flow; branches are compressed into one overview. An intermediate checkpoint allows an intervention earlier than the final model.
-- **Hold the token budget fixed; change the mix** (`mixture`): Illustrative 100B-token curriculum, not the measured Olmo mixture or a predicted quality curve. A transparent mixture makes the training change precise enough to test.
+- **Find a point where an experiment can branch** (`flow`): Simplified map of Olmo 3’s published training flow, with the branches condensed. An intermediate checkpoint lets an experiment change training earlier than the final model.
+- **Keep the token budget fixed; change the mix** (`mixture`): Made-up budget of 100 billion tokens. It is not Olmo 3’s actual mixture or a prediction of quality. A published mixture makes a training change precise enough to test.
 
 ## Accuracy and scope
 
-Release date: 2025-11-20. Official public launch date; the arXiv technical report followed in December.
+Release date: 2025-11-20. Ai2 released Olmo 3 on November 20, 2025. The technical report followed on arXiv in December.
 
-- The mixture widget is an allocation exercise, not an empirical scaling law.
-- Openness does not imply that a full training reproduction is inexpensive or numerically identical.
-- This page distinguishes the November Olmo 3 release from December Olmo 3.1.
+- The mixture figure is a budgeting exercise, not a measured relationship between data and quality.
+- Open data and code do not make a full reproduction cheap or numerically identical.
+- This page covers the November Olmo 3 release, not the December Olmo 3.1 update.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

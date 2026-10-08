@@ -1,29 +1,29 @@
 # Kimi K2 Thinking
 
-How long reasoning changes the economics of precision
+Why a model built for long reasoning was trained to run in four-bit precision
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Kimi K2 Thinking pairs reasoning interleaved with tools with quantization-aware post-training for its expert weights.
+Kimi K2 Thinking interleaves reasoning with hundreds of tool calls, and was trained with four-bit expert weights so that long tasks move less data through memory.
 
-- Reason, act, observe, then revise
-- Long generation repeatedly reads the weights
-- An early error can change all later steps
-- Count the work across the whole task
+- Reason, act, observe, revise
+- Four-bit weights for long generation
+- One early error changes everything after it
+- Measuring the whole task
 
 ## Figures
 
-- **A loop that can change its own plan** (`flow`): Simplified tool-using reasoning loop, not an extracted K2 Thinking trace. Useful extra computation responds to evidence.
-- **Count bits before predicting performance** (`precision`): Illustrative uniform weight array. Excludes scales, mixed precision, activations, KV cache, sharding and accuracy effects. Four-bit storage is one quarter of sixteen-bit storage for the same uniformly encoded weights.
+- **A loop that can change its plan** (`flow`): Simplified reasoning loop with tools, not a real K2 Thinking transcript. Extra computation is useful when it responds to new evidence.
+- **Count the bits before predicting performance** (`precision`): Simplified storage for a made-up uniform array of weights. It excludes scale factors, mixed precision, activations, the KV cache, sharding and any effect on accuracy. Four-bit storage is a quarter of 16-bit storage for the same weights.
 
 ## Accuracy and scope
 
-Release date: 2025-11-06. Public release November 6, 2025.
+Release date: 2025-11-06. Moonshot AI released the model on November 6, 2025.
 
-- The weight-storage widget is deliberately a 20B toy array, not a Kimi deployment sizing calculator.
-- Vendor throughput and tool-horizon reports do not establish a general speedup or reliability guarantee.
+- The storage figure uses a made-up array of 20 billion weights; it is not a sizing calculator for Kimi deployments.
+- Moonshot’s reported speeds and tool-call counts do not establish a general speed-up or guarantee reliability.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

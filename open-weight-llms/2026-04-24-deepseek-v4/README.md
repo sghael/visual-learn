@@ -6,26 +6,26 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-V4 combines sequence compression, sparse retrieval and local attention to make very long contexts less expensive.
+DeepSeek-V4 merges groups of tokens into compressed cache entries, selects among them for distant context and keeps a local path for recent detail, making million-token contexts cheaper.
 
-- Compression can act across features or across time
-- Compress groups, then select useful groups
-- A coarse global view complements local detail
-- More information paths need stable mixing
-- What the release establishes
+- Compressing features versus compressing time
+- Compress, then select
+- A coarse overview alongside local detail
+- Keeping the residual streams stable
+- What the release contains
 
 ## Figures
 
-- **Choose among compressed history records** (`sparse`): Simplified CSA selection stage. Each of sixteen candidates represents a compressed record; the widget omits the learned compressor and the parallel local window. Sequence compression reduces candidates; sparse selection reduces expensive reads among them.
-- **Interleave two affordable views of the global history** (`flow`): Simplified example of interleaved CSA and HCA layers, not the release’s exact layer schedule. Each layer combines its own global pattern with local attention. Dense attention can be inexpensive when its input has already been compressed.
+- **Choose among compressed entries** (`sparse`): Simplified CSA selection step. Each of the 16 candidates is a compressed entry; the figure omits the learned compressor and the parallel local window. Compression reduces the number of candidates; selection reduces how many of them the expensive step reads.
+- **Alternate two affordable views of the history** (`flow`): Simplified alternation of CSA and HCA layers, not the release’s exact layer order. Each layer combines its own view of the distant history with local attention. Full attention is affordable when its input has already been compressed.
 
 ## Accuracy and scope
 
-Release date: 2026-04-24. Public V4-Pro and V4-Flash preview weights appeared April 24, 2026. The technical report documents the architecture; later 0731 and 0813 revisions are not new architecture introductions.
+Release date: 2026-04-24. DeepSeek released preview weights for V4-Pro and V4-Flash on April 24, 2026. The technical report describes the architecture; the later 0731 and 0813 updates did not change it.
 
-- Toy token counts and compression ratios are illustrative, not V4 configurations.
-- The sparse widget models selection after compression and omits the local path.
-- The June report describes the architecture after the April preview announcement; later checkpoint refreshes are not treated as separate inventions.
+- Token counts and compression ratios in the examples are made up; they are not V4’s settings.
+- The selection figure starts after compression and omits the local path.
+- The June report describes the architecture of the April preview; later checkpoint updates are not treated as new designs.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

@@ -3,29 +3,31 @@
   "model": "Phi-4-reasoning-vision-15B",
   "family": "Phi",
   "date": "2026-03-04",
-  "dateNote": "Model card and official research post both identify March 4, 2026 as the public-weight release.",
+  "dateNote": "The model card and Microsoft’s research post both give March 4, 2026 as the release date of the weights.",
   "subtitle": "How better visual evidence and selective reasoning solve different problems",
-  "summary": "Phi-4-reasoning-vision combines dynamic-resolution visual encoding with a learned choice between direct and extended responses.",
+  "summary": "Phi-4-reasoning-vision pairs a vision encoder that keeps fine detail with a language model trained to choose between answering directly and reasoning at length.",
   "category": "Multimodal",
   "readingMinutes": 8,
   "parameters": "15B · image/text input · text output",
   "license": "MIT",
-  "lead": "<p>An elaborate solution cannot recover a number that was never read correctly from an image. Phi-4-reasoning-vision separates accurate perception from the decision to spend more tokens reasoning. Both affect whether a compact visual assistant produces a useful answer quickly.</p>",
+  "lead": "<p>A careful calculation cannot rescue a number that was misread from an image. Phi-4-reasoning-vision-15B, released by Microsoft in March 2026, treats two questions separately: how to read an image accurately, and when to spend extra tokens reasoning about it. It pairs a vision encoder that keeps fine detail with a language model trained to choose between a direct answer and a longer chain of reasoning. <a href=\"#source-card\">[1]</a></p>",
   "sections": [
     {
       "id": "evidence",
-      "title": "Read the marks before solving the problem",
-      "html": "<p>Microsoft released Phi-4-reasoning-vision-15B on March 4, 2026. Its model card specifies text-and-image inputs, text outputs, a 16,384-token context and an MIT license. It combines the Phi-4-reasoning language backbone with a SigLIP-2 vision encoder. <a href=\"#source-card\">[1]</a></p><p>Consider a chart asking which month had the highest revenue. The model first needs to identify the bars, labels and scale. If “18” is misread as “13”, a flawless later comparison can still choose the wrong month. Perception errors and reasoning errors can produce the same incorrect final answer, so evaluate them separately.</p><p>Now change the question to ask for the growth rate between two months. The visual evidence may be identical, but the required computation changes. A model should not need the same long response for simply naming a label and for deriving a percentage from two values.</p>"
+      "title": "Read the image before solving the problem",
+      "nav": "Perception",
+      "html": "<p>Microsoft released Phi-4-reasoning-vision-15B on March 4, 2026. The model card lists image and text input, text output, a 16,384-token context and the MIT license. The model joins the Phi-4-reasoning language model to a SigLIP-2 vision encoder. <a href=\"#source-card\">[1]</a></p> <p>Suppose a question about a chart asks which month had the highest revenue. The model first has to find the bars, labels and scale. If it misreads “18” as “13”, a flawless comparison afterward can still pick the wrong month. Misreading and misreasoning can produce the same wrong answer, so they need to be tested separately.</p> <p>Now ask instead for the growth rate between two months. The image is the same, but the computation is different. Naming a label should not need the same long response as deriving a percentage from two values.</p>"
     },
     {
       "id": "resolution",
-      "title": "More visual tokens preserve opportunities to inspect detail",
-      "html": "<p>SigLIP 2’s NaFlex variant supports varying image aspect ratios and resolutions. Its paper studies representations for localization and document-like tasks as well as broad image understanding. The representation is learned, rather than a fixed textual caption of the scene. <a href=\"#source-siglip\">[2]</a></p><p>The Phi report compares image-processing approaches using a smaller 5B experimental model. It favors dynamic-resolution encoding with a larger visual-token budget for fine-detail tasks. Those ablations motivate its design, but do not mean increasing resolution always improves every task or every model. <a href=\"#source-paper\">[3]</a></p><p>The grid is an abstract image sixteen units wide and twelve high. With two-unit square patches, it contains 8 × 6 = 48 patches. With one-unit patches it contains 192. A full noncausal attention layer comparing every patch with every patch has 2,304 versus 36,864 ordered pairs. The number of pairs grows sixteenfold when the token count grows fourfold.</p>",
+      "title": "More image tokens keep more detail",
+      "nav": "Resolution",
+      "html": "<p>SigLIP 2 is an image encoder trained to match images with text. Its NaFlex variant accepts images at their own aspect ratio and at a range of resolutions instead of squashing them into a fixed square. Its paper evaluates it on locating objects and reading documents as well as on general image understanding. Its output is a set of learned vectors, not a caption. <a href=\"#source-siglip\">[2]</a></p> <p>The Phi report compared ways of processing images using a smaller, 5-billion-parameter experimental model. Encoding images at their native resolution, with a larger budget of image tokens, worked best on tasks that need fine detail. Those experiments motivated the design; they do not show that higher resolution always helps every task. <a href=\"#source-paper\">[3]</a></p> <p>The figure uses an abstract image 16 units wide and 12 high. With 2-unit square patches, it contains 8 × 6 = 48 patches; with 1-unit patches, 192. An attention layer that compares every patch with every other compares 48 × 48 = 2,304 pairs in the first case and 192 × 192 = 36,864 in the second. Four times as many tokens means sixteen times as many pairs.</p>",
       "figure": {
         "kind": "patches",
-        "title": "Count image patches and pairwise comparisons",
-        "caption": "Illustrative image-encoder grid in abstract units. Patch count is ceil(width/patch) × ceil(height/patch); dense noncausal self-attention has N² ordered pairs. This is not Phi’s exact tokenizer, decoder cost or image quality. Patching does not imply all within-patch detail is averaged away.",
-        "takeaway": "A larger visual-token budget can make attention work grow faster than the token count.",
+        "title": "Count image patches and the pairs between them",
+        "caption": "Abstract image grid. The patch count is columns times rows, and full attention compares every pair of patches. This is not Phi’s exact tokenizer, and a patch is a learned representation, not an average of its pixels.",
+        "takeaway": "A larger image-token budget makes attention work grow faster than the token count.",
         "config": {
           "width": 16,
           "height": 12,
@@ -35,13 +37,14 @@
     },
     {
       "id": "fusion",
-      "title": "A projector connects vision to the language backbone",
-      "html": "<p>The report calls its design <strong>mid-fusion</strong>: the image encoder produces visual vectors, a learned multilayer projector maps them into the language embedding space, and those soft visual tokens are interleaved with text for the reasoning backbone. This reuses a trained language model rather than training every component from scratch. <a href=\"#source-paper\">[3]</a></p><p>Imagine a visual vector and a language token vector as two lists of measurements using different coordinate systems. The projector learns a transformation that lets the backbone work with them together. It does not translate an image into a guaranteed complete sentence description; its outputs remain continuous numerical vectors.</p><p>Fusion terminology varies among papers. The important operation here is concrete: an encoder first processes the image, then a projector supplies representations to the language model. Follow that data path rather than assuming that every paper using the same fusion label has an identical architecture.</p>",
+      "title": "Connecting the encoder to the language model",
+      "nav": "Mid-fusion",
+      "html": "<p>The report calls its design <strong>mid-fusion</strong>. The image encoder produces visual vectors; a small learned network, the <strong>projector</strong>, maps them into the language model’s embedding space; and the resulting vectors are placed among the text tokens for the language model to read. This reuses a language model that was already trained instead of training everything from scratch. <a href=\"#source-paper\">[3]</a></p> <p>Think of a visual vector and a word vector as measurements in two different coordinate systems. The projector learns a conversion so that the language model can work with both. It does not turn the image into a sentence; its outputs are still vectors of numbers.</p> <p>Papers use fusion terms inconsistently, so follow the data path rather than the label. Here the encoder processes the image first, and the projector then hands the result to the language model.</p>",
       "figure": {
         "kind": "flow",
-        "title": "From image evidence to a response",
-        "caption": "Simplified Phi-4-reasoning-vision data path. Omits image preprocessing, detailed layer structure and training stages. The final mode is learned, not an infallible difficulty detector.",
-        "takeaway": "Visual representations and language reasoning are connected through a trained interface.",
+        "title": "From image to answer",
+        "caption": "Simplified data path. It omits image preprocessing, layer details and training stages. The choice of response mode is learned and can be wrong.",
+        "takeaway": "A trained projector connects what the encoder sees to what the language model reasons about.",
         "config": {
           "steps": [
             {
@@ -70,13 +73,13 @@
     },
     {
       "id": "mode",
-      "title": "Train the model to spend effort selectively",
-      "html": "<p>Microsoft’s research post describes combining reasoning demonstrations with direct-answer data. The technical report identifies explicit &lt;think&gt; and &lt;nothink&gt; markers and a training mixture in which reasoning examples form about 20%. Users can request a mode, but the learned default can still make the wrong choice. <a href=\"#source-blog\">[4]</a> <a href=\"#source-paper\">[3]</a></p><p>For a toy receipt, “What is the printed total?” mainly requires locating and reading a field. “Does the printed total equal the items plus tax?” requires extracting multiple fields and checking their arithmetic. The desired answer length is a consequence of what work is useful, not a fixed property of the image.</p><p>The mode markers give supervision a visible structure. They indicate which response pattern an example should teach. They do not install a perfect controller that knows in advance whether more computation will solve a particular problem.</p>"
+      "title": "Reasoning only when it helps",
+      "html": "<p>Microsoft’s research post describes training on a mix of reasoning examples and direct-answer examples. The technical report says each example is marked with a &lt;think&gt; or &lt;nothink&gt; tag, and that reasoning examples make up about 20% of the mix. Users can ask for a mode, but when they do not, the model’s own choice can be wrong. <a href=\"#source-blog\">[4]</a> <a href=\"#source-paper\">[3]</a></p> <p>Take a receipt. “What is the printed total?” mostly means finding and reading one field. “Does the printed total equal the items plus tax?” means reading several fields and checking the arithmetic. How long the answer should be depends on the work the question needs, not on the image.</p> <p>The tags give the training data a visible structure: they say which kind of response each example teaches. They do not create a perfect controller that knows in advance whether more thinking will help.</p>"
     },
     {
       "id": "diagnose",
-      "title": "When the answer is wrong, locate the failed step",
-      "html": "<p>Try an evaluation with three versions of the same problem: the original image, a faithful transcription of its contents, and the relevant values explicitly isolated in text. If the model fails only on the image, perception or visual grounding is implicated. If it fails on all three, reasoning, task understanding or missing background knowledge may be involved. Differences in prompting make this a way to narrow hypotheses, not a proof of a single cause. This is a proposed diagnostic, not a result from the release.</p><p>Then compare direct and extended response modes on the same task set. Record accuracy, generated length and elapsed time. The research post emphasizes balancing useful reasoning against unnecessary generation; a longer response should earn its cost through better outcomes. <a href=\"#source-blog\">[4]</a></p><p>The two budgets remain distinct. More visual tokens may preserve evidence; more output tokens may support a longer calculation. Neither automatically compensates for the other. This model is a useful milestone because it treats those choices as separate design and evaluation problems.</p>"
+      "title": "Finding which step failed",
+      "html": "<p>One way to diagnose a wrong answer is to pose the same problem three ways: as the original image, as a faithful text transcription of the image, and as text that gives only the relevant values. If the model fails only on the image, the problem probably lies in reading it. If it fails on all three, the reasoning, the understanding of the task or missing background knowledge is more likely at fault. Differences between the prompts make this a way to narrow down causes, not to prove one. It is a suggested test, not a result from the release.</p> <p>Then compare the direct and reasoning modes on the same tasks, recording accuracy, answer length and response time. The research post stresses balancing useful reasoning against unnecessary text; a longer response should earn its cost with better results. <a href=\"#source-blog\">[4]</a></p> <p>The two budgets stay distinct. More image tokens can preserve evidence, and more output tokens can support a longer calculation. Neither makes up for a shortage of the other. This model is a useful example because it designs and evaluates the two separately.</p>"
     }
   ],
   "sources": [
@@ -106,10 +109,10 @@
     }
   ],
   "caveats": [
-    "The patch grid is an abstract image-encoder cost illustration, not a faithful Phi tokenizer or runtime simulator.",
-    "Patchification does not mean every patch is reduced to its average color.",
-    "Learned selection between direct and reasoning modes is imperfect.",
-    "Visible reasoning text is not a guaranteed explanation of the model’s internal computation."
+    "The patch grid illustrates encoder cost in abstract units; it is not Phi’s tokenizer or a runtime simulator.",
+    "Cutting an image into patches does not reduce each patch to its average color.",
+    "The model’s learned choice between direct and reasoning answers is imperfect.",
+    "Written reasoning is not guaranteed to explain the model’s internal computation."
   ],
   "related": [
     "2025-04-30-phi-4-reasoning",

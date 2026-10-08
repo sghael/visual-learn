@@ -6,25 +6,25 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-Round a weight onto a ternary grid and distinguish native low-bit training from compressing a finished model.
+BitNet b1.58 2B4T trained a 2-billion-parameter model whose weights take only the values −1, 0 and +1, instead of rounding a finished model afterward.
 
-- Three choices are enough to define a different arithmetic
-- Learning needs a path through rounding
-- A model and an implementation must agree
-- Precision savings do not measure language quality
+- Weights with three values
+- Learning through rounding
+- The model needs matching software
+- Fewer bits do not prove a better model
 
 ## Figures
 
-- **A continuous latent weight, a discrete forward value** (`ternary`): Simplified fixed-scale ternary quantizer. Actual BitLinear scales are derived from weight statistics. The network must learn while its forward computation sees a coarse grid.
-- **Train with the restriction already present** (`flow`): Simplified quantization-aware training loop; it omits normalization, optimizer state, and activation details. Native low-bit training gives the optimizer opportunities to compensate.
+- **A precise latent weight, a three-valued calculation** (`ternary`): Simplified ternary rounding with a fixed scale of 0.5. In BitLinear, the scale comes from the average absolute value of each weight matrix. The model trains a precise hidden value, but its calculations see only three levels.
+- **Train with the restriction already in place** (`flow`): Simplified quantization-aware training loop. It omits normalization, optimizer state and the handling of activations. Training under the restriction lets the optimizer learn to work around it.
 
 ## Accuracy and scope
 
-Release date: 2025-04-14. Official repository release note; technical report followed on arXiv.
+Release date: 2025-04-14. Microsoft’s BitNet repository announced the model on April 14, 2025. The technical report followed on arXiv.
 
-- The displayed scale is fixed for teaching; actual quantization uses tensor statistics.
-- Theoretical code entropy, physical storage format, and total runtime memory are different quantities.
-- No hardware speedup or accuracy estimate is computed by this page.
+- The figure fixes the scale for teaching; the real model computes it from each weight matrix.
+- Bits of information per weight, the storage format on disk and total runtime memory are three different quantities.
+- This page computes no speed-up or accuracy estimate.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

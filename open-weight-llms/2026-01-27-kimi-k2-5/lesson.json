@@ -3,24 +3,25 @@
   "model": "Kimi K2.5",
   "family": "Kimi",
   "date": "2026-01-27",
-  "dateNote": "Public weights January 27, 2026; arXiv report February 2, 2026.",
+  "dateNote": "Moonshot AI released the weights on January 27, 2026. The report appeared on arXiv on February 2, 2026.",
   "subtitle": "How seeing and delegating change an agent’s work",
-  "summary": "Kimi K2.5 adds native visual input and studies learned parallel task orchestration.",
+  "summary": "Kimi K2.5 added image and video input to Kimi K2, and trained an orchestrator to split suitable tasks among helper agents working in parallel.",
   "category": "Multimodal",
   "readingMinutes": 8,
   "parameters": "About 1T total · 32B active",
   "license": "Modified MIT license; attribution condition for large-scale products",
-  "lead": "<p>Some problems need better evidence; others need several independent pieces of work at once. Kimi K2.5 addresses both: images and video enter the model, while a trained orchestrator learns to divide suitable tasks among parallel agents.</p>",
+  "lead": "<p>An agent can improve in two ways: by getting better evidence, and by getting its work done sooner. Kimi K2.5, released by Moonshot AI in January 2026, addresses both. It accepts images and video, so it can see, for example, how a web page actually renders. And Moonshot trained it to act as an orchestrator that splits suitable tasks among several helper agents working at the same time. <a href=\"#source-paper\">[1]</a></p>",
   "sections": [
     {
       "id": "visual",
-      "title": "Visual evidence must affect the decision",
-      "html": "<p>K2.5 builds on K2 with a vision encoder, a projection into the language representation, and joint visual-text training. The report describes MoonViT-3D, which shares an embedding space for images and video, plus temporal pooling: after joint processing, corresponding patch representations from groups of up to four consecutive frames are averaged before projection into the language model. This reduces the number of video tokens, while sacrificing some temporal detail in the compressed representation. The text backbone remains a sparse K2-family model.</p> <a href=\"#source-paper\">[1]</a><p>Imagine debugging a webpage from its screenshot. Source code may say that two labels are centered, yet the rendered picture can reveal overlap. A model seeing that picture can formulate a different repair than one reading source alone. Its usefulness depends on whether it identifies the actual mismatch, rather than describing generic design advice.</p><p>The report’s “zero-vision SFT” has a narrow meaning: a text-only supervised fine-tuning stage activates tool behavior after multimodal pretraining. It does not mean the model learned vision without images. Outcome-based visual reinforcement learning then trains tasks whose answers require visual evidence.</p> <a href=\"#source-paper\">[1]</a>",
+      "title": "Seeing changes what an agent can fix",
+      "nav": "Vision",
+      "html": "<p>K2.5 extends K2 with a vision encoder, a projection that maps the encoder’s output into the language model’s representation, and training on images and text together. The report’s encoder, MoonViT-3D, represents images and video in the same space. For video, after the encoder has processed the frames, it averages the corresponding patch representations across groups of up to four consecutive frames before passing them to the language model. That cuts the number of video tokens by up to four times, at the cost of some detail about motion. The language model itself is still the sparse K2 design. <a href=\"#source-paper\">[1]</a></p> <p>Imagine fixing a web page from a screenshot. The source code may say that two labels are centered, but the rendered page shows them overlapping. A model that sees the rendering can propose a different fix from one that reads only the source. Seeing helps only if the model spots the actual problem instead of offering generic design advice.</p> <p>The report uses the phrase “zero-vision SFT” in a narrow sense. After pretraining on images and text, a supervised fine-tuning stage that uses only text is enough to switch on the model’s tool-use behavior. It does not mean the model learned to see without images. Reinforcement learning on visual tasks, rewarded by whether the answer is correct, comes afterward. <a href=\"#source-paper\">[1]</a></p>",
       "figure": {
         "kind": "flow",
-        "title": "Visual action produces new evidence",
-        "caption": "Illustrative visual debugging loop; not a measured K2.5 trajectory.",
-        "takeaway": "Seeing the result closes a feedback loop that source text alone cannot supply.",
+        "title": "Acting on what it sees produces new evidence",
+        "caption": "Illustrative loop for fixing a page from screenshots; not a recorded K2.5 session.",
+        "takeaway": "Seeing the result closes a feedback loop that source code alone cannot.",
         "config": {
           "steps": [
             {
@@ -45,13 +46,13 @@
     },
     {
       "id": "parallelism",
-      "title": "Independent work can overlap in time",
-      "html": "<p>Suppose four independent lookups take 3, 2, 4 and 1 time units. One worker needs 10 units. With several workers, tasks can overlap, but completion still waits for the longest occupied worker. Our scheduler assigns each new task to the worker that becomes available first. Change the worker count to see the resulting schedule.</p><p>This calculation says nothing about model intelligence. It assumes known task durations, independent work, no failed calls and zero coordination overhead. Real agents must first discover a useful decomposition. If task B needs task A’s result, they cannot be made independent merely by assigning them different agents.</p><p>The useful quantity is the critical path: the dependent chain that determines when the final result can exist. Spawning more agents helps only if it shortens that path enough to pay for the coordination it creates.</p>",
+      "title": "Independent work can overlap",
+      "html": "<p>Suppose four independent lookups take 3, 2, 4 and 1 time units. One worker needs 10 units to do them all. With more workers the tasks can overlap, but the job is done only when the busiest worker finishes. The figure’s scheduler gives each new task to whichever worker frees up first; with two workers, the job takes 6 units. Change the number of workers to see the schedule.</p> <p>This calculation says nothing about how capable the model is. It assumes the durations are known, the tasks are independent, nothing fails and coordination is free. A real agent first has to find a useful way to split the work. If task B needs task A’s result, giving them to different agents does not make them independent.</p> <p>What sets the finishing time is the <strong>critical path</strong>: the longest chain of steps in which each depends on the one before. Adding agents helps only if it shortens that chain by more than the coordination it adds.</p>",
       "figure": {
         "kind": "parallel",
-        "title": "Work and elapsed time are different quantities",
-        "caption": "Illustrative independent tasks with arbitrary time units, greedy scheduling and no coordination overhead. Not measured Kimi throughput.",
-        "takeaway": "Parallel work reduces latency only when the dependency structure permits it.",
+        "title": "Total work and elapsed time are different",
+        "caption": "Made-up independent tasks in arbitrary time units, scheduled greedily with no coordination cost. Not a measurement of Kimi.",
+        "takeaway": "Parallel work shortens elapsed time only when the dependencies allow it.",
         "config": {
           "tasks": [
             3,
@@ -64,13 +65,14 @@
     },
     {
       "id": "learning",
-      "title": "Reward useful delegation, not agent count",
-      "html": "<p>K2.5’s Parallel-Agent Reinforcement Learning trains an orchestrator while its subordinate agents are frozen. Early auxiliary rewards encourage delegation and successful subtask completion; their weights are gradually reduced to zero so that final task performance drives the objective. The authors use a critical-step metric: add the main agent’s steps to the longest subagent branch in each stage, then sum across stages. One main-agent step followed by parallel branches of 3, 2 and 4 steps therefore costs 5 critical steps, although the agents performed 10 steps in total. This counts model/tool steps, not measured seconds.</p> <a href=\"#source-launch\">[2]</a><p>This addresses two different bad strategies. An orchestrator may always do everything itself because it never explores delegation. Or it may create many agents merely because agent creation is rewarded. A useful reward must distinguish actual progress from visible activity.</p><p>For our lookup example, asking three agents to retrieve the same document does not automatically create three independent facts. Asking one to retrieve a number, one to check its definition and one to verify the period may be helpful, but only if the final answer reconciles their evidence. Parallel execution makes disagreement more likely to appear simultaneously; integration remains work.</p>"
+      "title": "Rewarding useful delegation",
+      "html": "<p>K2.5’s Parallel-Agent Reinforcement Learning trains the orchestrator while the helper agents stay fixed. Early in training, extra rewards encourage the orchestrator to delegate and reward helpers for finishing their subtasks. These extra rewards are gradually reduced to zero, so that in the end only success on the whole task counts. <a href=\"#source-launch\">[2]</a></p> <p>To measure speed, the authors count <strong>critical steps</strong>. In each stage, they add the orchestrator’s own steps to the steps of the longest-running helper, then sum over the stages. If the orchestrator takes one step and three helpers then take 3, 2 and 4 steps in parallel, the stage costs 1 + 4 = 5 critical steps, although 10 steps were taken in total. These count model and tool steps, not seconds. <a href=\"#source-launch\">[2]</a></p> <p>The reward design guards against two bad strategies. An orchestrator might do everything itself because it never tries delegating. Or it might spawn many helpers simply because spawning is rewarded. A good reward separates real progress from visible activity.</p> <p>In the lookup example, asking three helpers to fetch the same document does not produce three independent facts. Asking one to fetch a number, another to check its definition and a third to confirm its date range can help, but only if the orchestrator then reconciles what they found. Running in parallel makes disagreements appear at once; resolving them is still work.</p>"
     },
     {
       "id": "weights",
-      "title": "Separate the research system from the released checkpoint",
-      "html": "<p>The official launch describes Agent Swarm as a research-preview product mode. The open model card supplies the K2.5 checkpoint and inference instructions. A downloadable checkpoint does not by itself reproduce the orchestrator training environment, the tool fleet or the hosted swarm product.</p> <a href=\"#source-launch\">[2]</a> <a href=\"#source-card\">[3]</a><p>When reading a reported agent score, check the tools, thinking mode, context handling and number of attempts. The release’s evaluation notes vary these by task; some coding results use non-thinking mode. A single model can therefore appear in several materially different systems.</p> <a href=\"#source-launch\">[2]</a><p>The two innovations on this page connect through evidence. Vision changes what an agent can observe. Parallel orchestration changes how quickly independent observations can be gathered. Neither removes the need to check whether the resulting answer actually follows from those observations.</p>"
+      "title": "The released model versus the full system",
+      "nav": "Model versus system",
+      "html": "<p>Moonshot’s launch describes Agent Swarm, the multi-agent mode, as a research preview in its own product. The open model card provides the K2.5 weights and instructions for running them. <a href=\"#source-launch\">[2]</a> <a href=\"#source-card\">[3]</a> Downloading the weights does not give you the orchestrator’s training environment, the tools or the hosted swarm service.</p> <p>When reading a reported agent score, check the tools, the thinking mode, how context was handled and how many attempts were allowed. The release’s evaluation notes vary these from task to task; some coding results use the non-thinking mode. One model can therefore appear inside several quite different systems. <a href=\"#source-launch\">[2]</a></p> <p>Both ideas on this page concern evidence. Vision changes what an agent can observe. Parallel helpers change how quickly it can gather independent observations. Neither removes the need to check that the final answer actually follows from what was observed.</p>"
     }
   ],
   "sources": [
@@ -94,8 +96,8 @@
     }
   ],
   "caveats": [
-    "Agent Swarm system results are not presented as capabilities reproduced by downloading weights alone.",
-    "The scheduler computes toy task duration; it does not call models or simulate reasoning."
+    "Agent Swarm results come from Moonshot’s hosted system; downloading the weights alone does not reproduce them.",
+    "The scheduler adds up made-up task durations; it does not call any model or simulate reasoning."
   ],
   "related": [
     "2025-11-06-kimi-k2-thinking",

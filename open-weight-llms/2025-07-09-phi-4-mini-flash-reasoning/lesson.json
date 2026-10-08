@@ -3,29 +3,30 @@
   "model": "Phi-4-mini-flash-reasoning",
   "family": "Phi",
   "date": "2025-07-09",
-  "dateNote": "Public weights and SambaY paper announced July 9, 2025.",
+  "dateNote": "Microsoft released the weights and announced the SambaY paper on July 9, 2025.",
   "subtitle": "How a hybrid decoder reuses memory instead of repeatedly reading the whole past",
-  "summary": "Phi’s SambaY architecture combines recurrent state, local attention, shared global memory and gated reuse of earlier representations.",
+  "summary": "Phi-4-mini-flash-reasoning stores the full history once, shares it across layers, and lets some layers reuse earlier results through gates, which speeds up long answers.",
   "category": "Memory",
   "readingMinutes": 8,
   "parameters": "3.8B hybrid · 64K context",
   "license": "MIT",
-  "lead": "<p>Long reasoning is expensive because the model repeatedly generates new tokens while its history grows. Phi-4-mini-flash-reasoning changes the decoder architecture to reduce repeated work. Understanding it requires separating a fixed-size recurrent summary from an attention cache that retains individual positions.</p>",
+  "lead": "<p>A reasoning model may write tens of thousands of tokens for one answer, and each new token has to look back over everything before it. That makes long answers slow. Phi-4-mini-flash-reasoning, a 3.8-billion-parameter model released by Microsoft in July 2025, uses a new hybrid architecture called SambaY to cut the repeated work. Most of its layers use a cheap recurrent summary or a short attention window. The full history is stored once and shared, and some layers reuse an earlier layer’s result instead of reading the history again. The model card reports up to ten times the throughput of its predecessor, Phi-4-mini-reasoning, on long generation. <a href=\"#source-card\">[4]</a></p>",
   "sections": [
     {
       "id": "bottleneck",
-      "title": "Long generation repeats the memory problem",
-      "html": "<p>Microsoft released the 3.8B Phi-4-mini-flash-reasoning model on July 9, 2025 with a 64K-token context. Its announcement describes SambaY, a hybrid architecture containing state-space components, sliding-window attention and shared memory mechanisms. “Flash” here names a particular model, not a claim that every operation has constant cost. <a href=\"#source-release\">[1]</a></p><p>Imagine an assistant producing a long proof. Near the beginning, the history is short. Thousands of steps later, retrieving information from the full preceding sequence can require much more memory traffic. If many layers independently perform that retrieval, they repeat an expensive kind of work.</p><p>There are two separate phases to consider. <strong>Prefill</strong> processes the supplied prompt. <strong>Decode</strong> generates successive output tokens. A method that makes prompt processing efficient is not automatically equally effective during a long answer. This release explicitly targets the latter workload too.</p>"
+      "title": "Why long answers are slow",
+      "html": "<p>Microsoft released Phi-4-mini-flash-reasoning on July 9, 2025, with a 64,000-token context. The announcement describes its SambaY architecture, which mixes state-space layers, sliding-window attention and memory shared between layers. “Flash” is part of the model’s name; it does not mean every operation takes constant time. <a href=\"#source-release\">[1]</a></p> <p>Imagine the model writing a long proof. At first the history is short. Thousands of tokens later, each new token must read through a much longer history, which means moving a lot of data out of memory. If many layers each read the full history, the model repeats that expensive work many times for every token.</p> <p>Generation has two phases. In <strong>prefill</strong>, the model reads the prompt, many tokens at once. In <strong>decode</strong>, it writes the answer one token at a time. A design that speeds up reading the prompt does not automatically speed up writing a long answer. This model was designed for long answers, so decode is the phase that matters.</p>"
     },
     {
       "id": "state",
-      "title": "A running summary has a fixed number of slots",
-      "html": "<p>A recurrent model updates a state vector as tokens arrive. Mamba’s selective state-space mechanism makes aspects of that update depend on the input, allowing information to be retained or discarded differently for different tokens. This is established prior work used in the hybrid design. <a href=\"#source-mamba\">[2]</a></p><p>As an invented arithmetic analogy, keep only a running total and a count while reading a stream of numbers. The memory remains two numbers regardless of stream length. You can recover the mean, but cannot reconstruct the seventh original number. Compression saves storage by restricting what information remains directly available.</p><p>The widget compares a hypothetical 256-scalar state with a KV cache adding 64 scalars per token. At 128 tokens, the latter holds 8,192 scalars. Move the slider: one quantity stays flat while the other grows. These are teaching counts, not the dimensions of a Mamba state or Phi’s cache.</p>",
+      "title": "A running summary of fixed size",
+      "nav": "Recurrent state",
+      "html": "<p>A recurrent layer keeps a <strong>state</strong>, a fixed-size vector that it updates as each token arrives. In Mamba, the update depends on the current token, so the layer can choose what to keep and what to let fade. SambaY uses Mamba layers from this earlier work. <a href=\"#source-mamba\">[2]</a></p> <p>Here is an analogy. While reading a long stream of numbers, keep only a running total and a count. You hold two numbers however long the stream is, and you can compute the average at any time. But you cannot recover the seventh number. A summary saves memory by giving up direct access to the details.</p> <p>The figure compares a made-up state of 256 numbers with an attention cache that adds 64 numbers per token. At 128 tokens the cache holds 8,192 numbers. Move the slider: the state stays flat while the cache grows. These sizes are for illustration; they are not Phi’s.</p>",
       "figure": {
         "kind": "state",
-        "title": "A fixed summary versus an expanding record",
-        "caption": "Illustrative scalar counts for isolated memory components. Phi-mini-flash is hybrid and still has attention memory; this is not its total runtime memory or a quality comparison.",
-        "takeaway": "A fixed-state component bounds one memory term by compressing the past.",
+        "title": "A fixed summary beside a growing record",
+        "caption": "Made-up sizes for two separate memory components. Phi-4-mini-flash-reasoning is a hybrid that still has an attention cache, so this is not its total memory.",
+        "takeaway": "A fixed-size state caps one part of memory by compressing the past.",
         "config": {
           "stateScalars": 256,
           "kvScalarsPerToken": 64,
@@ -35,13 +36,14 @@
     },
     {
       "id": "hybrid",
-      "title": "Keep both a summary and an addressable record",
-      "html": "<p>The SambaY paper divides the architecture into a self-decoder and a cross-decoder. The first combines Mamba and local attention, then provides a shared full-attention memory. The second alternates cross-attention with gated memory units. Half of its cross-attention layers are replaced by these cheaper gates. <a href=\"#source-paper\">[3]</a></p><p>An addressable record and a compressed summary have complementary uses. If asked for a particular earlier identifier, direct access to stored positions may help. If asked for an evolving summary of the recent sequence, a recurrent representation may provide useful information without revisiting every token.</p><p>This is why the flat line in the previous figure must not be read as the whole model’s memory curve. The hybrid retains a full-attention cache. Its innovation is selective reuse and reduced repeated reading, not deleting all sequence-length-dependent storage.</p>",
+      "title": "Keeping a summary and a full record",
+      "nav": "SambaY layout",
+      "html": "<p>The SambaY paper splits the model into two halves. The first half, the <strong>self-decoder</strong>, alternates Mamba layers with sliding-window attention and ends with one full-attention layer. That layer’s keys and values are stored once, as a cache shared with the second half. The second half, the <strong>cross-decoder</strong>, has attention layers that read the shared cache instead of building their own, alternating with <strong>gated memory units</strong> (GMUs) that do not read the history at all. GMUs replace half of the cross-decoder’s attention layers. The design builds on YOCO (“you only cache once”), an earlier Microsoft architecture. <a href=\"#source-paper\">[3]</a></p> <p>The two kinds of memory are good at different things. To recall a specific identifier from far back, it helps to look at the stored tokens directly. To keep track of what the recent text is about, a running summary may be enough, with no need to revisit every token.</p> <p>The flat line in the previous figure is therefore not the whole model’s memory. The model keeps one full attention cache. What it saves is the repeated reading of that history in layer after layer.</p>",
       "figure": {
         "kind": "flow",
-        "title": "Reuse representations across the decoder",
-        "caption": "Simplified SambaY organization; the real layers interleave and include additional projections, feedforward computation and differential attention.",
-        "takeaway": "Some later layers read global memory; others gate a representation already computed.",
+        "title": "Reuse results across the decoder",
+        "caption": "Simplified SambaY layout. The real model interleaves the layers and includes extra projections, feed-forward layers and a variant of attention called differential attention.",
+        "takeaway": "Some later layers read the shared cache; others reuse a result computed earlier.",
         "config": {
           "steps": [
             {
@@ -66,13 +68,15 @@
     },
     {
       "id": "gate",
-      "title": "A gate selects channels from an earlier representation",
-      "html": "<p>A <strong>gated memory unit</strong> takes the current layer’s representation and a memory representation from an earlier layer. Learned projections create a channel-wise modulation, and multiplication changes how much of each memory component passes onward. In SambaY, this reuses the final state-space layer’s readout. <a href=\"#source-paper\">[3]</a></p><p>For a tiny invented vector, let the earlier memory be [2, 4, 6] and an illustrative gate be [1, 0.5, 0]. Element-wise multiplication produces [2, 2, 0]. That example is deliberately simpler than the published SiLU-based gate and projections. It shows selective reuse without another search over every historical position.</p><p>A gate is not a human-readable list of remembered facts. Its channels are learned numerical features. Describing one as a “math memory” or “name memory” would require evidence about the trained model, not merely a convenient story about the diagram.</p>"
+      "title": "Reusing an earlier result through a gate",
+      "nav": "Gated memory units",
+      "html": "<p>A <strong>gated memory unit</strong> takes two inputs: the current layer’s representation, and a stored representation from an earlier layer, which in SambaY is the output of the last Mamba layer. Learned projections of the current representation produce a gate: one value per channel that controls how much of the stored representation passes through. Multiplying the two channel by channel gives the unit’s output. <a href=\"#source-paper\">[3]</a></p> <p>Take a stored vector [2, 4, 6] and a gate [1, 0.5, 0]. Multiplying channel by channel gives [2, 2, 0]: the first channel passes in full, the second at half strength and the third is blocked. The published unit adds learned projections and a smooth activation function called SiLU, but the idea is the same. The layer reuses information already computed, at a small fixed cost, without searching the history again.</p> <p>The channels are learned numerical features, not labeled memories. Calling one a “math memory” would need evidence from the trained model, not just a convenient reading of the diagram.</p>"
     },
     {
       "id": "measure",
-      "title": "Efficiency claims need the workload beside them",
-      "html": "<p>The model card reports large throughput gains for a long-generation workload. <a href=\"#source-card\">[4]</a> The paper’s timing experiment used random weights, a single A100-80GB GPU and a customized vLLM 0.7.3 implementation, with prompt and generation lengths averaging 2K and 32K tokens. Random weights help control generated lengths, but this measures an architecture and runtime under load rather than useful answers per second from the trained checkpoint. <a href=\"#source-paper\">[3]</a> The released weights use the MIT license. <a href=\"#source-card\">[4]</a></p><p>The clean experiment is to hold the task, input/output lengths, hardware and implementation comparable, then measure quality and runtime together. A faster architecture that loses the needed information is not an improvement for that application; extra accuracy at intolerable latency may also miss the target.</p><p>The lesson from this hybrid is therefore structural: full retrieval need not be repeated in every layer, and previously computed representations can be reused through learned gates. The remaining attention path preserves capabilities that a fixed-size summary alone may struggle to supply.</p>"
+      "title": "Speed claims need their conditions",
+      "nav": "Speed claims",
+      "html": "<p>The model card’s throughput gain comes from a specific test. <a href=\"#source-card\">[4]</a> The paper’s timing experiment used randomly initialized weights, a single A100-80GB GPU and a customized version 0.7.3 of the vLLM serving software, with prompts of about 2,000 tokens and generated answers of about 32,000. Random weights make it easy to control how long the answers are, but they mean the test measured the architecture and software under load, not useful answers per second from the trained model. <a href=\"#source-paper\">[3]</a> The released weights use the MIT license. <a href=\"#source-card\">[4]</a></p> <p>A clean comparison keeps the task, the prompt and answer lengths, the hardware and the software the same, then measures quality and speed together. A faster model that loses information the task needs is no improvement, and better accuracy does not help if the answer arrives too late.</p> <p>The main idea is structural. Not every layer needs to read the full history: layers can share one cache, and some can reuse an earlier layer’s output through a learned gate. The remaining attention keeps abilities that a fixed-size summary alone may lack.</p>"
     }
   ],
   "sources": [
@@ -102,9 +106,9 @@
     }
   ],
   "caveats": [
-    "The fixed-state curve describes only a toy component; the real hybrid still stores global attention memory.",
-    "The gate example is arithmetic intuition, not the full published GMU formula.",
-    "Reported throughput is conditional on workload and runtime, not a universal multiplier."
+    "The flat line in the memory figure describes one component only; the real model still stores a full attention cache.",
+    "The gate example shows the arithmetic idea, not the full published formula.",
+    "The reported throughput depends on the workload and software; it is not a general speed-up."
   ],
   "related": [
     "2025-04-30-phi-4-reasoning",

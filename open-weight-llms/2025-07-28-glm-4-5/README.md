@@ -6,24 +6,24 @@ Open `index.html` directly in a browser, or follow this folder from the collecti
 
 ## What the tutorial teaches
 
-GLM-4.5 joins repository-scale training, tool use, and reasoning with a difficulty-aware learning curriculum.
+GLM-4.5 combined reasoning, coding and tool use in one sparse model, and kept its reinforcement learning effective by raising problem difficulty as the model improved.
 
-- Learn relationships that cross file boundaries
-- A group needs differences to supply a relative signal
-- Difficulty belongs to the learner, not just the question
-- Reasoning and tool use share the same checkpoint
+- Training on whole repositories
+- A group needs differences to learn from
+- Difficulty depends on the learner
+- One model for reasoning, code and tools
 
 ## Figures
 
-- **Expose relationships before teaching actions** (`flow`): Simplified GLM-4.5 training progression; individual stages contain additional data and optimization choices. Longer training examples can reveal dependencies that snippets omit.
-- **When relative feedback disappears** (`grpo`): Pedagogical GRPO-style signal. Omits probability ratios, clipping and token-level loss. The GLM-4.5 report’s reasoning-RL recipe excludes the KL penalty used in some GRPO formulations. Perfect success and complete failure can both erase within-group comparison.
+- **Show the connections before teaching actions** (`flow`): Simplified outline of GLM-4.5’s training stages. Each stage includes more data types and settings than shown. Longer training examples show dependencies that snippets leave out.
+- **When the relative signal disappears** (`grpo`): Simplified GRPO-style signal. It omits probability ratios, clipping and per-token weighting. The GLM-4.5 report’s reasoning recipe also drops the drift penalty used in some GRPO versions. Complete success and complete failure both erase the comparison within a group.
 
 ## Accuracy and scope
 
-Release date: 2025-07-28. Public weight release July 28, 2025; report submitted August 8.
+Release date: 2025-07-28. Z.ai released the weights on July 28, 2025. The report was posted on August 8.
 
-- The reward widget is a group-relative teaching calculation, not an implementation of GLM-4.5’s complete optimizer.
-- Parameter accounting follows the release; compare counting conventions before comparing families.
+- The reward figure is a simplified group-relative calculation, not GLM-4.5’s full optimizer.
+- Parameter counts follow the release’s own conventions; check how each family counts before comparing them.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

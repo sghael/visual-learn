@@ -1,6 +1,6 @@
 # Open-weight language models
 
-A collection of visual tutorials tracing model innovations from roughly 2023 through October 3, 2026. Open `index.html` to browse by date, model name, or mechanism. Each dated model subfolder has its own standalone page, stylesheet, script, source-backed lesson, and README.
+A collection of visual tutorials on open-weight language models released between July 2023 and September 2026, researched through October 3, 2026. Open `index.html` to browse by date, model name, or mechanism. Each dated model subfolder has its own standalone page, stylesheet, script, source-backed lesson, and README.
 
 ## Open the collection
 

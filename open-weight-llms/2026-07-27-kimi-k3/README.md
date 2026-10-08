@@ -1,29 +1,29 @@
 # Kimi K3
 
-How memory changes across sequence length and model depth
+Changing how information moves along the sequence and up through the layers
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Kimi K3 combines channel-controlled recurrent memory with attention over earlier layer representations.
+Kimi K3 pairs a recurrent memory that forgets different features at different rates with attention over earlier layers’ outputs, in a 2.8-trillion-parameter mixture of experts.
 
-- Sequence length and depth are different axes
-- Forgetting can be selective within a memory
-- Later layers can select earlier representations
-- A larger model is also a systems design
+- Two directions of information flow
+- Forgetting different features at different rates
+- Letting later layers choose earlier outputs
+- Experts and low precision
 
 ## Figures
 
-- **Bounded state beside a growing history** (`state`): Illustrative scalar counts; not KDA, MLA or K3 cache dimensions. A hybrid can combine compact recurrent summaries with direct retrieval.
-- **Select information across depth** (`flow`): Simplified Attention Residuals concept. Omits block boundaries and the exact learned scoring parameterization. Depth-wise selection and token-wise retrieval solve different information-flow problems.
+- **A fixed state beside a growing history** (`state`): Made-up sizes, not the dimensions of KDA, MLA or K3’s cache. A hybrid can combine a compact recurrent summary with direct retrieval.
+- **Choose information across depth** (`flow`): Simplified idea of Attention Residuals. It omits block boundaries and the exact learned scoring. Choosing across layers and retrieving across tokens solve different problems.
 
 ## Accuracy and scope
 
-Release date: 2026-07-27. Weights released July 27, 2026; July 16 was the hosted-model announcement.
+Release date: 2026-07-27. Moonshot AI announced the hosted model on July 16, 2026, and released the weights on July 27.
 
-- KDA and Attention Residuals originate in earlier component work; the full K3 report specifies the changes and configuration used in this release.
-- The scalar weighted-sum example isolates depth mixing and is not a K3 layer implementation.
+- KDA and Attention Residuals come from earlier component papers; the K3 report specifies the changes and settings used in this release.
+- The weighted-sum example isolates mixing across layers; it is not a K3 layer.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

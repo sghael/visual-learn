@@ -3,29 +3,31 @@
   "model": "DeepSeek-V2",
   "family": "DeepSeek",
   "date": "2024-05-06",
-  "dateNote": "The official repository records the public release on May 6, 2024. The paper was submitted May 7; folder dates track weights rather than paper submission.",
-  "subtitle": "Remember a compact description instead of every expanded view",
-  "summary": "Multi-head latent attention compresses each token’s cached representation while fine-grained experts keep feed-forward work sparse.",
+  "dateNote": "DeepSeek’s repository records the weight release on May 6, 2024. The paper was posted on May 7.",
+  "subtitle": "Caching a small compressed vector for each token instead of full keys and values",
+  "summary": "DeepSeek-V2 cached one small learned vector per token instead of full keys and values, and paired it with many small experts, cutting both memory and computation.",
   "category": "Memory",
-  "readingMinutes": 9,
+  "readingMinutes": 8,
   "parameters": "236B total · 21B active",
   "license": "DeepSeek Model License for weights; MIT for code",
-  "lead": "<p>DeepSeek-V2 attacks two different costs: storing the past and processing the present. Its public checkpoint has 236B total parameters with 21B active per token. The central memory idea is <strong>multi-head latent attention</strong>, or MLA: retain a compact learned description of each token and use it to supply attention. <a href=\"#source-repo\">[1]</a></p>",
+  "lead": "<p>When a model generates text, it pays two running costs: memory for the record of earlier tokens, and computation for the current one. DeepSeek-V2, released in May 2024, cut both. Its cache stores one small compressed vector per token in each layer instead of full keys and values for every attention head, and its feed-forward layers send each token to a few of many small experts. The model has 236 billion parameters, of which about 21 billion are used for each token. <a href=\"#source-repo\">[1]</a></p>",
   "sections": [
     {
       "id": "redundancy",
-      "title": "Several large views can share a small description",
-      "html": "<p>Suppose a toy system stores four readings: x, 2x, 3x and 4x. Saving all four is unnecessary when one number x and a known rule reproduce them. Real neural representations are not this tidy. But if their useful variation can be learned in a lower-dimensional space, storing the smaller coordinates can save memory.</p><p>That is the intuition behind a <strong>latent representation</strong>: coordinates in a learned internal space. A projection maps a token’s hidden state down to this smaller vector. Learned maps can then produce the key and value information used by the attention heads. MLA trains these maps as part of the model. <a href=\"#source-paper\">[2]</a></p><p>The important difference from reducing precision is the axis being changed. Quantization uses fewer bits per number. Latent compression uses fewer numbers. Either can lose useful information unless the representation and training support it.</p>"
+      "title": "Storing a compact summary instead of full keys and values",
+      "nav": "Latent attention",
+      "html": "<p>Suppose a device records four readings: x, 2x, 3x and 4x. Storing all four wastes space. Store x and the rule, and you can rebuild the rest. Real keys and values are not this tidy, but they contain a lot of redundancy, and a model can learn a smaller set of numbers from which they can be rebuilt.</p> <p>That smaller set is a <strong>latent vector</strong>: a short list of coordinates in a compact internal space that the model learns. <strong>Multi-head latent attention</strong> (MLA) is built on it. For each token, a learned projection squeezes the token’s internal representation into a short latent vector, and the cache stores only that vector. When attention needs keys and values, other learned projections produce them from the latent. All these projections are trained with the rest of the model, so the model learns to put into the latent what attention will need. <a href=\"#source-paper\">[2]</a></p> <p>This is a different saving from quantization. Quantization stores each number in fewer bits. MLA stores fewer numbers. The two can be combined, and either one loses information unless training adapts to it.</p>"
     },
     {
       "id": "bottleneck",
-      "title": "Make the storage bottleneck visible",
-      "html": "<p>The widget starts with an invented 512-number expanded representation and a 64-number latent. At two bytes per number, those are 1,024 and 128 bytes per token per layer before any positional side channel. For 1,000 tokens, multiply both quantities by 1,000. For 20 layers, multiply again by 20. The proportional difference survives those multipliers.</p><p>Increase the latent width. The smaller bar approaches the expanded bar because fewer dimensions have been removed. This is a storage accounting experiment, not a model-quality simulator: no curve here predicts how much accuracy a narrower latent would lose.</p><p>DeepSeek-V2’s actual cache retains a 512-number joint KV latent and a separate 64-number rotary-position key per token per layer: 576 numbers altogether. The widget’s 512-to-64 example uses different, invented dimensions to isolate the bottleneck. The next section explains why positional information needs separate treatment. <a href=\"#source-paper\">[2]</a></p>",
+      "title": "How much smaller the cache gets",
+      "nav": "Cache size",
+      "html": "<p>The figure starts from a made-up example: keys and values that would take 512 numbers per token per layer, compressed into a 64-number latent. At two bytes per number, that is 1,024 bytes versus 128. Multiply both by the number of tokens and the number of layers, and the ratio stays at one-eighth. Drag the latent width up and the saving shrinks, because less is being removed. The figure counts storage only; it cannot show how much accuracy a narrower latent would cost.</p> <p>The real model saves far more. DeepSeek-V2 has 128 attention heads, each with keys and values of 128 numbers. Standard multi-head attention would cache 2 × 128 × 128 = 32,768 numbers per token per layer. MLA caches a 512-number latent plus a 64-number key that carries position: 576 numbers, about 57 times fewer. The paper reports that V2’s cache is 93.3% smaller than that of DeepSeek’s earlier 67-billion-parameter dense model. <a href=\"#source-paper\">[2]</a> The next section explains the separate 64-number position key.</p>",
       "figure": {
         "kind": "latent",
-        "title": "How many numbers must one token leave behind?",
-        "caption": "Simplified dimensional bottleneck with invented dimensions. This is not a faithful MLA cache implementation and omits the separate rotary-position component.",
-        "takeaway": "A smaller learned coordinate system reduces cached numbers before numerical precision is considered.",
+        "title": "How many numbers must each token leave behind?",
+        "caption": "Simplified storage comparison with made-up sizes. It omits MLA’s separate position key and the cost of rebuilding keys and values.",
+        "takeaway": "Storing fewer numbers per token shrinks the cache before any reduction in bits.",
         "config": {
           "original": 512,
           "latent": 64
@@ -34,18 +36,20 @@
     },
     {
       "id": "position",
-      "title": "Position is information that compression must preserve",
-      "html": "<p>The model must distinguish “A precedes B” from “B precedes A.” Rotary position embeddings, commonly called RoPE, encode relative-position information by rotating parts of query and key vectors. Applying such position-dependent operations carelessly interferes with MLA’s efficient algebra. DeepSeek-V2 separates a rotary-position component from its compressed content component. <a href=\"#source-paper\">[2]</a></p><p>Here is the algebraic reason a compact representation can be useful without expanding every key. If k = Uc, then a query score qᵀk equals qᵀUc, which also equals (Uᵀq)ᵀc. One can transform the new query and compare it with cached c. The large reconstructed k need not be written out for every past token.</p><p>The equality follows from associating matrix multiplications and is exact for the model’s learned maps. The smaller latent is an architectural bottleneck trained jointly with the model; it is not a compressed copy of a preexisting dense model’s cache. Position-dependent rotations complicate which operations can be combined, which is why the positional side channel is part of the design.</p>"
+      "title": "Why position needs separate handling",
+      "nav": "Position",
+      "html": "<p>MLA has a further trick: it does not need to rebuild past keys at all. Attention scores a query q against a key k with a dot product, qᵀk. If the key is rebuilt from the latent c by a learned matrix U, so that k = Uc, then qᵀk = qᵀUc = (Uᵀq)ᵀc. The model can multiply the new query by Uᵀ once and compare the result directly with every cached latent. The full keys for past tokens never have to be written out. The algebra is exact. <a href=\"#source-paper\">[2]</a></p> <p>Position breaks the trick. The model must tell “dog bites man” from “man bites dog”, so attention needs to know where each token sits. DeepSeek-V2, like most current models, uses <strong>rotary position embeddings</strong> (RoPE), which rotate parts of each query and key by an angle that depends on the token’s position. A rotation that differs for every past token cannot be folded into the single matrix Uᵀ. DeepSeek-V2 therefore splits each key in two: a content part rebuilt from the latent, where the trick works, and a small separate part of 64 numbers per token that carries the rotary position and is cached directly. <a href=\"#source-paper\">[2]</a></p> <p>The latent is not a compressed copy of some full-size model’s cache. It is a bottleneck built into the architecture from the start of training, so the model learns to work through it.</p>"
     },
     {
       "id": "experts",
-      "title": "Share routine work and route the remainder",
-      "html": "<p>DeepSeekMoE contributes a complementary idea: divide routed expertise into finer pieces and keep shared experts active for all tokens. The earlier DeepSeekMoE paper motivates shared experts as a place for common knowledge, so routed experts need not duplicate all of it. This architecture predates the V2 release. <a href=\"#source-moe\">[3]</a></p><p>Imagine an invented workshop where every job needs one common preparation step, but then needs two of eight optional operations. The shared step always runs; the router chooses the optional pair. That does not prove the learned shared network contains only common knowledge. It states the computational organization.</p><p>Change the routed active count below. The always-active component remains. Consequently, “two of eight” is not the fraction of the entire model being computed: it ignores shared work and attention. V2’s real expert counts are larger than this teaching diagram.</p>",
+      "title": "Shared experts plus many small routed ones",
+      "nav": "Shared experts",
+      "html": "<p>The feed-forward layers use <strong>DeepSeekMoE</strong>, an expert design from an earlier DeepSeek paper. <a href=\"#source-moe\">[3]</a> It makes two changes to a Mixtral-style mixture of experts. First, it splits the experts into many smaller ones, so each token can combine more of them. Second, it adds <strong>shared experts</strong> that process every token. The paper’s reasoning is that some knowledge is needed by almost every token; if that knowledge lives in shared experts, the routed experts do not each need their own copy. Each DeepSeek-V2 layer has 2 shared experts and 160 routed experts, of which the router picks 6 for each token. <a href=\"#source-paper\">[2]</a></p> <p>The figure scales this down to 8 routed experts and 1 shared expert. Change how many routed experts each token uses, and the shared expert stays active throughout. “2 of 8 experts” therefore understates the work per token, because the shared expert and attention also run on every token.</p> <p>Whether the shared experts really hold common knowledge is the design’s motivation; the paper does not prove it. The figure shows only how the computation is organized.</p>",
       "figure": {
         "kind": "moe",
         "title": "One shared path plus selected paths",
-        "caption": "Simplified, scaled-down DeepSeekMoE teaching model. Eight routed experts and one shared expert are illustrative counts, not V2’s configuration.",
-        "takeaway": "Shared work remains active even when routed work is sparse.",
+        "caption": "Simplified router with 8 routed experts and 1 shared expert. DeepSeek-V2 has 160 routed and 2 shared experts in each layer.",
+        "takeaway": "Shared experts run on every token, however sparse the routed experts are.",
         "config": {
           "experts": 8,
           "active": 2,
@@ -55,14 +59,15 @@
     },
     {
       "id": "consequences",
-      "title": "Cache efficiency and weight size remain separate",
-      "html": "<p>V2’s repository reports a 128K context capability and an 8.1-trillion-token pretraining corpus. Those specifications describe the released model; they do not imply that every request will use the whole context effectively. Nor does a compressed cache remove the need to store the model’s large expert inventory. <a href=\"#source-repo\">[1]</a></p><p>For a concrete deployment thought experiment, hold weights fixed and double the number of simultaneous conversations. Weight storage may stay shared, while the total cache demand roughly doubles if their lengths and representations match. Conversely, holding conversations fixed while adding more inactive experts primarily expands the model inventory. Different workloads expose different bottlenecks.</p><p>MLA and MoE therefore make a useful pair: one addresses memory left by previous tokens, the other limits feed-forward computation for a current token. DeepSeek-V3 inherits both and concentrates on making their large-scale training and execution work together.</p>"
+      "title": "Two savings for two different costs",
+      "nav": "Two savings",
+      "html": "<p>The repository lists a 128,000-token context window and pretraining on 8.1 trillion tokens. <a href=\"#source-repo\">[1]</a> A long context window means the model accepts long inputs; it does not guarantee that the model uses every part of them well. A compact cache also does nothing to shrink the 236 billion parameters, all of which must stay in memory.</p> <p>The two savings help with different workloads. Double the number of conversations a server handles, and the weights stay the same while the total cache roughly doubles; MLA matters most there. Add more experts, and the cache stays the same while the weights grow. MLA reduces the memory left behind by earlier tokens, and the expert design limits the computation spent on the current one. DeepSeek-V3 kept both and focused on training them efficiently at a much larger scale.</p>"
     }
   ],
   "caveats": [
-    "The latent-width slider does not model quality, RoPE storage or exact MLA implementation.",
-    "The expert widget uses scaled-down counts and cannot predict throughput.",
-    "The weights use the release’s custom DeepSeek Model License; code and weights have different licenses."
+    "The latent-width figure does not model quality, the separate position key or the exact MLA computation.",
+    "The expert figure uses scaled-down counts and cannot predict speed.",
+    "The weights use DeepSeek’s own model license; the code uses the MIT license."
   ],
   "sources": [
     {

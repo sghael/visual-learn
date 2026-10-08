@@ -1,31 +1,31 @@
 # Llama 3.1 · 8B, 70B, 405B
 
-How training scale, data selection, and a long context work together
+How data, training scale and a longer context improved a conventional design
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Llama 3.1 showed how a largely conventional dense transformer could be extended through data, scale and post-training.
+Llama 3.1 kept a conventional dense transformer and improved it through data curation, training scale, staged extension of the context to 128,000 tokens and preference training.
 
-- A release larger than its architecture change
-- Training and serving favor different choices
-- A token count needs a data recipe
-- Long context needs more than an allowed length
-- Good demonstrations still need selection
+- A conventional design at a larger scale
+- Spending a fixed training budget
+- Choosing which tokens to train on
+- Making 128,000 tokens usable
+- Choosing between good answers
 
 ## Figures
 
-- **Spend a fixed training budget** (`scaling`): Simplified dense-model compute equivalence using 6ND. The seven-billion/one-trillion baseline is illustrative, not a Llama 3.1 training run; no accuracy or latency is predicted. The same training budget can buy more parameters or more examples.
-- **A model recipe has several knobs** (`flow`): Simplified organization of the Llama 3.1 development problem, not a complete production data pipeline. Architecture, data and behavior are separate experimental variables.
+- **Spend a fixed training budget** (`scaling`): Simplified training-compute trade for a dense model, using 6ND. The starting point of 7 billion parameters and 1 trillion tokens is made up; it is not a Llama 3.1 run. The figure predicts neither accuracy nor speed. The same budget buys either more parameters or more training tokens.
+- **A model recipe has several separate settings** (`flow`): Simplified outline of Llama 3.1’s development stages. The production pipeline had many more steps. Data, context length and behavior can each be changed without changing the architecture.
 
 ## Accuracy and scope
 
-Release date: 2024-07-23. Public 3.1 weight release; the earlier Llama 3 8B/70B launch was April 18, 2024.
+Release date: 2024-07-23. Meta released the 3.1 weights on July 23, 2024. The earlier Llama 3 8B and 70B models appeared on April 18, 2024.
 
-- The compute widget is an approximation, not a fitted scaling law or hardware benchmark.
-- The paper’s multimodal research models are not counted as Llama 3.1 released weights.
-- The 128K context budget covers prompt and continuation and does not guarantee reliable use of every detail.
+- The compute figure is a rough estimate, not a fitted scaling law or a hardware measurement.
+- The paper’s image and speech research models were not released as Llama 3.1 weights.
+- The 128,000-token window covers prompt and reply together, and fitting text into it does not guarantee that the model uses every detail.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 

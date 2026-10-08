@@ -1,30 +1,30 @@
 # Qwen2.5
 
-How a training corpus becomes a design choice
+How the choice of training data became the main design decision
 
 Open `index.html` directly in a browser, or follow this folder from the collection index. All runtime CSS and JavaScript are local; there is no build step. Google Fonts are optional and have system fallbacks.
 
 ## What the tutorial teaches
 
-Qwen2.5 shows how data selection, longer training, and deployment memory shape a dense model.
+Qwen2.5 kept a familiar dense transformer and improved it mainly by growing and rebalancing its training data, and came in seven sizes for different budgets.
 
-- A pile of text is not yet a curriculum
-- Training cost and serving cost pull in different directions
-- Conversation length creates a separate memory bill
-- Read the release as a bundle of choices
+- Designing the training corpus
+- Trading model size for training data
+- The memory a conversation needs
+- Comparing like with like
 
 ## Figures
 
-- **The corpus is a sequence of decisions** (`flow`): Simplified data pipeline, not the complete Qwen implementation. More tokens and a better mixture are separate interventions.
-- **Spend the same toy training budget** (`scaling`): Illustrative 6ND budget. These settings are not the Qwen2.5 training recipe and predict no benchmark score. A smaller model can receive more training while costing less per generated token.
-- **Count only the keys and values** (`kv`): Simplified bf16, single-sequence KV estimate using the 7B model dimensions. Excludes weights, activations, allocator overhead and sharding. Data efficiency during training does not eliminate context memory during inference.
+- **A corpus is built from a series of decisions** (`flow`): Simplified outline of a corpus pipeline. The Qwen team’s full implementation has more steps. More tokens and a better mixture are separate improvements.
+- **Spend the same training budget differently** (`scaling`): Simplified 6ND budget with a made-up starting point. These are not Qwen2.5’s training settings, and the figure predicts no benchmark score. A smaller model can be trained on more tokens and still cost less for each generated token.
+- **Count only the keys and values** (`kv`): Simplified KV-cache size for one conversation in bf16, using Qwen2.5-7B’s dimensions. Weights and other runtime memory are excluded. Better training data does not shrink the memory a long conversation needs.
 
 ## Accuracy and scope
 
-Release date: 2024-09-19. Official public launch date; the technical report appeared in December 2024.
+Release date: 2024-09-19. Alibaba’s Qwen team released the weights on September 19, 2024. The technical report followed in December.
 
-- The training-budget widget approximates dense weight-matrix work; it omits attention’s dependence on sequence length and is not a scaling-law fit.
-- Qwen2.5-Turbo was an API model; its million-token configuration is not attributed to the September open checkpoints.
+- The training-budget figure approximates the main matrix work of a dense model. It ignores attention’s dependence on sequence length and is not a fitted scaling law.
+- Qwen2.5-Turbo, which offered a one-million-token context, was available only through an API. That context length does not apply to the September open-weight models.
 
 The page includes primary source links next to claims and a source list. Research cutoff: 2026-10-03. Quantitative widgets are explicitly simplified teaching models, not executed model inference or performance benchmarks.
 
